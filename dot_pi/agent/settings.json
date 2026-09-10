@@ -5,7 +5,6 @@
   "defaultThinkingLevel": "medium",
   "packages": [
     "npm:opencode-pi",
-    "npm:pi-web-access",
-    "npm:pi-free"
+    "npm:pi-web-access"
   ]
 }
