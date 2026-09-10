@@ -19,7 +19,6 @@ auto_switch = false
 
 [terminal]
 default_shell = "nu"
-new_cwd = "follow"
 
 [remote]
 manage_ssh_config = false

@@ -150,7 +150,7 @@ alias restart = exec nu
 alias rn = exec nu
 
 # Update packages (using winget)
-alias update = winget upgrade --all
+alias update = winget upgrade --all --include-unknown --silent --accept-package-agreements --accept-source-agreements --disable-interactivity
 
 # Fastfetch
 alias ff = fastfetch
@@ -187,14 +187,3 @@ alias flushdns = ipconfig /flushdns
 
 # Clear the terminal (nushell has native `clear`; keep cls for muscle memory)
 alias cls = clear
-
-# Show local IP configuration
-alias ipconfig = ipconfig
-
-# Quick public IP (alias `ip` above)
-
-# ------------------------------------------
-# Directory stack / navigation extras
-# ------------------------------------------
-# Go back multiple dirs
-alias cd.. = cd ..
