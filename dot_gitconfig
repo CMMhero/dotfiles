@@ -1,0 +1,12 @@
+[user]
+	email = ch.mh.marvelio@gmail.com
+	name = Christopher Matthew Marvelio
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
+[windows]
+	appendAtomically = false
+[core]
+	longpaths = true
