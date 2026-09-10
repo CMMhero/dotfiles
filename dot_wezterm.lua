@@ -45,7 +45,7 @@ config.font =
 config.font_size = 15
 
 config.window_decorations = "RESIZE"
-config.window_background_opacity = 0.50
+config.window_background_opacity = 0.75
 config.win32_system_backdrop = "Acrylic" -- or "Mica", "Tabbed", "Acrylic"
 
 --[[
