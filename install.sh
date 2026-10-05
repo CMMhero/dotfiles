@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# setup.sh - Single entrypoint: clones/updates the dotfiles repo, installs every
-# package, and deploys all configs with GNU Stow on a fresh Ubuntu/Debian box.
+# install.sh - Single entrypoint: clones/updates the dotfiles repo, installs
+# every package, and deploys all configs with GNU Stow on a fresh Ubuntu box.
 #
 # Usage:
 #   # from a fresh machine (no repo yet)
-#   curl -fsSL https://raw.githubusercontent.com/CMMhero/dotfiles/main/setup.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/CMMhero/dotfiles/main/install.sh | bash
 #
 #   # or clone first
 #   git clone https://github.com/CMMhero/dotfiles.git ~/dotfiles
-#   cd ~/dotfiles && ./setup.sh
+#   cd ~/dotfiles && ./install.sh
 #
 # Exclusions (per user request):
 #   - ghostty, deja, tuios, zsh, marksman, pipx, thefuck, zinit, bun
@@ -42,7 +42,7 @@ DOTFILES_DIR="$HOME/dotfiles"
 SCRIPT_PATH="${BASH_SOURCE[0]:-$0}"
 
 # When piped from curl there is no repo on disk yet, so clone it and re-exec
-# the real checkout's setup.sh so every later path resolves inside the repo.
+# the real checkout's install.sh so every later path resolves inside the repo.
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" 2>/dev/null && pwd || echo "")"
 if [ ! -d "$SCRIPT_DIR/.git" ] || [ "$SCRIPT_DIR" != "$DOTFILES_DIR" ]; then
   if [ ! -d "$DOTFILES_DIR" ]; then
@@ -52,7 +52,7 @@ if [ ! -d "$SCRIPT_DIR/.git" ] || [ "$SCRIPT_DIR" != "$DOTFILES_DIR" ]; then
     log_info "Dotfiles already cloned, pulling latest..."
     git -C "$DOTFILES_DIR" pull --ff-only
   fi
-  exec "$DOTFILES_DIR/setup.sh" "$@"
+  exec "$DOTFILES_DIR/install.sh" "$@"
 fi
 
 DOTFILES_DIR="$SCRIPT_DIR"

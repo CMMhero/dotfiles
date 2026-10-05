@@ -28,7 +28,7 @@ Modular dotfiles managed with **GNU Stow** and a zero-to-hero bootstrap script (
 One-liner (clones or pulls the repo, then installs everything):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/CMMhero/dotfiles/main/setup.sh | bash
+curl -fsSL https://raw.githubusercontent.com/CMMhero/dotfiles/main/install.sh | bash
 ```
 
 Or manually:
@@ -41,7 +41,7 @@ else
 fi
 
 cd "$HOME/dotfiles" || exit 1
-./setup.sh
+./install.sh
 ```
 
 The script will:
@@ -78,8 +78,30 @@ stow -v -D -t ~ herdr
 ## Updating an Existing Machine
 
 ```bash
-cd ~/dotfiles && git pull --ff-only && ./setup.sh
+cd ~/dotfiles && git pull --ff-only && ./install.sh
 ```
+
+---
+
+## Uninstall / Reset to Default
+
+`uninstall.sh` reverses everything `install.sh` did.
+
+```bash
+# unstow all configs, restore the default login shell, delete the repo
+./uninstall.sh
+
+# also purge installed packages (brew formulas, apt packages, vite+, herdr, global pnpm)
+./uninstall.sh --purge
+
+# non-interactive
+./uninstall.sh --purge --yes
+
+# purge packages AND wipe agent data (~/.pi, ~/.omp, ~/.opencode, ~/.agents)
+./uninstall.sh --purge-data --yes
+```
+
+Session data such as atuin history and the pnpm store is preserved unless you pass `--purge-data`.
 
 ---
 
