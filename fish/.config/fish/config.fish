@@ -89,14 +89,31 @@ end
 
 # ----- update -----
 # One entry point for everything this machine keeps current:
-#   upd            brew + vite+
+#   upd            apt + brew + vite+
+#   upd apt        apt only
 #   upd brew       brew only
 #   upd vp         vite+ only (it keeps its own node/pnpm copies)
 #   upd dotfiles   pull ~/dotfiles and re-run install.sh
 # `install.sh` is re-run rather than just `git pull` because a pull updates the
 # repo but leaves every stow symlink pointing at what was last deployed.
-function upd --description 'update: brew + vite+ (upd brew|vp|dotfiles for one only)'
+#
+# apt goes first: it is the slowest (needs sudo and a password) and can fail if
+# a package was removed from the archive, which would otherwise mask the later
+# steps. autoremove reclaims the space left by packages we no longer need.
+function upd --description 'update: apt + brew + vite+ (upd apt|brew|vp|dotfiles)'
     set -l what $argv
+
+    if not set -q what[1]; or contains -- $what[1] apt
+        if command -v apt-get >/dev/null 2>&1
+            echo '==> apt'
+            sudo apt-get update
+            # `full-upgrade` also removes packages that became obsolete, which
+            # plain `upgrade` leaves behind.
+            sudo apt-get full-upgrade
+            sudo apt-get autoremove --purge
+            sudo apt-get clean
+        end
+    end
 
     if not set -q what[1]; or contains -- $what[1] brew
         if command -q brew
