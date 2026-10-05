@@ -13,16 +13,18 @@
 #
 # Exclusions (per user request):
 #   - ghostty, deja, tuios, zsh, marksman, pipx, thefuck, zinit, bun
+#   - wezterm config is kept in-repo for reference but never stowed (Windows-only)
+#   - bash, pi, and opencode configs are NOT managed here; each is left alone on disk
+#   - per-agent skill dirs (opencode/pi/omp) are not managed; only ~/.agents/skills is
 #
 # Installed:
 #   - APT base tools (build-essential, git, curl, stow, procps, file, ...)
 #   - Homebrew + CLI tools (bat, eza, fzf, ripgrep, atuin, starship,
 #     fresh-editor, hunk, fastfetch, lazygit, superfile, btop, llmfit, models,
-#     opencode, pi-coding-agent, stow, uv, ...)
+#     opencode, pi-coding-agent, stow, uv, go, ...)
 #   - Vite+ with pnpm as the managed default package manager
 #   - Oh-My-Pi (omp) via pnpm; pi + opencode via Homebrew
 #   - Herdr workspace manager (https://herdr.dev)
-#   - Global skills (SKILL.md from `npx skills`) linked into pi
 #   - Configs deployed with GNU Stow; fish set as the default login shell
 # ==============================================================================
 
@@ -131,7 +133,6 @@ BREW_PACKAGES=(
   llmfit
   models
   neovim
-  opencode
   pi-coding-agent
   ripgrep
   rustup
@@ -216,7 +217,6 @@ log_ok "Herdr ready at: $(which herdr 2>/dev/null || echo "$HOME/.local/bin/herd
 # it is version-controlled in this repo for reference but never linked into $HOME
 # on Linux and never installed via brew.
 STOW_PACKAGES=(
-  bash
   fish
   git
   starship
@@ -227,10 +227,8 @@ STOW_PACKAGES=(
   herdr
   hunk
   lazygit
-  opencode
   superfile
   vite-plus
-  pi
   omp
   skills
 )
@@ -350,7 +348,7 @@ echo "  - Terminal multiplexer: herdr (with custom keybinds & Catppuccin theme)"
 echo "  - Terminal emulator config: wezterm (.wezterm.lua, Windows-only; in repo, not stowed on Linux)"
 echo "  - Editor: fresh (fresh-editor) with catppuccin theme, color-highlighter plugin, vi-mode + toggle"
 echo "  - Runtimes: vite+ (vp), node, pnpm (pnpm-first, managed by vite+)"
-echo "  - AI Agents: pi, opencode, oh-my-pi (omp) with synced models, plugins & extensions"
+echo "  - AI Agents: pi, opencode, oh-my-pi (omp) installed via brew/pnpm; configs NOT stowed"
 echo "  - Skills: ~/.agents/skills synced; per-agent skill dirs are not managed here"
 echo "  - Shell: fish with custom aliases, abbreviations, and starship prompt"
 echo ""

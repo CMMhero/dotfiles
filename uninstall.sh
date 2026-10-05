@@ -59,7 +59,6 @@ DOTFILES_DIR="$SCRIPT_DIR"
 
 # Same package list install.sh deploys (wezterm is Windows-only, never stowed).
 STOW_PACKAGES=(
-  bash
   fish
   git
   starship
@@ -70,10 +69,8 @@ STOW_PACKAGES=(
   herdr
   hunk
   lazygit
-  opencode
   superfile
   vite-plus
-  pi
   omp
   skills
 )
@@ -97,7 +94,6 @@ BREW_PACKAGES=(
   llmfit
   models
   neovim
-  opencode
   pi-coding-agent
   ripgrep
   rustup

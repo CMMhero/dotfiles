@@ -1,22 +1,11 @@
-[credential "https://github.com"]
-	helper = !/usr/bin/gh auth git-credential
-[credential "https://gist.github.com"]
-	helper = !/usr/bin/gh auth git-credential
 [core]
 	editor = fresh
 	pager = hunk pager
 [init]
 	defaultBranch = main
 [user]
-	name = CMMhero
-	email = contact@cmmhero.top
-  signingkey = ~/.ssh/id_ed25519.pub
-[gpg]
-  format = ssh
-[commit]
-  gpgsign = true
-[tag]
-  gpgsign = true
+	email = ch.mh.marvelio@gmail.com
+	name = Christopher Matthew Marvelio
 [pull]
   rebase = true
 [push]
