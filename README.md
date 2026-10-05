@@ -23,19 +23,25 @@ Modular dotfiles managed with **GNU Stow** and a zero-to-hero bootstrap script (
 
 ---
 
-## Quick Start on a Fresh Linux Machine
+## Quick Start on a Fresh Ubuntu Machine
 
-1. Clone this repository into `~/dotfiles`:
+One-liner (clones or pulls the repo, then installs everything):
 
 ```bash
-git clone <YOUR_GIT_REPO_URL> ~/dotfiles
+curl -fsSL https://raw.githubusercontent.com/CMMhero/dotfiles/main/bootstrap.sh | bash
 ```
 
-2. Run the bootstrap installer:
+Or manually:
 
 ```bash
-cd ~/dotfiles
-./setup.sh
+if [[ ! -d "$HOME/dotfiles" ]]; then
+  git clone https://github.com/CMMhero/dotfiles.git "$HOME/dotfiles"
+else
+  cd "$HOME/dotfiles" && git pull --ff-only
+fi
+
+cd "$HOME/dotfiles" || exit 1
+./bootstrap.sh
 ```
 
 The script will:
@@ -69,11 +75,19 @@ stow -v -D -t ~ herdr
 
 ---
 
+## Updating an Existing Machine
+
+```bash
+cd ~/dotfiles && git pull --ff-only && ./bootstrap.sh
+```
+
+---
+
 ## Pushing to your Remote Git Repository
 
 ```bash
 cd ~/dotfiles
-git remote add origin git@github.com:<username>/dotfiles.git
+git remote add origin git@github.com:CMMhero/dotfiles.git
 git branch -M main
 git push -u origin main
 ```
