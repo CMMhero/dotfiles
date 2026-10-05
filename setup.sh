@@ -132,7 +132,7 @@ fi
 log_ok "uv ready at: $(which uv 2>/dev/null || echo "$HOME/.local/bin/uv")"
 
 # ------------------------------------------------------------------------------
-# 5. Vite+ Installation
+# 5. Vite+ Installation & pnpm Runtime Management (Default)
 # ------------------------------------------------------------------------------
 if [ ! -d "$HOME/.local/share/vite-plus" ] && ! command -v vp >/dev/null 2>&1; then
   log_info "Installing Vite+ (https://vite.plus)..."
@@ -145,47 +145,43 @@ if [ -f "$HOME/.config/vite-plus/env" ]; then
 elif [ -d "$HOME/.local/share/vite-plus/bin" ]; then
   export PATH="$HOME/.local/share/vite-plus/bin:$PATH"
 fi
-log_ok "Vite+ runtime ready."
 
-# ------------------------------------------------------------------------------
-# 6. Bun Runtime Installation (if not already in PATH)
-# ------------------------------------------------------------------------------
-if ! command -v bun >/dev/null 2>&1; then
-  log_info "Installing Bun runtime..."
-  curl -fsSL https://bun.sh/install | bash
-  export BUN_INSTALL="$HOME/.bun"
-  export PATH="$BUN_INSTALL/bin:$PATH"
+log_info "Configuring Vite+ to manage pnpm by default..."
+vp env on pnpm 2>/dev/null || true
+vp env default pnpm@latest 2>/dev/null || true
+vp env install pnpm@latest 2>/dev/null || true
+
+# Configure pnpm environment and global bin directory
+export VP_PACKAGE_MANAGER="pnpm@latest"
+export PNPM_HOME="$HOME/.local/share/pnpm"
+mkdir -p "$HOME/.local/bin" "$PNPM_HOME"
+export PATH="$HOME/.local/share/vite-plus/bin:$HOME/.local/bin:$PNPM_HOME:$PATH"
+if command -v pnpm >/dev/null 2>&1; then
+  pnpm config set global-bin-dir "$HOME/.local/bin" 2>/dev/null || true
 fi
-log_ok "Bun runtime ready at: $(which bun 2>/dev/null || echo "$HOME/.bun/bin/bun")"
+log_ok "pnpm runtime ready via Vite+ ($(pnpm --version 2>/dev/null || echo 'managed'))."
 
 # ------------------------------------------------------------------------------
-# 7. AI Agents: Pi & Oh-My-Pi (omp)
+# 6. AI Agents: Pi & Oh-My-Pi (omp)
 # ------------------------------------------------------------------------------
-# Note: pi-coding-agent binary ('pi') is installed via Homebrew above.
-# Oh-My-Pi ('omp') is installed via Bun/npm below.
-log_info "Setting up Oh-My-Pi (omp)..."
-if command -v bun >/dev/null 2>&1; then
-  bun add -g @oh-my-pi/pi-coding-agent || true
-elif command -v npm >/dev/null 2>&1; then
-  npm install -g @oh-my-pi/pi-coding-agent || true
+# Note: pi-coding-agent binary ('pi') is installed via Homebrew.
+# Oh-My-Pi ('omp') is installed via pnpm below.
+log_info "Installing Oh-My-Pi (omp) globally via pnpm..."
+if command -v pnpm >/dev/null 2>&1; then
+  pnpm add -g @oh-my-pi/pi-coding-agent || true
 fi
-
-# Ensure ~/.local/bin is in PATH for standalone launchers
-mkdir -p "$HOME/.local/bin"
-export PATH="$HOME/.local/bin:$PATH"
-log_ok "AI Agents installed: pi ($(which pi 2>/dev/null || echo 'brew')), opencode ($(which opencode 2>/dev/null || echo 'brew')), omp."
+log_ok "AI Agents ready: pi, opencode, omp."
 
 # ------------------------------------------------------------------------------
-# 8. Herdr Installation (https://herdr.dev)
+# 7. Herdr Installation (https://herdr.dev)
 # ------------------------------------------------------------------------------
 if ! command -v herdr >/dev/null 2>&1 && [ ! -x "$HOME/.local/bin/herdr" ]; then
   log_info "Installing Herdr terminal workspace manager (https://herdr.dev)..."
   curl -fsSL https://herdr.dev/install.sh | bash || true
 fi
 log_ok "Herdr ready at: $(which herdr 2>/dev/null || echo "$HOME/.local/bin/herdr")"
-
 # ------------------------------------------------------------------------------
-# 9. GNU Stow Dotfiles Deployment
+# 8. GNU Stow Dotfiles Deployment
 # ------------------------------------------------------------------------------
 STOW_PACKAGES=(
   bash
@@ -237,7 +233,7 @@ done
 log_ok "All dotfiles stowed successfully."
 
 # ------------------------------------------------------------------------------
-# 10. Skills & Agent Symlinks Sync
+# 9. Skills & Agent Symlinks Sync
 # ------------------------------------------------------------------------------
 log_info "Verifying skills and agent symlinks..."
 mkdir -p "$HOME/.pi/skills" "$HOME/.pi/agent/skills"
@@ -252,16 +248,16 @@ if [ -d "$HOME/.agents/skills" ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 11. Oh-My-Pi Plugins Setup
+# 10. Oh-My-Pi Plugins Setup
 # ------------------------------------------------------------------------------
 if [ -d "$HOME/.omp/plugins" ] && [ -f "$HOME/.omp/plugins/package.json" ]; then
-  log_info "Installing Oh-My-Pi plugins..."
-  (cd "$HOME/.omp/plugins" && (bun install 2>/dev/null || npm install 2>/dev/null || true))
+  log_info "Installing Oh-My-Pi plugins via pnpm..."
+  (cd "$HOME/.omp/plugins" && (pnpm install 2>/dev/null || true))
   log_ok "Oh-My-Pi plugins installed."
 fi
 
 # ------------------------------------------------------------------------------
-# 12. Default Shell Setup (Fish)
+# 11. Default Shell Setup (Fish)
 # ------------------------------------------------------------------------------
 FISH_BIN="$(which fish 2>/dev/null || echo "/home/linuxbrew/.linuxbrew/bin/fish")"
 if [ -x "$FISH_BIN" ]; then
@@ -272,14 +268,15 @@ if [ -x "$FISH_BIN" ]; then
 
   CURRENT_SHELL="$(getent passwd "$USER" | cut -d: -f7)"
   if [ "$CURRENT_SHELL" != "$FISH_BIN" ]; then
-    log_info "Setting default shell to $FISH_BIN for $USER..."
+    log_info "Setting default login shell to $FISH_BIN for $USER..."
     sudo chsh -s "$FISH_BIN" "$USER" || chsh -s "$FISH_BIN" || true
   fi
-  log_ok "Default shell configured: $FISH_BIN"
+  export SHELL="$FISH_BIN"
+  log_ok "Default login shell configured: $FISH_BIN"
 fi
 
 # ------------------------------------------------------------------------------
-# 13. Completion Summary
+# 12. Completion Summary
 # ------------------------------------------------------------------------------
 echo ""
 printf "\033[1;32m===============================================================\033[0m\n"
@@ -292,7 +289,7 @@ echo "  - Python manager: uv (pip/venv/run/build)"
 echo "  - Terminal multiplexer: herdr (with custom keybinds & Catppuccin theme)"
 echo "  - Terminal emulator config: wezterm (.wezterm.lua)"
 echo "  - Editor: fresh (fresh-editor)"
-echo "  - Runtimes: vite+ (vp), bun, node, pnpm"
+echo "  - Runtimes: vite+ (vp), node, pnpm (pnpm-first, managed by vite+)"
 echo "  - AI Agents: pi, opencode, oh-my-pi (omp) with synced models, plugins & skills"
 echo "  - Skills: imported into ~/.agents/skills and linked to pi"
 echo "  - Shell: fish with custom aliases, abbreviations, and starship prompt"

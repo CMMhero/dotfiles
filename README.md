@@ -13,11 +13,11 @@ Modular dotfiles managed with **GNU Stow** and a zero-to-hero bootstrap script (
   - `herdr` (`~/.config/herdr/config.toml`) with custom keybindings, tabs, and Catppuccin theme
   - `wezterm` (`~/.wezterm.lua` and `~/.config/wezterm/wezterm.lua`) with Catppuccin Macchiato, 144Hz WebGPU, leader keys, split controls
 - **Editor**: `fresh-editor` (`~/.config/fresh`) with Catppuccin theme, vi mode startup, custom key calibration
-- **Runtimes**: Vite+ (`~/.config/vite-plus`), Bun, Node, pnpm
+- **Runtimes & Package Managers**: Vite+ (`~/.config/vite-plus`), **pnpm-first by default** (managed through Vite+), Node.js
 - **AI Coding Agents**:
   - `pi` (`pi-coding-agent` via Homebrew) with configured models, settings, and skills
   - `opencode` (via Homebrew) with `~/.config/opencode/`
-  - `omp` (`@oh-my-pi/pi-coding-agent` via Bun) with `config.yml` (Titanium theme, Nerd font preset, Gemini model) and commandcode plugin
+  - `omp` (`@oh-my-pi/pi-coding-agent` via pnpm) with `config.yml` (Titanium theme, Nerd font preset, Gemini model) and commandcode plugin
 - **Skills**: Global skills in `~/.agents/skills/` (`find-skills`, `herdr`, `unslop`, `vercel-react-best-practices`, `web-design-guidelines`, `writing-guidelines`) pre-linked to Pi and Oh-My-Pi
 - **Exclusions (per user request)**: `ghostty`, `deja`, `tuios`, `zsh`, `marksman`, `pipx`, `thefuck`, `zinit`
 
@@ -43,12 +43,12 @@ The script will:
 2. Install Homebrew (Linuxbrew) and initialize shell environment.
 3. Install all Homebrew CLI formulas (including `pi-coding-agent`, `opencode`, `stow`, and `uv`).
 4. Install Herdr (`curl -fsSL https://herdr.dev/install.sh | bash`).
-5. Install Vite+ (`https://vite.plus`) and Bun.
-6. Install Oh-My-Pi (`omp`) globally.
+5. Install Vite+ (`https://vite.plus`) and configure `pnpm` as the default managed package manager.
+6. Install Oh-My-Pi (`omp`) globally via `pnpm`.
 7. Back up any conflicting system defaults to `~/.dotfiles_backup/<timestamp>/`.
 8. Link all packages into `$HOME` via `gnu stow`.
-9. Wire skill symlinks into Pi and install Oh-My-Pi plugins.
-10. Configure Fish as the default login shell.
+9. Wire skill symlinks into Pi and install Oh-My-Pi plugins via `pnpm`.
+10. Configure Fish as the default login shell (`chsh -s $(which fish)`).
 
 ---
 

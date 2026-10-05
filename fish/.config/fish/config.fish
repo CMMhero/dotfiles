@@ -33,8 +33,10 @@ else
 end
 
 # ---------- Vite+ default (pnpm-first) ----------
-set -gx VP_PACKAGE_MANAGER "pnpm@12"
-
+set -gx VP_PACKAGE_MANAGER "pnpm@latest"
+set -gx PNPM_HOME "$HOME/.local/share/pnpm"
+test -d "$PNPM_HOME"; and fish_add_path "$PNPM_HOME"
+fish_add_path "$HOME/.local/bin"
 # ---------- Starship (starship init nu) ----------
 if command -q starship
     starship init fish | source

@@ -101,7 +101,7 @@ else
 fi
 
 # ---------- Vite+ (pnpm-first) ----------
-export VP_PACKAGE_MANAGER="pnpm@12"
+export VP_PACKAGE_MANAGER="pnpm@latest"
 [ -f "$HOME/.config/vite-plus/env" ] && . "$HOME/.config/vite-plus/env"
 
 # ---------- Starship (Prompt) ----------
