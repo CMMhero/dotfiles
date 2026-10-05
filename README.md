@@ -1,6 +1,6 @@
 # dotfiles
 
-Modular dotfiles managed with **GNU Stow** and a zero-to-hero bootstrap script (`setup.sh`) for fresh Linux / Ubuntu installations.
+Modular dotfiles managed with **GNU Stow**, with `install.sh` / `uninstall.sh` for a zero-to-hero setup or a full reset on fresh Linux / Ubuntu installations.
 
 ---
 
