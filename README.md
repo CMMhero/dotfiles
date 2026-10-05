@@ -7,9 +7,9 @@ Modular dotfiles managed with **GNU Stow** and a zero-to-hero bootstrap script (
 ## What's Included
 
 - **Shells**: Fish (`~/.config/fish`), Bash (`.bashrc`, `.profile`), Zsh (`.zshrc`, `.zshenv`)
-- **CLI Tools**: `atuin`, `bat`, `btop`, `chafa`, `eza`, `fastfetch`, `fd`, `fzf`, `gh`, `hunk`, `jq`, `lazygit`, `llmfit`, `marksman`, `models`, `neovim`, `pipx`, `ripgrep`, `rustup`, `starship`, `superfile`, `tealdeer`, `thefuck`, `zinit`, `zoxide`
-- **Python**: `uv` (fast Python package and project manager)
-- **Terminal Workspace Manager**: `herdr` (`~/.config/herdr/config.toml`) with custom keybindings, tabs, and Catppuccin theme
+- **Terminal Workspace & Emulators**:
+  - `herdr` (`~/.config/herdr/config.toml`) with custom keybindings, tabs, and Catppuccin theme
+  - `wezterm` (`~/.wezterm.lua` and `~/.config/wezterm/wezterm.lua`) with Catppuccin Macchiato, 144Hz WebGPU, leader keys, split controls
 - **Editor**: `fresh-editor` (`~/.config/fresh`) with Catppuccin theme, vi mode startup, custom key calibration
 - **Runtimes**: Vite+ (`~/.config/vite-plus`), Bun, Node, pnpm
 - **AI Coding Agents**:
@@ -55,10 +55,8 @@ From within `~/dotfiles`:
 
 ```bash
 # Stow all packages to $HOME
-stow -v -R -t ~ bash zsh fish git starship atuin btop fastfetch fresh herdr hunk lazygit superfile thefuck vite-plus pi omp skills
-
-# Stow a specific package (e.g., herdr)
-stow -v -R -t ~ herdr
+stow -v -R -t ~ bash zsh fish git starship atuin btop fastfetch fresh herdr hunk lazygit superfile thefuck vite-plus pi omp skills wezterm
+```
 
 # Unstow a package
 stow -v -D -t ~ herdr

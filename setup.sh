@@ -205,8 +205,8 @@ STOW_PACKAGES=(
   pi
   omp
   skills
+  wezterm
 )
-
 log_info "Deploying configs using GNU Stow..."
 
 # Function to back up conflicting files before stowing
