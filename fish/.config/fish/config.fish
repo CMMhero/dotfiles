@@ -37,7 +37,7 @@ set -gx VP_PACKAGE_MANAGER "pnpm@latest"
 set -gx PNPM_HOME "$HOME/.local/share/pnpm"
 test -d "$PNPM_HOME"; and fish_add_path "$PNPM_HOME"
 fish_add_path "$HOME/.local/bin"
-# ---------- Starship (starship init nu) ----------
+# ---------- Starship prompt ----------
 if command -q starship
     starship init fish | source
 end
@@ -51,7 +51,7 @@ if command -q zoxide
 end
 
 # ---------- fzf keybindings (Ctrl-T / Ctrl-R / Alt-C feel) ----------
-# brew fzf; nu gets this via atuin/fzf muscle memory.
+# brew fzf; Ctrl-R is owned by atuin, which binds the same muscle memory.
 set -gx FZF_DEFAULT_COMMAND 'fd --type f --hidden --follow --exclude .git'
 # Styled popup + previews for Ctrl-T (files) / Alt-C (dirs). Ctrl-R is owned
 # by atuin, so FZF_DEFAULT_COMMAND only feeds the file pickers.
@@ -65,19 +65,19 @@ set -gx FZF_ALT_C_OPTS "--preview 'eza --icons=always --tree --color=always {} |
 source /home/linuxbrew/.linuxbrew/opt/fzf/shell/key-bindings.fish
 fzf_key_bindings
 
-# ---------- atuin (source ~/.local/share/atuin/init.nu) ----------
-# Not installed in WSL right now — load only if present.
+# ---------- atuin ----------
+# Load only if present.
 if command -q atuin
     atuin init fish | source
 end
 
 # ============================================================
-# Abbreviations + aliases — mirrors nu aliases 1:1
-# abbr expands visibly (fish-idiomatic); alias where nu
-# replaced a command outright (ls/cat/grep/find/vim...).
+# Abbreviations + aliases
+# abbr expands visibly; alias where a command is replaced outright (ls/cat/grep/find/vim...) or takes no expansion
+
 # ============================================================
 
-# ----- eza (nu: ll / la / l / ls / tree) -----
+# ----- eza: ll / la / l / ls / tree -----
 if command -q eza
     alias l='eza -F --no-filesize --no-permissions --no-user --icons=auto --group-directories-first'
     alias ls='eza -aF --icons=auto --group-directories-first'
@@ -87,21 +87,45 @@ if command -q eza
     alias dtree='eza -aF --tree --only-dirs --icons=auto --ignore-glob "node_modules|.git"'
 end
 
-# ----- updates -----
-# Package updates. brew cleanup is included because upgrading without it lets
-# the download cache and old versions pile up indefinitely.
-if command -q brew
-    alias ub='brew update; and brew upgrade; and brew cleanup'
-end
-# Vite+ keeps its own node/pnpm copies, so it upgrades independently of brew.
-if command -q vp
-    alias uv-up='vp upgrade'
-end
+# ----- update -----
+# One entry point for everything this machine keeps current:
+#   u          brew + vite+
+#   u brew     brew only
+#   u vp       vite+ only (it keeps its own node/pnpm copies)
+#   u dotfiles pull ~/dotfiles and re-run install.sh
+# `install.sh` is re-run rather than just `git pull` because a pull updates the
+# repo but leaves every stow symlink pointing at what was last deployed.
+function u --description 'update: brew + vite+ (u brew|vp|dotfiles for one only)'
+    set -l what $argv
 
-# Dotfiles: pull, then re-run install.sh so both the repo copy and every stow
-# symlink are refreshed. `git pull` alone would update the repo but leave the
-# linked files pointing at whatever stow last deployed.
-alias ud='cd $HOME/dotfiles; and git pull --ff-only; and ./install.sh'
+    if not set -q what[1]; or contains -- $what[1] brew
+        if command -q brew
+            echo '==> brew'
+            brew update
+            # cleanup matters: without it old versions and the download cache
+            # accumulate indefinitely.
+            brew upgrade
+            brew cleanup
+        end
+    end
+
+    if not set -q what[1]; or contains -- $what[1] vp
+        if command -q vp
+            echo '==> vite+'
+            vp upgrade
+        end
+    end
+
+    if contains -- $what dotfiles
+        echo '==> dotfiles'
+        cd $HOME/dotfiles
+        or return 1
+        git pull --ff-only
+        or return 1
+        # Re-run so the stow symlinks pick up the pulled changes.
+        ./install.sh
+    end
+end
 
 # ----- navigation -----
 abbr -a -- .. 'cd ..'
@@ -141,7 +165,7 @@ end
 # Create a private GH repo from the current dir, push, and open the browser.
 # No --remote=origin: push.autoSetupRemote=true in ~/.gitconfig already wires
 # the new repo's upstream on the first push, so naming it here is redundant.
-abbr -a -- gh-create 'gh repo create --private --source=.; and git push -u --all; and gh browse'
+alias gh-create 'gh repo create --private --source=.; and git push -u --all; and gh browse'
 
 # ----- misc -----
 abbr -a -- ip 'curl http://ifconfig.me/ip'
@@ -167,10 +191,10 @@ end
 # ----- pnpm-first (npm->pnpm, npx->pnpm dlx) -----
 # Escape hatches: npm-real / npx-real call the real binaries.
 if command -q pnpm
-    function npm --description 'pnpm passthrough (mirrors nu)' --wraps pnpm
+    function npm --description 'pnpm passthrough' --wraps pnpm
         pnpm $argv
     end
-    function npx --description 'pnpm dlx passthrough (mirrors nu); `npx skills` uses the skills defaults' --wraps pnpm
+    function npx --description 'pnpm dlx passthrough; `npx skills` uses the skills defaults' --wraps pnpm
         # Route `npx skills ...` (incl. `npx -y skills`, `skills@latest`) to
         # the skills wrapper below so it picks up the -g/--agent/--yes
         # defaults. Only the first matching token is treated as the package.
@@ -201,51 +225,60 @@ end
 # ----- Vite+ (`vp`) shortcuts -----
 # Only defined when `vp` exists; kept identical otherwise.
 if command -q vp
-    abbr -a -- vpi 'vp install'
-    abbr -a -- vpa 'vp add'
-    abbr -a -- vpad 'vp add -D'
-    abbr -a -- vpd 'vp dev'
-    abbr -a -- vpb 'vp build'
-    abbr -a -- vpv 'vp preview'
-    abbr -a -- vpc 'vp check'
-    abbr -a -- vpf 'vp fmt'
-    abbr -a -- vpl 'vp lint'
-    abbr -a -- vpr 'vp run'
-    abbr -a -- vpx 'vp dlx'
     function vpcr --description 'vp create --package-manager pnpm --editor zed --agent agents,claude' --wraps vp
         vp create --package-manager pnpm --editor zed --agent agents,claude $argv
     end
 end
 
-# ----- skills defaults: global, symlink, crush/pi/claude-code, no prompts -----
-# `skills` reads no config file or env vars for agent selection, so the
-# defaults are injected in the shell. Symlinking is the CLI's default mode
-# (--copy is the opt-out), so it is never passed here.
-# -g/--global goes right after the subcommand so `-p/--project` still wins.
-function skills --description 'skills (add defaults: -g --agent crush pi claude-code --yes)'
+# ----- skills (pnpm dlx; global by default) -----
+# `skills` reads no config file or env vars for agent selection, so the defaults
+# are injected here. Two things matter and both were wrong before:
+#
+# 1. Invocation goes through `pnpm dlx`, not `command npx`. `command npx`
+#    deliberately bypasses fish functions, so it reached the real npx shim and
+#    skipped these defaults entirely.
+# 2. Scope flags go AFTER the source. skills 1.7.0's `-a/--agent` is variadic
+#    and swallows the source if it comes first, and a leading `-g` is silently
+#    ignored, which installed into ~/.agents/skills (project scope) instead of
+#    the agent dir. Flags after the source are parsed correctly.
+function skills --description 'skills (pnpm dlx; defaults to -g --agent pi claude-code --yes)'
     switch $argv[1]
         case add a
-            # Flags go right after the source: -a/--agent is variadic and
-            # would swallow the source if it came first.
-            set -l args $argv[2..]
-            set -l tail $args[2..]
-            # Respect an explicit -a/--agent or --all the caller gave.
-            if not contains -- --agent $args; and not contains -- -a $args; and not contains -- --all $args
-                set args $args[1] --agent crush pi claude-code $tail
+            set -l src $argv[2]
+            if test -z "$src"
+                echo "skills: missing <package>" >&2
+                return 1
             end
-            if not contains -- -g $args; and not contains -- --global $args; and not contains -- -p $args; and not contains -- --project $args
-                set args $args[1] -g $args[2..]
+            # Everything after the source is the caller's own flags.
+            set -l rest $argv[3..]
+
+            # Respect an explicit scope or agent selection.
+            set -l scope
+            if contains -- --agent $rest;   or contains -- -a $rest
+            else if contains -- --all $rest
+            else if contains -- -g $rest;    or contains -- --global $rest
+            else if contains -- -p $rest;    or contains -- --project $rest
+                set scope
+            else
+                # Default to global so `skills add x` never lands in the cwd.
+                set scope -g
             end
-            if not contains -- --yes $args; and not contains -- -y $args; and not contains -- --all $args
-                set args $args[1] --yes $args[2..]
+
+            set -l agent
+            if not contains -- --agent $rest; and not contains -- -a $rest
+                set agent --agent pi claude-code
             end
-            command npx -y skills@latest add $args
+
+            set -l yes
+            if not contains -- --yes $rest; and not contains -- -y $rest
+                set yes --yes
+            end
+
+            pnpm dlx skills@latest add $src $scope $agent $yes $rest
         case '*'
-            command npx -y skills@latest $argv
+            pnpm dlx skills@latest $argv
     end
 end
-# opencode
-fish_add_path /home/cmmhero/.opencode/bin
 
 # tealdeer (binary ships as `tldr`); read pages + completions from here.
 set -gx TEALDEER_CONFIG_DIR "$HOME/.config/tealdeer"

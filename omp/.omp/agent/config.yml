@@ -1,6 +1,6 @@
 setupVersion: 2
 modelRoles:
-  default: commandcode/stealth/space-bunny-alpha:medium
+  default: opencode-zen/space-bunny-free:medium
 theme:
   dark: dark-catppuccin
   light: light-catppuccin
