@@ -89,13 +89,13 @@ end
 
 # ----- update -----
 # One entry point for everything this machine keeps current:
-#   u          brew + vite+
-#   u brew     brew only
-#   u vp       vite+ only (it keeps its own node/pnpm copies)
-#   u dotfiles pull ~/dotfiles and re-run install.sh
+#   upd            brew + vite+
+#   upd brew       brew only
+#   upd vp         vite+ only (it keeps its own node/pnpm copies)
+#   upd dotfiles   pull ~/dotfiles and re-run install.sh
 # `install.sh` is re-run rather than just `git pull` because a pull updates the
 # repo but leaves every stow symlink pointing at what was last deployed.
-function u --description 'update: brew + vite+ (u brew|vp|dotfiles for one only)'
+function upd --description 'update: brew + vite+ (upd brew|vp|dotfiles for one only)'
     set -l what $argv
 
     if not set -q what[1]; or contains -- $what[1] brew
