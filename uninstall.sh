@@ -57,7 +57,7 @@ fi
 
 DOTFILES_DIR="$SCRIPT_DIR"
 
-# Same package list install.sh deploys
+# Same package list install.sh deploys (wezterm is Windows-only, never stowed).
 STOW_PACKAGES=(
   bash
   fish
@@ -76,7 +76,6 @@ STOW_PACKAGES=(
   pi
   omp
   skills
-  wezterm
 )
 
 BREW_PACKAGES=(

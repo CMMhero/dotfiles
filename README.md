@@ -7,19 +7,19 @@ Modular dotfiles managed with **GNU Stow**, with `install.sh` / `uninstall.sh` f
 ## What's Included
 
 - **Shells**: Fish (`~/.config/fish`), Bash (`.bashrc`, `.profile`)
-- **CLI Tools (via Homebrew)**: `atuin`, `bat`, `btop`, `chafa`, `eza`, `fastfetch`, `fd`, `fish`, `fresh-editor`, `fzf`, `gh`, `hunk`, `jq`, `lazygit`, `llmfit`, `models`, `neovim`, `opencode`, `pi-coding-agent`, `ripgrep`, `rustup`, `starship`, `stow`, `superfile`, `tealdeer`, `uv`, `zoxide`
+- **CLI Tools (via Homebrew)**: `atuin`, `bat`, `btop`, `chafa`, `eza`, `fastfetch`, `fd`, `fish`, `fresh-editor`, `fzf`, `gh`, `go`, `hunk`, `jq`, `lazygit`, `llmfit`, `models`, `neovim`, `opencode`, `pi-coding-agent`, `ripgrep`, `rustup`, `starship`, `stow`, `superfile`, `tealdeer`, `uv`, `zoxide`
 - **Python**: `uv` (installed via brew / official script)
 - **Terminal Workspace & Emulators**:
   - `herdr` (`~/.config/herdr/config.toml`) with custom keybindings, tabs, and Catppuccin theme
-  - `wezterm` (`~/.wezterm.lua` and `~/.config/wezterm/wezterm.lua`) with Catppuccin Macchiato, 144Hz WebGPU, leader keys, split controls
-- **Editor**: `fresh-editor` (`~/.config/fresh`) with Catppuccin theme, vi mode startup, custom key calibration
+  - `wezterm` — **Windows-only**. `.wezterm.lua` is kept in the repo for reference (WSL domain, pwsh `default_prog`, Acrylic backdrop) but is **not stowed** and wezterm is **not installed** on Linux.
+- **Editor**: `fresh-editor` (`~/.config/fresh`) with the Catppuccin theme package, the `color-highlighter` plugin, a `dotfiles-fresh-language` grammar, vi mode enabled at startup, and a **"Toggle vi mode"** command in the palette (Ctrl+P)
 - **Runtimes & Package Managers**: Vite+ (`~/.config/vite-plus`), **pnpm-first by default** (managed through Vite+), Node.js
 - **AI Coding Agents**:
-  - `pi` (`pi-coding-agent` via Homebrew) with configured models, settings, and skills
+  - `pi` (`pi-coding-agent` via Homebrew) with configured models, settings, skills, and extensions (`herdr-agent-state`, `orca-agent-status`, `orca-prefill`, `orca-titlebar-spinner`)
   - `opencode` (via Homebrew) with `~/.config/opencode/`
-  - `omp` (`@oh-my-pi/pi-coding-agent` via pnpm) with `config.yml` (Titanium theme, Nerd font preset, Gemini model) and commandcode plugin
+  - `omp` (`@oh-my-pi/pi-coding-agent` via pnpm) with `config.yml` (Titanium theme, Nerd font preset, Gemini model), the `pi-commandcode-provider` plugin, and extensions (`herdr-omp-agent-state`, `opencode-zen-fix`)
 - **Skills**: Global skills in `~/.agents/skills/` (`find-skills`, `herdr`, `unslop`, `vercel-react-best-practices`, `web-design-guidelines`, `writing-guidelines`) pre-linked to Pi and Oh-My-Pi
-- **Exclusions (per user request)**: `ghostty`, `deja`, `tuios`, `zsh`, `marksman`, `pipx`, `thefuck`, `zinit`
+- **Exclusions (per user request)**: `ghostty`, `deja`, `tuios`, `zsh`, `marksman`, `pipx`, `thefuck`, `zinit`, `bun`
 
 ---
 
@@ -63,8 +63,8 @@ The script will:
 From within `~/dotfiles`:
 
 ```bash
-# Stow all packages to $HOME
-stow -v -R -t ~ bash fish git starship atuin btop fastfetch fresh herdr hunk lazygit opencode superfile vite-plus pi omp skills wezterm
+# Stow all packages to $HOME (wezterm excluded — Windows-only)
+stow -v -R -t ~ bash fish git starship atuin btop fastfetch fresh herdr hunk lazygit opencode superfile vite-plus pi omp skills
 
 # Stow a specific package (e.g., herdr)
 stow -v -R -t ~ herdr

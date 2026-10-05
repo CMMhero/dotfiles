@@ -211,6 +211,10 @@ log_ok "Herdr ready at: $(which herdr 2>/dev/null || echo "$HOME/.local/bin/herd
 # ------------------------------------------------------------------------------
 # 9. GNU Stow Dotfiles Deployment
 # ------------------------------------------------------------------------------
+# NOTE: `wezterm` is deliberately absent. Its config targets the Windows build
+# (WSL domain, pwsh default_prog, Acrylic backdrop, win32_system_backdrop), so
+# it is version-controlled in this repo for reference but never linked into $HOME
+# on Linux and never installed via brew.
 STOW_PACKAGES=(
   bash
   fish
@@ -229,7 +233,6 @@ STOW_PACKAGES=(
   pi
   omp
   skills
-  wezterm
 )
 
 log_info "Deploying configs using GNU Stow..."
@@ -342,7 +345,7 @@ echo "  - Homebrew prefix: $(brew --prefix 2>/dev/null || echo '/home/linuxbrew/
 echo "  - Brew CLI tools: bat, eza, fd, ripgrep, atuin, starship, fresh, lazygit, superfile, stow, uv, opencode, pi-coding-agent, etc."
 echo "  - Python manager: uv (pip/venv/run/build)"
 echo "  - Terminal multiplexer: herdr (with custom keybinds & Catppuccin theme)"
-echo "  - Terminal emulator config: wezterm (.wezterm.lua)"
+echo "  - Terminal emulator config: wezterm (.wezterm.lua, Windows-only; in repo, not stowed on Linux)"
 echo "  - Editor: fresh (fresh-editor) with catppuccin theme, color-highlighter plugin, vi-mode + toggle"
 echo "  - Runtimes: vite+ (vp), node, pnpm (pnpm-first, managed by vite+)"
 echo "  - AI Agents: pi, opencode, oh-my-pi (omp) with synced models, plugins & skills"
