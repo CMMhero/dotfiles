@@ -6,17 +6,20 @@ Modular dotfiles managed with **GNU Stow** and a zero-to-hero bootstrap script (
 
 ## What's Included
 
-- **Shells**: Fish (`~/.config/fish`), Bash (`.bashrc`, `.profile`), Zsh (`.zshrc`, `.zshenv`)
+- **Shells**: Fish (`~/.config/fish`), Bash (`.bashrc`, `.profile`)
+- **CLI Tools (via Homebrew)**: `atuin`, `bat`, `btop`, `chafa`, `eza`, `fastfetch`, `fd`, `fish`, `fresh-editor`, `fzf`, `gh`, `hunk`, `jq`, `lazygit`, `llmfit`, `models`, `neovim`, `opencode`, `pi-coding-agent`, `ripgrep`, `rustup`, `starship`, `stow`, `superfile`, `tealdeer`, `uv`, `zoxide`
+- **Python**: `uv` (installed via brew / official script)
 - **Terminal Workspace & Emulators**:
   - `herdr` (`~/.config/herdr/config.toml`) with custom keybindings, tabs, and Catppuccin theme
   - `wezterm` (`~/.wezterm.lua` and `~/.config/wezterm/wezterm.lua`) with Catppuccin Macchiato, 144Hz WebGPU, leader keys, split controls
 - **Editor**: `fresh-editor` (`~/.config/fresh`) with Catppuccin theme, vi mode startup, custom key calibration
 - **Runtimes**: Vite+ (`~/.config/vite-plus`), Bun, Node, pnpm
 - **AI Coding Agents**:
-  - `pi` (`@earendil-works/pi-coding-agent`) with configured models, settings, and skills
-  - `omp` (`@oh-my-pi/pi-coding-agent`) with `config.yml` (Titanium theme, Nerd font preset, Gemini model) and commandcode plugin
+  - `pi` (`pi-coding-agent` via Homebrew) with configured models, settings, and skills
+  - `opencode` (via Homebrew) with `~/.config/opencode/`
+  - `omp` (`@oh-my-pi/pi-coding-agent` via Bun) with `config.yml` (Titanium theme, Nerd font preset, Gemini model) and commandcode plugin
 - **Skills**: Global skills in `~/.agents/skills/` (`find-skills`, `herdr`, `unslop`, `vercel-react-best-practices`, `web-design-guidelines`, `writing-guidelines`) pre-linked to Pi and Oh-My-Pi
-- **Exclusions**: `ghostty`, `deja`, and `tuios` are excluded.
+- **Exclusions (per user request)**: `ghostty`, `deja`, `tuios`, `zsh`, `marksman`, `pipx`, `thefuck`, `zinit`
 
 ---
 
@@ -38,10 +41,10 @@ cd ~/dotfiles
 The script will:
 1. Update APT and install base essentials (`build-essential`, `curl`, `git`, `stow`, `procps`, `file`, etc.).
 2. Install Homebrew (Linuxbrew) and initialize shell environment.
-3. Install all Homebrew CLI formulas (including `uv`).
+3. Install all Homebrew CLI formulas (including `pi-coding-agent`, `opencode`, `stow`, and `uv`).
 4. Install Herdr (`curl -fsSL https://herdr.dev/install.sh | bash`).
 5. Install Vite+ (`https://vite.plus`) and Bun.
-6. Install Pi and Oh-My-Pi agents globally.
+6. Install Oh-My-Pi (`omp`) globally.
 7. Back up any conflicting system defaults to `~/.dotfiles_backup/<timestamp>/`.
 8. Link all packages into `$HOME` via `gnu stow`.
 9. Wire skill symlinks into Pi and install Oh-My-Pi plugins.
@@ -55,8 +58,10 @@ From within `~/dotfiles`:
 
 ```bash
 # Stow all packages to $HOME
-stow -v -R -t ~ bash zsh fish git starship atuin btop fastfetch fresh herdr hunk lazygit superfile thefuck vite-plus pi omp skills wezterm
-```
+stow -v -R -t ~ bash fish git starship atuin btop fastfetch fresh herdr hunk lazygit opencode superfile vite-plus pi omp skills wezterm
+
+# Stow a specific package (e.g., herdr)
+stow -v -R -t ~ herdr
 
 # Unstow a package
 stow -v -D -t ~ herdr

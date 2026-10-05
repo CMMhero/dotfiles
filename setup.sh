@@ -9,11 +9,14 @@
 # Carried over:
 #   - APT base tools (build-essential, git, curl, stow, procps, file, etc.)
 #   - Homebrew + all active CLI tools (bat, eza, fzf, ripgrep, atuin, starship,
-#     fresh-editor, hunk, fastfetch, lazygit, superfile, btop, llmfit, models, uv, etc.)
+#     fresh-editor, hunk, fastfetch, lazygit, superfile, btop, llmfit, models,
+#     opencode, pi-coding-agent, stow, uv, etc.)
 #   - Vite+ runtime manager (https://vite.plus)
-#   - Bun runtime + Pi (@earendil-works/pi-coding-agent) & Oh-My-Pi (omp)
+#   - Bun runtime + Oh-My-Pi (omp) & Pi agent configurations
 #   - Python tooling via uv (https://docs.astral.sh/uv/)
 #   - Herdr workspace manager (https://herdr.dev) + config
+#   - WezTerm configuration (.wezterm.lua)
+#   - Opencode AI agent configurations
 #   - All global skills (SKILL.md definitions from npx skills)
 #   - Full configuration sync via GNU Stow & Git
 # ==============================================================================
@@ -53,7 +56,6 @@ sudo apt-get install -y \
   git \
   procps \
   stow \
-  zsh \
   ca-certificates
 
 log_ok "Base APT packages installed."
@@ -81,7 +83,7 @@ log_ok "Homebrew is available at: $(which brew)"
 
 # ------------------------------------------------------------------------------
 # 4. Homebrew CLI Packages Installation
-# (Excludes ghostty, deja, and tuios as requested; includes uv)
+# (Includes pi-coding-agent, opencode, stow, uv; excludes ghostty, deja, tuios)
 # ------------------------------------------------------------------------------
 BREW_PACKAGES=(
   atuin
@@ -99,18 +101,17 @@ BREW_PACKAGES=(
   jq
   lazygit
   llmfit
-  marksman
   models
   neovim
-  pipx
+  opencode
+  pi-coding-agent
   ripgrep
   rustup
   starship
+  stow
   superfile
   tealdeer
-  thefuck
   uv
-  zinit
   zoxide
 )
 
@@ -158,21 +159,21 @@ fi
 log_ok "Bun runtime ready at: $(which bun 2>/dev/null || echo "$HOME/.bun/bin/bun")"
 
 # ------------------------------------------------------------------------------
-# 7. Pi & Oh-My-Pi (omp) CLI Installation
+# 7. AI Agents: Pi & Oh-My-Pi (omp)
 # ------------------------------------------------------------------------------
-log_info "Installing Pi and Oh-My-Pi agents..."
+# Note: pi-coding-agent binary ('pi') is installed via Homebrew above.
+# Oh-My-Pi ('omp') is installed via Bun/npm below.
+log_info "Setting up Oh-My-Pi (omp)..."
 if command -v bun >/dev/null 2>&1; then
-  bun add -g --ignore-scripts @earendil-works/pi-coding-agent || true
   bun add -g @oh-my-pi/pi-coding-agent || true
 elif command -v npm >/dev/null 2>&1; then
-  npm install -g --ignore-scripts @earendil-works/pi-coding-agent || true
   npm install -g @oh-my-pi/pi-coding-agent || true
 fi
 
 # Ensure ~/.local/bin is in PATH for standalone launchers
 mkdir -p "$HOME/.local/bin"
 export PATH="$HOME/.local/bin:$PATH"
-log_ok "Pi & Oh-My-Pi agent packages installed."
+log_ok "AI Agents installed: pi ($(which pi 2>/dev/null || echo 'brew')), opencode ($(which opencode 2>/dev/null || echo 'brew')), omp."
 
 # ------------------------------------------------------------------------------
 # 8. Herdr Installation (https://herdr.dev)
@@ -188,7 +189,6 @@ log_ok "Herdr ready at: $(which herdr 2>/dev/null || echo "$HOME/.local/bin/herd
 # ------------------------------------------------------------------------------
 STOW_PACKAGES=(
   bash
-  zsh
   fish
   git
   starship
@@ -199,14 +199,15 @@ STOW_PACKAGES=(
   herdr
   hunk
   lazygit
+  opencode
   superfile
-  thefuck
   vite-plus
   pi
   omp
   skills
   wezterm
 )
+
 log_info "Deploying configs using GNU Stow..."
 
 # Function to back up conflicting files before stowing
@@ -286,12 +287,13 @@ printf "\033[1;32m  Machine Bootstrap & Config Sync Complete!                   
 printf "\033[1;32m===============================================================\033[0m\n"
 echo "Active environment features:"
 echo "  - Homebrew prefix: $(brew --prefix 2>/dev/null || echo '/home/linuxbrew/.linuxbrew')"
-echo "  - CLI tools: bat, eza, fd, ripgrep, atuin, starship, fresh, lazygit, superfile, uv, etc."
+echo "  - Brew CLI tools: bat, eza, fd, ripgrep, atuin, starship, fresh, lazygit, superfile, stow, uv, opencode, pi-coding-agent, etc."
 echo "  - Python manager: uv (pip/venv/run/build)"
 echo "  - Terminal multiplexer: herdr (with custom keybinds & Catppuccin theme)"
+echo "  - Terminal emulator config: wezterm (.wezterm.lua)"
 echo "  - Editor: fresh (fresh-editor)"
 echo "  - Runtimes: vite+ (vp), bun, node, pnpm"
-echo "  - AI Agents: pi, oh-my-pi (omp) with synced models & plugins"
+echo "  - AI Agents: pi, opencode, oh-my-pi (omp) with synced models, plugins & skills"
 echo "  - Skills: imported into ~/.agents/skills and linked to pi"
 echo "  - Shell: fish with custom aliases, abbreviations, and starship prompt"
 echo ""
