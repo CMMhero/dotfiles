@@ -130,6 +130,7 @@ end
 # ----- navigation -----
 abbr -a -- .. 'cd ..'
 abbr -a -- ... 'cd ../..'
+abbr -a -- .... 'cd ../../..'
 abbr -a -- h history
 
 # ----- open in editor / explorer  -----

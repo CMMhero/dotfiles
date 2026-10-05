@@ -4,15 +4,16 @@
 // ---------------------------------------------------------------------------
 // vi mode
 // ---------------------------------------------------------------------------
-// Enable vi mode at startup. Without this, vi is off until you toggle it
-// from the command palette.
+// vi mode is OFF by default: the editor starts in normal insert mode and the
+// toggle below is opt-in from the command palette.
 //
 // `plugins_loaded` fires once the bundled vi-mode plugin has registered its
 // API. The optional-call guard keeps a startup failure from taking the whole
 // plugin runtime down if the plugin id ever changes.
+//
+// To turn vi mode back on for every launch, call `vi?.enable()` here.
 editor.on("plugins_loaded", () => {
   const vi = editor.getPluginApi("vi-mode");
-  vi?.enable();
   registerViToggle(vi);
 });
 
