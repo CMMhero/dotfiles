@@ -140,7 +140,6 @@ BREW_PACKAGES=(
   starship
   stow
   superfile
-  omp
   tealdeer
   uv
   zoxide
@@ -465,6 +464,22 @@ fi
 if [ -d "$BACKUP_DIR" ]; then
   echo "Pre-existing files were backed up to: $BACKUP_DIR"
 fi
-echo "To enter your new shell immediately, run:"
+
+# Hand off to fish so the freshly stowed config is live immediately.
+# exec replaces this process, so anything after it would never run.
+# Only done on a TTY: in CI, over a piped one-liner without a terminal, or when
+# invoked from another script, exec'ing an interactive shell would hang. The
+# guard is `[ -t 1 ]` (stdout is a terminal), which also covers the
+# `curl ... | bash` case since bash inherits the caller's stdout.
+FISH_EXEC_BIN="$FISH_BIN"
+if [ -t 1 ] && [ -x "$FISH_EXEC_BIN" ]; then
+  echo ""
+  echo "Starting fish..."
+  exec "$FISH_EXEC_BIN" -l
+fi
+
+# Non-interactive: print the manual handoff instead of taking over the shell.
+echo ""
+echo "Non-interactive shell detected; start fish yourself with:"
 echo "  exec fish"
 echo ""
