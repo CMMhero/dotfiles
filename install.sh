@@ -15,7 +15,7 @@
 #   - ghostty, deja, tuios, zsh, marksman, pipx, thefuck, zinit, bun
 #   - wezterm config is kept in-repo for reference but never stowed (Windows-only)
 #   - bash, pi, and opencode configs are NOT managed here; each is left alone on disk
-#   - per-agent skill dirs (opencode/pi/omp) are not managed; only ~/.agents/skills is
+#   - skills are not managed at all (~/.agents/skills stays per-machine)
 #
 # Installed:
 #   - APT base tools (build-essential, git, curl, stow, procps, file, ...)
@@ -244,7 +244,6 @@ STOW_PACKAGES=(
   superfile
   omp
   vite-plus
-  skills
 )
 
 log_info "Deploying configs using GNU Stow..."
@@ -278,9 +277,9 @@ log_ok "All dotfiles stowed successfully."
 # ------------------------------------------------------------------------------
 # 10. Oh-My-Pi Plugins Setup
 # ------------------------------------------------------------------------------
-# NOTE: skills are not imported. ~/.agents/skills is stowed (the `skills`
-# package), but opencode/pi/omp skill directories are deliberately left alone
-# so each agent manages its own skill installs.
+# NOTE: skills are not managed at all. ~/.agents/skills and ~/skills-lock.json
+# stay per-machine, as do the opencode/pi/omp skill directories -- each agent
+# manages its own installs via the `skills` wrapper (pnpm dlx, global by default).
 #
 # The `omp` stow package is deliberately narrow: only agent/config.yml and
 # plugins/package.json are linked. ~/.omp also holds per-machine state
@@ -439,7 +438,7 @@ echo "  - Terminal emulator config: wezterm (.wezterm.lua, Windows-only; in repo
 echo "  - Editor: fresh (fresh-editor) with catppuccin theme, color-highlighter plugin, vi-mode + toggle"
 echo "  - Runtimes: vite+ (vp), node, pnpm (pnpm-first, managed by vite+)"
 echo "  - AI Agents: pi, opencode, oh-my-pi (omp) installed via brew/pnpm; configs NOT stowed"
-echo "  - Skills: ~/.agents/skills synced; per-agent skill dirs are not managed here"
+echo "  - Skills: not managed; install with 'skills add <pkg>' (pnpm dlx, global)"
 echo "  - Shell: fish with custom aliases, abbreviations, and starship prompt"
 echo ""
 
@@ -450,11 +449,11 @@ if [ "${#MANUAL_STEPS[@]}" -gt 0 ]; then
   echo "These need a browser, password, or first-run prompt:"
   echo ""
   for step in "${MANUAL_STEPS[@]}"; do
-    echo "  $step"
+    echo "  - $step"
+    echo ""
   done
-  echo ""
   echo "Credentials are never deployed by this script:"
-  echo "  - ~/.pi/agent/auth.json, ~/.config/opencode/service.json are gitignored"
+  echo "  - ~/.pi/agent/auth.json and ~/.config/opencode/service.json are gitignored"
   echo "  - atuin and gh tokens are per-account and must be created interactively"
   echo ""
 else

@@ -18,7 +18,7 @@ Modular dotfiles managed with **GNU Stow**, with `install.sh` / `uninstall.sh` f
 - **AI Coding Agents**:
   - `omp` (`@oh-my-pi/pi-coding-agent` via pnpm) — **narrowly** stowed: only `~/.omp/agent/config.yml` and `~/.omp/plugins/package.json`. Everything else in `~/.omp` (sessions, run, logs, cache, `stats.db`, `install-id`, plugin `node_modules`) stays per-machine.
   - `pi` (via Homebrew) and `opencode` (via Homebrew) — installed, configs **not** managed
-- **Skills**: `~/.agents/skills` is stowed (`skills` package). Per-agent skill directories (`opencode/`, `pi/`, `omp/`) are **not** managed.
+- **Skills**: not managed. `~/.agents/skills` and `~/skills-lock.json` stay per-machine, as do the `opencode/` / `pi/` / `omp/` skill dirs. Install with the `skills` wrapper (`pnpm dlx`, global by default): `skills add <pkg>`.
 
 ---
 
@@ -63,7 +63,7 @@ From within `~/dotfiles`:
 
 ```bash
 # Stow all managed packages to $HOME (bash/pi/opencode/wezterm excluded — not managed)
-stow -v -R -t ~ fish git starship atuin bat btop fastfetch fresh herdr hunk lazygit superfile vite-plus omp skills
+stow -v -R -t ~ fish git starship atuin bat btop fastfetch fresh herdr hunk lazygit superfile vite-plus omp
 
 # Stow a specific package (e.g., herdr)
 stow -v -R -t ~ herdr

@@ -73,7 +73,6 @@ STOW_PACKAGES=(
   superfile
   omp
   vite-plus
-  skills
 )
 
 BREW_PACKAGES=(
@@ -219,10 +218,11 @@ if [ "$PURGE" -eq 1 ]; then
   sudo apt-get autoremove -y 2>/dev/null || true
 
   # ---- oh-my-pi / pi / opencode data dirs ----
+  # ~/.agents and ~/skills-lock.json are deliberately NOT touched: skills are
+  # not managed by this repo, so that data belongs to the user, not to us.
   if [ "$PURGE_DATA" -eq 1 ]; then
-    log_warn "--purge-data: removing agent data (~/.pi, ~/.omp, ~/.opencode, ~/.agents)..."
-    rm -rf "$HOME/.pi" "$HOME/.omp" "$HOME/.opencode" "$HOME/.agents"
-    rm -f "$HOME/skills-lock.json"
+    log_warn "--purge-data: removing agent data (~/.pi, ~/.omp, ~/.opencode)..."
+    rm -rf "$HOME/.pi" "$HOME/.omp" "$HOME/.opencode"
   fi
 fi
 
