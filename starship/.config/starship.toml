@@ -2,7 +2,7 @@
 scan_timeout = 100
 command_timeout = 500
 follow_symlinks = false
-add_newline = false
+add_newline = true
 palette = "custom1"
 
 format = """
@@ -18,7 +18,7 @@ right_format = """$all"""
 
 [directory]
 style = "teal"
-format = "[ $path ]($style)"
+format = "[$path]($style)"
 truncation_length = 4
 
 [directory.substitutions]
@@ -37,7 +37,7 @@ style_root = "bg:surface0 fg:text"
 format = " $user "
 
 [line_break]
-disabled = true
+disabled = false
 
 [character]
 disabled = false
@@ -49,7 +49,7 @@ vimcmd_symbol = "[: ](bold fg:yellow)"
 disabled = false
 
 [time]
-disabled = false
+disabled = true
 time_format = "%R"
 format = "[[  $time ](fg:yellow bg:foam)]($style)"
 

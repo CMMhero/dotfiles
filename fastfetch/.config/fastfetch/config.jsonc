@@ -1,137 +1,139 @@
-// ============================================================
-// fastfetch — GROUPS layout
-//
-// Adapted from Bina's GROUPS config for this machine:
-//   - logo renders through chafa (not kitty), so it works in any terminal,
-//     including WSL and Windows terminals without kitty graphics
-//   - no hardcoded "pacman": this is apt/dpkg, and the module is written to
-//     stay correct across Ubuntu, WSL, and Windows
-//   - palette is Catppuccin Macchiato, the same one used by bat, fzf,
-//     wezterm, superfile, and omp (see wezterm/.wezterm.lua)
-// ============================================================
 {
-  "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
+    "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
 
-  // Catppuccin Macchiato. Indices are referenced by the keyColor strings below.
-  "colors": [
-    "#181926", // 0 crust
-    "#b7bdf8", // 1 lavender
-    "#f5bde6", // 2 pink
-    "#c6a0f6", // 3 mauve
-    "#8aadf4", // 4 blue
-    "#91d7e3", // 5 sky
-    "#a6da95", // 6 green
-    "#f5a97f", // 7 peach
-    "#ed8796"  // 8 red
-  ],
-
-  "logo": {
-    "source": "~/.config/fastfetch/logo.png",
-    "type": "chafa",
-    "height": 20,
-    "padding": {
-      "top": 1
-    }
-  },
-
-  "display": {
-    "separator": " ➜  "
-  },
-
-  "modules": [
-    "break",
-
-    {
-      "type": "os",
-      "key": "OS   ",
-      "keyColor": "31"
+    // Catppuccin Macchiato, the same palette used by bat, fzf, wezterm,
+    // superfile, and omp (see wezterm/.wezterm.lua). Without this the
+    // keyColor indices below fall back to fastfetch's built-in defaults.
+    "colors": [
+        "#181926", // 0 crust
+        "#b7bdf8", // 1 lavender
+        "#f5bde6", // 2 pink
+        "#c6a0f6", // 3 mauve
+        "#8aadf4", // 4 blue
+        "#91d7e3", // 5 sky
+        "#a6da95", // 6 green
+        "#f5a97f", // 7 peach
+        "#ed8796"  // 8 red
+    ],
+    "logo": {
+        "type": "chafa",
+        "source": "~/.config/fastfetch/logo.png",
+        "width": 32,
+        "height": 18,
+        "chafa": {
+            "symbols": "braille",
+            "ditherMode": "DIFFUSION",
+            "colorSpace": "DIN99D",
+            "fgOnly": true
+        }
     },
-    {
-      "type": "kernel",
-      "key": " ├ ",
-      "keyColor": "31"
+    "display": {
+          "separator": " ➜  "
     },
-    {
-      // No "format" and no "(pacman)" suffix. In fastfetch 2.69 the Packages
-      // {1} token is not the total -- it renders 0 -- so the default is left
-      // alone, which lists every detected manager
-      // ("120 (brew), 656 (dpkg), 4 (snap)") and stays correct across apt,
-      // brew, and Windows.
-      "type": "packages",
-      "key": " ├ 󰏖 ",
-      "keyColor": "31"
-    },
-    {
-      "type": "shell",
-      "key": " └  ",
-      "keyColor": "31"
-    },
-
-    "break",
-
-    {
-      // wm / wmtheme populate on a desktop session but are empty over a bare
-      // WSL shell. fastfetch drops the row yet keeps the "key" prefix, so this
-      // group renders with a leading "├" when running headless. Keeping them
-      // means the full layout appears on a desktop without a second config.
-      "type": "wm",
-      "key": "WM   ",
-      "keyColor": "32"
-    },
-    {
-      "type": "wmtheme",
-      "key": " ├ 󰉼 ",
-      "keyColor": "32"
-    },
-    {
-      "type": "icons",
-      "key": " ├ 󰀻 ",
-      "keyColor": "32"
-    },
-    {
-      "type": "cursor",
-      "key": " ├  ",
-      "keyColor": "32"
-    },
-    {
-      "type": "terminal",
-      "key": " └  ",
-      "keyColor": "32"
-    },
-
-    "break",
-
-    {
-      "type": "host",
-      "key": "PC   ",
-      "keyColor": "33"
-    },
-    {
-      "type": "cpu",
-      "key": " ├ 󰻠 ",
-      "keyColor": "33"
-    },
-    {
-      "type": "gpu",
-      "key": " ├ 󰢮 ",
-      "keyColor": "33"
-    },
-    {
-      "type": "memory",
-      "key": " ├ 󰍛 ",
-      "keyColor": "33"
-    },
-    {
-      "type": "disk",
-      "key": " ├ 󰋊 ",
-      "keyColor": "33"
-    },
-    {
-      "type": "monitor",
-      "key": " └  ",
-      "keyColor": "33"
-    },
-
-    "break"
-  ]
+    "modules": [
+        "break",
+        "break",
+        "break",
+         {
+            "type": "os",
+            "key": "OS   ",
+            "keyColor": "31",  // = color1
+        },
+        {
+            "type": "kernel",
+            "key": " ├  ",
+            "keyColor": "31",
+        },
+        {
+            "type": "packages",
+            // No "(pacman)" suffix: this is apt/dpkg, not Arch. In fastfetch
+            // 2.69 the Packages {1} token is not the total (it renders 0), so
+            // format is left unset and the default lists every detected
+            // manager -- "656 (dpkg), 120 (brew), 4 (snap)" -- which stays
+            // correct across Ubuntu, WSL, and Windows.
+            "key": " ├ 󰏖 ",
+            "keyColor": "31",
+        },
+        {
+            "type": "shell",
+            "key": " └  ",
+            "keyColor": "31",
+        },
+        "break",
+        {
+            "type": "wm",
+            "key": "WM   ",
+            "keyColor": "32",
+        },
+        {
+            "type": "wmtheme",
+            "key": " ├ 󰉼 ",
+            "keyColor": "32",
+        },
+        {
+            "type": "icons",
+            "key": " ├ 󰀻 ",
+            "keyColor": "32",
+        },
+        {
+            "type": "cursor",
+            "key": " ├  ",
+            "keyColor": "32",
+        },
+        {
+            "type": "terminal",
+            "key": " ├  ",
+            "keyColor": "32",
+        },
+        {
+            "type": "terminalfont",
+            "key": " └  ",
+            "keyColor": "32",
+        },
+        "break",
+        {
+            "type": "host",
+            // No custom format: the default already renders the host name
+            // cleanly. {5}/{2} are machine-specific and resolve empty here.
+            "key": "PC   ",
+            "keyColor": "33",
+        },
+        {
+            "type": "cpu",
+            // No custom format: the default already renders
+            // "AMD Ryzen 5 2600 (12) @ 3.39 GHz". The {7} token from the
+            // original config resolves empty, which printed "@  GHz" with a
+            // blank number.
+            "key": " ├  ",
+            "keyColor": "33",
+        },
+        {
+            "type": "gpu",
+            // No custom format: {12} resolves empty, printing "@  GHz".
+            "key": " ├ 󰢮 ",
+            "keyColor": "33",
+        },
+        {
+            "type": "memory",
+            "key": " ├  ",
+            "keyColor": "33",
+        },
+        {
+            "type": "swap",
+            "key": " ├ 󰓡 ",
+            "keyColor": "33",
+        },
+        {
+            "type": "disk",
+            "key": " ├ 󰋊 ",
+            "keyColor": "33",
+        },
+        {
+            "type": "monitor",
+            "key": " └  ",
+            "keyColor": "33",
+        },
+        "break",
+        "break",
+    ]
 }
