@@ -1,0 +1,16 @@
+theme = "catppuccin-macchiato"
+mode = "split"
+vcs = "git"
+watch = false
+exclude_untracked = false
+line_numbers = true
+tab_width = 2
+file_gap = 1
+hunk_gap = 0
+wrap_lines = true
+hunk_headers = false
+menu_bar = false
+animations = true
+sidebar = "auto"
+agent_notes = true
+transparent_background = true

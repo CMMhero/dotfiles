@@ -1,0 +1,125 @@
+{
+  "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
+
+  "logo": {
+    "type": "file",
+    "source": "C:/Users/CMM/.config/fastfetch/cmmhero_plain.txt",
+    "color": {
+      "1": "#F5E0DC",
+      "2": "#F2CDCD",
+      "3": "#F5C2E7",
+      "4": "#FAB387",
+      "5": "#F9E2AF",
+      "6": "#A6E3A1",
+      "7": "#94E2D5",
+      "8": "#89DCEB",
+      "9": "#74C7EC",
+    },
+    "padding": {
+      "top": 1,
+      "right": 3,
+    },
+  },
+
+  "display": {
+    "separator": "   ",
+  },
+
+  "modules": [
+    "break",
+    {
+      "type": "title",
+      "format": "                 {user-name}@{host-name}",
+      "outputColor": "#89DCEB",
+      "color": {
+        "user": "#F5C2E7",
+        "at": "#CDD6F4",
+        "host": "#89DCEB",
+      },
+    },
+
+    "break",
+
+    // ============================
+    //       HARDWARE SECTION
+    // ============================
+    {
+      "type": "custom",
+      "format": "╭────────── Hardware Information ──────────╮",
+    },
+    {
+      "type": "os",
+      "key": "  󰟀 ",
+      "keyColor": "#F5C2E7",
+    },
+    {
+      "type": "board",
+      "key": "  󰚗 ",
+      "keyColor": "#F5C2E7",
+    },
+    {
+      "type": "cpu",
+      "key": "  󰍛 ",
+      "keyColor": "#F5C2E7",
+    },
+    {
+      "type": "gpu",
+      "key": "  󰘚 ",
+      "keyColor": "#F5C2E7",
+      "format": "{vendor} {name} ({dedicated-total})",
+    },
+    {
+      "type": "memory",
+      "key": "  󰑭 ",
+      "keyColor": "#F5C2E7",
+      "format": "{used} / {total} ({percentage})",
+    },
+    // {
+    //   "type": "disk",
+    //   "key": " ",
+    //   "keyColor": "#94E2D5",
+    //   "folders": ["C:\\"]
+    // },
+
+    // ============================
+    //       SOFTWARE SECTION
+    // ============================
+    {
+      "type": "custom",
+      "format": "├────────── Software Information ──────────┤",
+    },
+    {
+      "type": "terminal",
+      "key": "   ",
+      "keyColor": "#F2CDCD",
+    },
+    {
+      "type": "shell",
+      "key": "   ",
+      "keyColor": "#F2CDCD",
+    },
+    {
+      "type": "packages",
+      // "type": ""
+      "key": "  󰏗 ",
+      "keyColor": "#F2CDCD",
+    },
+    {
+      "type": "uptime",
+      "key": "  󰅐 ",
+      "keyColor": "#F2CDCD",
+    },
+    {
+      "type": "custom",
+      "format": "╰──────────────────────────────────────────╯",
+    },
+
+    // ============================
+    //       COLORS ROW
+    // ============================
+    {
+      "type": "colors",
+      "symbol": "circle",
+    },
+  ],
+}

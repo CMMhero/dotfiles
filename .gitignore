@@ -1,0 +1,37 @@
+# OS / Editor artifacts
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Credentials & secrets (never commit auth tokens or private keys)
+*auth.json
+*.key
+*.pem
+id_ed25519*
+id_rsa*
+*.env
+*.env.local
+
+# Databases, caches, logs & runtime sockets
+*.db
+*.db-shm
+*.db-wal
+*.log
+*.sock
+*.pid
+cache/
+
+# Node / Bun dependencies & lock temporary files
+node_modules/
+.npm/
+.bun/
+.cache/
+.staging/
+
+# Backups
+*.bak
+*.bak-*
+*.backup
+*.old
+*.orig

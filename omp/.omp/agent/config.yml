@@ -1,0 +1,18 @@
+modelRoles:
+  default: google-antigravity/gemini-3.8-flash:medium
+symbolPreset: nerd
+composer:
+  shape: field
+theme:
+  dark: titanium
+  light: light
+defaultThinkingLevel: medium
+setupVersion: 2
+statusLine:
+  preset: default
+  sessionAccent: true
+  transparent: false
+terminal:
+  showProgress: false
+tui:
+  resizeScrollback: rebuild
