@@ -70,8 +70,8 @@ STOW_PACKAGES=(
   hunk
   lazygit
   superfile
-  vite-plus
   omp
+  vite-plus
   skills
 )
 
@@ -100,6 +100,7 @@ BREW_PACKAGES=(
   starship
   stow
   superfile
+  omp
   tealdeer
   uv
   zoxide

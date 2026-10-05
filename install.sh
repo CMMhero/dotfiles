@@ -139,6 +139,7 @@ BREW_PACKAGES=(
   starship
   stow
   superfile
+  omp
   tealdeer
   uv
   zoxide
@@ -163,9 +164,20 @@ log_ok "uv ready at: $(which uv 2>/dev/null || echo "$HOME/.local/bin/uv")"
 # ------------------------------------------------------------------------------
 # 6. Vite+ Installation & pnpm Runtime Management (Default)
 # ------------------------------------------------------------------------------
+# Non-interactive install. The curl|bash bootstrap only forwards these to the
+# installed `vp` binary's self-setup, which is what actually asks the
+# "manage Node.js with Vite+?" question (it reads stdin from /dev/tty).
+# Setting them to "yes" makes it accept managed mode without a TTY, so this
+# works over SSH, in CI, and from a piped one-liner.
 if [ ! -d "$HOME/.local/share/vite-plus" ] && ! command -v vp >/dev/null 2>&1; then
-  log_info "Installing Vite+ (https://vite.plus)..."
-  curl -fsSL https://vite.plus | bash
+  log_info "Installing Vite+ (https://vite.plus) with managed Node.js + pnpm..."
+  VP_NODE_MANAGER=yes \
+  VP_NPM_MANAGER=yes \
+  VP_PNPM_MANAGER=yes \
+  VP_YARN_MANAGER=yes \
+  VP_BUN_MANAGER=yes \
+  VP_SELF_SETUP_SHELL=sh \
+    curl -fsSL https://vite.plus | bash
 fi
 
 if [ -f "$HOME/.config/vite-plus/env" ]; then
@@ -175,8 +187,9 @@ elif [ -d "$HOME/.local/share/vite-plus/bin" ]; then
   export PATH="$HOME/.local/share/vite-plus/bin:$PATH"
 fi
 
-log_info "Configuring Vite+ to manage pnpm by default..."
-vp env on pnpm 2>/dev/null || true
+log_info "Enabling Vite+ managed mode for Node.js and package managers..."
+VP_NODE_MANAGER=yes vp env on 2>/dev/null || vp env on 2>/dev/null || true
+log_info "Setting pnpm as the default managed package manager..."
 vp env default pnpm@latest 2>/dev/null || true
 vp env install pnpm@latest 2>/dev/null || true
 
@@ -228,8 +241,8 @@ STOW_PACKAGES=(
   hunk
   lazygit
   superfile
-  vite-plus
   omp
+  vite-plus
   skills
 )
 
@@ -267,6 +280,12 @@ log_ok "All dotfiles stowed successfully."
 # NOTE: skills are not imported. ~/.agents/skills is stowed (the `skills`
 # package), but opencode/pi/omp skill directories are deliberately left alone
 # so each agent manages its own skill installs.
+#
+# The `omp` stow package is deliberately narrow: only agent/config.yml and
+# plugins/package.json are linked. ~/.omp also holds per-machine state
+# (sessions/, run/, logs/, cache/, stats.db, install-id, and the plugins
+# node_modules) which must never come from the repo. Stow folds into the
+# existing ~/.omp tree instead of replacing it, so those stay real files.
 if [ -d "$HOME/.omp/plugins" ] && [ -f "$HOME/.omp/plugins/package.json" ]; then
   log_info "Installing Oh-My-Pi plugins via pnpm..."
   (cd "$HOME/.omp/plugins" && (pnpm install 2>/dev/null || true))
@@ -334,7 +353,77 @@ if [ -x "$FISH_BIN" ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 13. Completion Summary
+# 13. Post-Install: Account Logins & Cache Warmup
+# ------------------------------------------------------------------------------
+# Everything here that can be done without a browser or a password prompt is
+# done automatically. Whatever needs interactive auth is reported at the end
+# instead of being silently skipped.
+
+MANUAL_STEPS=()
+
+# --- tealdeer page cache -----------------------------------------------------
+if command -v tldr >/dev/null 2>&1; then
+  log_info "Warming tealdeer (tldr) page cache..."
+  if tldr --update >/dev/null 2>&1; then
+    log_ok "tealdeer pages cached."
+  else
+    log_warn "tldr --update failed; run 'tldr --update' manually."
+  fi
+fi
+
+# --- atuin: register + sync --------------------------------------------------
+# atuin needs `atuin register` (username/password) on a new machine, which
+# cannot be automated without a TTY. If a key already exists we can sync.
+if command -v atuin >/dev/null 2>&1; then
+  if [ -s "$HOME/.local/share/atuin/key" ]; then
+    log_info "atuin key found; syncing history..."
+    if atuin sync >/dev/null 2>&1; then
+      log_ok "atuin synced."
+    else
+      log_warn "atuin sync failed; run 'atuin login' then 'atuin sync'."
+      MANUAL_STEPS+=("atuin login && atuin sync   # sync shell history")
+    fi
+  else
+    log_warn "atuin is not registered on this machine yet."
+    MANUAL_STEPS+=("atuin register               # create/sync your atuin account")
+  fi
+fi
+
+# --- GitHub CLI --------------------------------------------------------------
+if command -v gh >/dev/null 2>&1; then
+  if gh auth status >/dev/null 2>&1; then
+    log_ok "gh already authenticated ($(gh api user --jq .login 2>/dev/null || echo 'unknown'))."
+  else
+    log_warn "gh is not authenticated."
+    MANUAL_STEPS+=("gh auth login                # GitHub CLI (also powers git credential helper)")
+  fi
+
+  # The .gitconfig credential helper delegates to `gh auth git-credential`,
+  # so an unauthenticated gh breaks HTTPS pushes for every repo.
+  MANUAL_STEPS+=("ssh-add ~/.ssh/id_ed25519     # if your git commits are SSH-signed")
+fi
+
+# --- AI agent credentials ----------------------------------------------------
+# pi and omp read tokens from ~/.pi/agent/auth.json, which is gitignored and
+# therefore never deployed. Each agent prompts for its own key on first run.
+if [ ! -s "$HOME/.pi/agent/auth.json" ]; then
+  MANUAL_STEPS+=("pi                            # first run prompts for your model provider key")
+fi
+if [ ! -s "$HOME/.config/opencode/opencode.json" ] && [ ! -s "$HOME/.opencode/auth.json" ]; then
+  MANUAL_STEPS+=("opencode                      # first run prompts for your provider key")
+fi
+
+# --- atuin sync is enabled in the shell config -------------------------------
+# ~/.config/atuin/config.toml ships with [daemon] autostart = true and
+# auto_sync commented out; verify the shell actually sources atuin.
+if grep -q "atuin init" "$HOME/.config/fish/config.fish" 2>/dev/null; then
+  log_ok "atuin is wired into fish (atuin init fish)."
+else
+  log_warn "atuin is not initialised in ~/.config/fish/config.fish."
+fi
+
+# ------------------------------------------------------------------------------
+# 14. Completion Summary
 # ------------------------------------------------------------------------------
 echo ""
 printf "\033[1;32m===============================================================\033[0m\n"
@@ -352,6 +441,25 @@ echo "  - AI Agents: pi, opencode, oh-my-pi (omp) installed via brew/pnpm; confi
 echo "  - Skills: ~/.agents/skills synced; per-agent skill dirs are not managed here"
 echo "  - Shell: fish with custom aliases, abbreviations, and starship prompt"
 echo ""
+
+if [ "${#MANUAL_STEPS[@]}" -gt 0 ]; then
+  printf "\033[1;33m===============================================================\033[0m\n"
+  printf "\033[1;33m  Remaining Manual Steps                                     \033[0m\n"
+  printf "\033[1;33m===============================================================\033[0m\n"
+  echo "These need a browser, password, or first-run prompt:"
+  echo ""
+  for step in "${MANUAL_STEPS[@]}"; do
+    echo "  $step"
+  done
+  echo ""
+  echo "Credentials are never deployed by this script:"
+  echo "  - ~/.pi/agent/auth.json, ~/.config/opencode/service.json are gitignored"
+  echo "  - atuin and gh tokens are per-account and must be created interactively"
+  echo ""
+else
+  printf "\033[1;32m  All account logins already configured on this machine.\033[0m\n"
+  echo ""
+fi
 if [ -d "$BACKUP_DIR" ]; then
   echo "Pre-existing files were backed up to: $BACKUP_DIR"
 fi

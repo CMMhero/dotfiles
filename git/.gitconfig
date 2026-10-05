@@ -1,22 +1,31 @@
 [core]
 	editor = fresh
 	pager = hunk pager
+
 [init]
 	defaultBranch = main
+
 [user]
 	email = ch.mh.marvelio@gmail.com
 	name = Christopher Matthew Marvelio
+
 [pull]
   rebase = true
+
 [push]
   autoSetupRemote = true
+
 [branch]
   sort = -committerdate
+
 [checkout]
   defaultRemote = origin
+
 [fetch]
   prune = true
+
 [rerere]
    enabled = true
+
 [merge]
   conflictStyle = zdiff3
