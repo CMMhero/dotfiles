@@ -16,7 +16,7 @@
 editor = ""
 
 #-- Directory Editor
-# 
+#
 dir_editor = ""
 
 #-- Auto check for update
@@ -24,7 +24,7 @@ auto_check_update = true
 
 #-- cd on quit
 # Should we cd the shell to the last directory open in superfile when the
-# program exits? 
+# program exits?
 cd_on_quit = false
 
 #-- File Preview
@@ -95,7 +95,7 @@ file_panel_name_percent = 50
 
 #-- Theme
 # Put your theme's name here!
-theme = "catppuccin-mocha"
+theme = "catppuccin-macchiato"
 
 #-- Code Previewer
 # Whether to use the builtin syntax highlighting with chroma or use bat. Values: "" for builtin chroma, "bat" for bat
@@ -113,7 +113,7 @@ show_select_icons = true
 #-- Transparent Background Support
 # Set to true to enable background transparency.
 # Requires: terminal support for colour transparency
-transparent_background = false
+transparent_background = true
 
 #-- File Preview Panel Width
 # Width of the file preview panel will be 1/n of the total width.
@@ -160,7 +160,7 @@ border_middle_right = '┤'
 
 #-- Detailed Metadata
 # Requires: exiftool
-metadata = false
+metadata = true
 
 #-- MD5 Checksum Generation
 # Requires: md5sum
@@ -168,7 +168,7 @@ enable_md5_checksum = false
 #
 #-- Zoxide Support - Smart directory navigation!
 # Requires: zoxide
-zoxide_support = false
+zoxide_support = true
 
 #-- File opening rules
 # Map file extensions to commands used to open them.

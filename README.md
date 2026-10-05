@@ -14,12 +14,11 @@ Modular dotfiles managed with **GNU Stow**, with `install.sh` / `uninstall.sh` f
   - `wezterm` — **Windows-only**. `wezterm/.wezterm.lua` is kept in the repo for reference (WSL domain, pwsh `default_prog`, Acrylic backdrop) but is **not stowed** and wezterm is **not installed** on Linux.
 - **Editor**: `fresh-editor` (`~/.config/fresh`) with the Catppuccin theme package, the `color-highlighter` plugin, a `dotfiles-fresh-language` grammar, vi mode enabled at startup, and a **"Toggle vi mode"** command in the palette (Ctrl+P)
 - **Runtimes & Package Managers**: Vite+ (`~/.config/vite-plus`), **pnpm-first by default** (managed through Vite+), Node.js
+- **Theme**: Catppuccin Macchiato is the source of truth (defined once in `wezterm/.wezterm.lua`). `bat` uses it directly (`bat/.config/bat/config`), `fzf` gets an equivalent palette via `fish/.config/fish/conf.d/catppuccin.fish`, and `omp` uses its built-in `dark-catppuccin` — that one is **Mocha**-flavoured, since omp ships no Macchiato and `grep -c macchiato` over its dist returns 0.
 - **AI Coding Agents**:
   - `omp` (`@oh-my-pi/pi-coding-agent` via pnpm) — **narrowly** stowed: only `~/.omp/agent/config.yml` and `~/.omp/plugins/package.json`. Everything else in `~/.omp` (sessions, run, logs, cache, `stats.db`, `install-id`, plugin `node_modules`) stays per-machine.
   - `pi` (via Homebrew) and `opencode` (via Homebrew) — installed, configs **not** managed
 - **Skills**: `~/.agents/skills` is stowed (`skills` package). Per-agent skill directories (`opencode/`, `pi/`, `omp/`) are **not** managed.
-- **Not managed**: `bash` (`.bashrc`/`.profile`), `pi` configs, `opencode` configs, per-agent skills, and the wezterm config are deliberately left untouched on disk.
-- **Exclusions (per user request)**: `ghostty`, `deja`, `tuios`, `zsh`, `marksman`, `pipx`, `thefuck`, `zinit`, `bun`
 
 ---
 
@@ -64,7 +63,7 @@ From within `~/dotfiles`:
 
 ```bash
 # Stow all managed packages to $HOME (bash/pi/opencode/wezterm excluded — not managed)
-stow -v -R -t ~ fish git starship atuin btop fastfetch fresh herdr hunk lazygit superfile vite-plus omp skills
+stow -v -R -t ~ fish git starship atuin bat btop fastfetch fresh herdr hunk lazygit superfile vite-plus omp skills
 
 # Stow a specific package (e.g., herdr)
 stow -v -R -t ~ herdr

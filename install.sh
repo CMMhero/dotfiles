@@ -117,6 +117,7 @@ log_ok "Homebrew is available at: $(which brew)"
 BREW_PACKAGES=(
   atuin
   bat
+  bat
   btop
   chafa
   eza
@@ -234,6 +235,7 @@ STOW_PACKAGES=(
   git
   starship
   atuin
+  bat
   btop
   fastfetch
   fresh

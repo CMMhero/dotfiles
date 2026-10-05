@@ -2,14 +2,15 @@ setupVersion: 2
 modelRoles:
   default: commandcode/stealth/space-bunny-alpha:medium
 theme:
-  dark: titanium
-  light: light
+  dark: dark-catppuccin
+  light: light-catppuccin
 symbolPreset: nerd
 colorBlindMode: false
 composer:
   shape: field
+  tokenRate: true
 statusLine:
-  preset: default
+  preset: compact
   sessionAccent: true
   transparent: false
 terminal:

@@ -55,7 +55,9 @@ end
 set -gx FZF_DEFAULT_COMMAND 'fd --type f --hidden --follow --exclude .git'
 # Styled popup + previews for Ctrl-T (files) / Alt-C (dirs). Ctrl-R is owned
 # by atuin, so FZF_DEFAULT_COMMAND only feeds the file pickers.
-set -gx FZF_DEFAULT_OPTS '--height 50% --layout=default --border'
+# Colours come from conf.d/catppuccin.fish (Catppuccin Macchiato, matching
+# wezterm/.wezterm.lua); only the layout flags are set here.
+set -gx FZF_DEFAULT_OPTS "$FZF_CATPPUCCIN_OPTS"
 set -gx FZF_CTRL_T_COMMAND $FZF_DEFAULT_COMMAND
 set -gx FZF_CTRL_T_OPTS "--preview 'bat --color=always -n --line-range :500 {}'"
 set -gx FZF_ALT_C_COMMAND 'fd --type d --hidden --follow --exclude .git'

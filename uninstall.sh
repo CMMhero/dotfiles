@@ -63,6 +63,7 @@ STOW_PACKAGES=(
   git
   starship
   atuin
+  bat
   btop
   fastfetch
   fresh
@@ -77,6 +78,7 @@ STOW_PACKAGES=(
 
 BREW_PACKAGES=(
   atuin
+  bat
   bat
   btop
   chafa
