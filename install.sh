@@ -395,12 +395,8 @@ if command -v gh >/dev/null 2>&1; then
     log_ok "gh already authenticated ($(gh api user --jq .login 2>/dev/null || echo 'unknown'))."
   else
     log_warn "gh is not authenticated."
-    MANUAL_STEPS+=("gh auth login                # GitHub CLI (also powers git credential helper)")
+    MANUAL_STEPS+=("gh auth login                # GitHub CLI")
   fi
-
-  # The .gitconfig credential helper delegates to `gh auth git-credential`,
-  # so an unauthenticated gh breaks HTTPS pushes for every repo.
-  MANUAL_STEPS+=("ssh-add ~/.ssh/id_ed25519     # if your git commits are SSH-signed")
 fi
 
 # --- AI agent credentials ----------------------------------------------------
@@ -452,16 +448,38 @@ if [ "${#MANUAL_STEPS[@]}" -gt 0 ]; then
     echo "  - $step"
     echo ""
   done
-  echo "Credentials are never deployed by this script:"
-  echo "  - ~/.pi/agent/auth.json and ~/.config/opencode/service.json are gitignored"
-  echo "  - atuin and gh tokens are per-account and must be created interactively"
-  echo ""
 else
   printf "\033[1;32m  All account logins already configured on this machine.\033[0m\n"
   echo ""
 fi
 if [ -d "$BACKUP_DIR" ]; then
   echo "Pre-existing files were backed up to: $BACKUP_DIR"
+fi
+
+# Pre-flight the fish config. `fish -n` parses without executing, so a syntax
+# error is reported here -- with its file and line -- instead of scrolling past
+# inside the shell the user is about to be dropped into. The usual cause is a
+# bash-ism (VAR="x", [ ... ], foo=) left in config.fish or a conf.d snippet;
+# fish rejects those outright and skips the rest of the file.
+if command -v fish >/dev/null 2>&1; then
+  FISH_ERR_FILE="$(mktemp)"
+  FISH_BAD=0
+  while IFS= read -r fish_file; do
+    if ! fish -n "$fish_file" 2>"$FISH_ERR_FILE"; then
+      [ "$FISH_BAD" -eq 0 ] && log_warn "fish config has a syntax error:"
+      FISH_BAD=1
+      sed 's/^/    /' "$FISH_ERR_FILE"
+    fi
+  done < <(find "$HOME/.config/fish" -name '*.fish' -type f 2>/dev/null | sort)
+  rm -f "$FISH_ERR_FILE"
+  if [ "$FISH_BAD" -eq 1 ]; then
+    echo ""
+    echo "  fish will still start, but the broken file is skipped."
+    echo "  Fix the file(s) above, then run 'exec fish'."
+    echo ""
+  else
+    log_ok "fish config syntax ok."
+  fi
 fi
 
 # Hand off to fish so the freshly stowed config is live immediately.

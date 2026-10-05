@@ -33,6 +33,14 @@
     "modules": [
         "break",
         "break",
+        {
+          "type": "title",
+          "color": {
+            "user": "32",  // = color2
+            "at": "37",
+            "host": "32"
+          }
+        },
         "break",
          {
             "type": "os",
@@ -129,8 +137,8 @@
             "keyColor": "33",
         },
         {
-            "type": "monitor",
-            "key": " └  ",
+            "type": "uptime",
+            "key": " └ 󰅐 ",
             "keyColor": "33",
         },
         "break",
