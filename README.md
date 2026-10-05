@@ -28,7 +28,7 @@ Modular dotfiles managed with **GNU Stow** and a zero-to-hero bootstrap script (
 One-liner (clones or pulls the repo, then installs everything):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/CMMhero/dotfiles/main/bootstrap.sh | bash
+curl -fsSL https://raw.githubusercontent.com/CMMhero/dotfiles/main/setup.sh | bash
 ```
 
 Or manually:
@@ -41,7 +41,7 @@ else
 fi
 
 cd "$HOME/dotfiles" || exit 1
-./bootstrap.sh
+./setup.sh
 ```
 
 The script will:
@@ -78,7 +78,7 @@ stow -v -D -t ~ herdr
 ## Updating an Existing Machine
 
 ```bash
-cd ~/dotfiles && git pull --ff-only && ./bootstrap.sh
+cd ~/dotfiles && git pull --ff-only && ./setup.sh
 ```
 
 ---

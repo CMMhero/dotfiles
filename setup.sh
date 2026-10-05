@@ -1,24 +1,29 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Full System Bootstrap & Dotfiles Installer
-# Sets up a fresh Linux machine (Ubuntu/Debian) to mirror current WSL setup.
+# setup.sh - Single entrypoint: clones/updates the dotfiles repo, installs every
+# package, and deploys all configs with GNU Stow on a fresh Ubuntu/Debian box.
+#
+# Usage:
+#   # from a fresh machine (no repo yet)
+#   curl -fsSL https://raw.githubusercontent.com/CMMhero/dotfiles/main/setup.sh | bash
+#
+#   # or clone first
+#   git clone https://github.com/CMMhero/dotfiles.git ~/dotfiles
+#   cd ~/dotfiles && ./setup.sh
 #
 # Exclusions (per user request):
-#   - ghostty, deja, tuios
+#   - ghostty, deja, tuios, zsh, marksman, pipx, thefuck, zinit, bun
 #
-# Carried over:
-#   - APT base tools (build-essential, git, curl, stow, procps, file, etc.)
-#   - Homebrew + all active CLI tools (bat, eza, fzf, ripgrep, atuin, starship,
+# Installed:
+#   - APT base tools (build-essential, git, curl, stow, procps, file, ...)
+#   - Homebrew + CLI tools (bat, eza, fzf, ripgrep, atuin, starship,
 #     fresh-editor, hunk, fastfetch, lazygit, superfile, btop, llmfit, models,
-#     opencode, pi-coding-agent, stow, uv, etc.)
-#   - Vite+ runtime manager (https://vite.plus)
-#   - Bun runtime + Oh-My-Pi (omp) & Pi agent configurations
-#   - Python tooling via uv (https://docs.astral.sh/uv/)
-#   - Herdr workspace manager (https://herdr.dev) + config
-#   - WezTerm configuration (.wezterm.lua)
-#   - Opencode AI agent configurations
-#   - All global skills (SKILL.md definitions from npx skills)
-#   - Full configuration sync via GNU Stow & Git
+#     opencode, pi-coding-agent, stow, uv, ...)
+#   - Vite+ with pnpm as the managed default package manager
+#   - Oh-My-Pi (omp) via pnpm; pi + opencode via Homebrew
+#   - Herdr workspace manager (https://herdr.dev)
+#   - Global skills (SKILL.md from `npx skills`) linked into pi
+#   - Configs deployed with GNU Stow; fish set as the default login shell
 # ==============================================================================
 
 set -euo pipefail
@@ -30,21 +35,43 @@ log_warn()  { printf "\033[1;33m[WARN]\033[0m %s\n" "$*"; }
 log_err()   { printf "\033[1;31m[ERROR]\033[0m %s\n" "$*"; }
 
 # ------------------------------------------------------------------------------
-# 1. Environment & Sanity Checks
+# 1. Clone / Update the dotfiles repository
+# ------------------------------------------------------------------------------
+DOTFILES_REPO="https://github.com/CMMhero/dotfiles.git"
+DOTFILES_DIR="$HOME/dotfiles"
+SCRIPT_PATH="${BASH_SOURCE[0]:-$0}"
+
+# When piped from curl there is no repo on disk yet, so clone it and re-exec
+# the real checkout's setup.sh so every later path resolves inside the repo.
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" 2>/dev/null && pwd || echo "")"
+if [ ! -d "$SCRIPT_DIR/.git" ] || [ "$SCRIPT_DIR" != "$DOTFILES_DIR" ]; then
+  if [ ! -d "$DOTFILES_DIR" ]; then
+    log_info "Cloning dotfiles repository from $DOTFILES_REPO ..."
+    git clone "$DOTFILES_REPO" "$DOTFILES_DIR"
+  else
+    log_info "Dotfiles already cloned, pulling latest..."
+    git -C "$DOTFILES_DIR" pull --ff-only
+  fi
+  exec "$DOTFILES_DIR/setup.sh" "$@"
+fi
+
+DOTFILES_DIR="$SCRIPT_DIR"
+BACKUP_DIR="$HOME/.dotfiles_backup/$(date +%Y%m%d_%H%M%S)"
+
+# ------------------------------------------------------------------------------
+# 2. Sanity Checks
 # ------------------------------------------------------------------------------
 if [ "$(id -u)" -eq 0 ]; then
   log_err "Do not run this script directly as root. Run as a regular user with sudo access."
   exit 1
 fi
 
-DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BACKUP_DIR="$HOME/.dotfiles_backup/$(date +%Y%m%d_%H%M%S)"
 
 log_info "Dotfiles directory: $DOTFILES_DIR"
 log_info "Starting system setup..."
 
 # ------------------------------------------------------------------------------
-# 2. APT System Update & Base Essentials
+# 3. APT System Update & Base Essentials
 # ------------------------------------------------------------------------------
 log_info "Updating apt repositories and installing base packages..."
 sudo apt-get update -y
@@ -61,7 +88,7 @@ sudo apt-get install -y \
 log_ok "Base APT packages installed."
 
 # ------------------------------------------------------------------------------
-# 3. Homebrew Installation & Environment
+# 4. Homebrew Installation & Environment
 # ------------------------------------------------------------------------------
 if ! command -v brew >/dev/null 2>&1 && [ ! -x "/home/linuxbrew/.linuxbrew/bin/brew" ]; then
   log_info "Installing Homebrew (Linuxbrew)..."
@@ -82,7 +109,7 @@ fi
 log_ok "Homebrew is available at: $(which brew)"
 
 # ------------------------------------------------------------------------------
-# 4. Homebrew CLI Packages Installation
+# 5. Homebrew CLI Packages Installation
 # (Includes pi-coding-agent, opencode, stow, uv; excludes ghostty, deja, tuios)
 # ------------------------------------------------------------------------------
 BREW_PACKAGES=(
@@ -132,7 +159,7 @@ fi
 log_ok "uv ready at: $(which uv 2>/dev/null || echo "$HOME/.local/bin/uv")"
 
 # ------------------------------------------------------------------------------
-# 5. Vite+ Installation & pnpm Runtime Management (Default)
+# 6. Vite+ Installation & pnpm Runtime Management (Default)
 # ------------------------------------------------------------------------------
 if [ ! -d "$HOME/.local/share/vite-plus" ] && ! command -v vp >/dev/null 2>&1; then
   log_info "Installing Vite+ (https://vite.plus)..."
@@ -162,7 +189,7 @@ fi
 log_ok "pnpm runtime ready via Vite+ ($(pnpm --version 2>/dev/null || echo 'managed'))."
 
 # ------------------------------------------------------------------------------
-# 6. AI Agents: Pi & Oh-My-Pi (omp)
+# 7. AI Agents: Pi & Oh-My-Pi (omp)
 # ------------------------------------------------------------------------------
 # Note: pi-coding-agent binary ('pi') is installed via Homebrew.
 # Oh-My-Pi ('omp') is installed via pnpm below.
@@ -173,7 +200,7 @@ fi
 log_ok "AI Agents ready: pi, opencode, omp."
 
 # ------------------------------------------------------------------------------
-# 7. Herdr Installation (https://herdr.dev)
+# 8. Herdr Installation (https://herdr.dev)
 # ------------------------------------------------------------------------------
 if ! command -v herdr >/dev/null 2>&1 && [ ! -x "$HOME/.local/bin/herdr" ]; then
   log_info "Installing Herdr terminal workspace manager (https://herdr.dev)..."
@@ -181,7 +208,7 @@ if ! command -v herdr >/dev/null 2>&1 && [ ! -x "$HOME/.local/bin/herdr" ]; then
 fi
 log_ok "Herdr ready at: $(which herdr 2>/dev/null || echo "$HOME/.local/bin/herdr")"
 # ------------------------------------------------------------------------------
-# 8. GNU Stow Dotfiles Deployment
+# 9. GNU Stow Dotfiles Deployment
 # ------------------------------------------------------------------------------
 STOW_PACKAGES=(
   bash
@@ -233,7 +260,7 @@ done
 log_ok "All dotfiles stowed successfully."
 
 # ------------------------------------------------------------------------------
-# 9. Skills & Agent Symlinks Sync
+# 10. Skills & Agent Symlinks Sync
 # ------------------------------------------------------------------------------
 log_info "Verifying skills and agent symlinks..."
 mkdir -p "$HOME/.pi/skills" "$HOME/.pi/agent/skills"
@@ -248,7 +275,7 @@ if [ -d "$HOME/.agents/skills" ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 10. Oh-My-Pi Plugins Setup
+# 11. Oh-My-Pi Plugins Setup
 # ------------------------------------------------------------------------------
 if [ -d "$HOME/.omp/plugins" ] && [ -f "$HOME/.omp/plugins/package.json" ]; then
   log_info "Installing Oh-My-Pi plugins via pnpm..."
@@ -257,7 +284,7 @@ if [ -d "$HOME/.omp/plugins" ] && [ -f "$HOME/.omp/plugins/package.json" ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 11. Default Shell Setup (Fish)
+# 12. Default Shell Setup (Fish)
 # ------------------------------------------------------------------------------
 FISH_BIN="$(which fish 2>/dev/null || echo "/home/linuxbrew/.linuxbrew/bin/fish")"
 if [ -x "$FISH_BIN" ]; then
@@ -276,7 +303,7 @@ if [ -x "$FISH_BIN" ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 12. Completion Summary
+# 13. Completion Summary
 # ------------------------------------------------------------------------------
 echo ""
 printf "\033[1;32m===============================================================\033[0m\n"
