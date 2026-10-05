@@ -13,11 +13,16 @@ statusLine:
   preset: compact
   sessionAccent: true
   transparent: false
+  separator: powerline-thin
 terminal:
   showProgress: false
 defaultThinkingLevel: medium
 tui:
   resizeScrollback: rebuild
+  textSizing: true
+  titleState: true
+  tight: false
+  imeSafeCursor: false
 extendedContext: false
 hideThinkingBlock: true
 autolearn:
@@ -26,3 +31,7 @@ completion:
   notify: "off"
 ask:
   notify: "off"
+display:
+  subagentLivePreview: false
+  showTokenUsage: false
+  showTurnTime: true
