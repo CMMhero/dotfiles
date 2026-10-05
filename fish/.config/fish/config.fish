@@ -87,6 +87,22 @@ if command -q eza
     alias dtree='eza -aF --tree --only-dirs --icons=auto --ignore-glob "node_modules|.git"'
 end
 
+# ----- updates -----
+# Package updates. brew cleanup is included because upgrading without it lets
+# the download cache and old versions pile up indefinitely.
+if command -q brew
+    alias ub='brew update; and brew upgrade; and brew cleanup'
+end
+# Vite+ keeps its own node/pnpm copies, so it upgrades independently of brew.
+if command -q vp
+    alias uv-up='vp upgrade'
+end
+
+# Dotfiles: pull, then re-run install.sh so both the repo copy and every stow
+# symlink are refreshed. `git pull` alone would update the repo but leave the
+# linked files pointing at whatever stow last deployed.
+alias ud='cd $HOME/dotfiles; and git pull --ff-only; and ./install.sh'
+
 # ----- navigation -----
 abbr -a -- .. 'cd ..'
 abbr -a -- ... 'cd ../..'
@@ -123,7 +139,9 @@ end
 
 
 # Create a private GH repo from the current dir, push, and open the browser.
-abbr -a -- gh-create 'gh repo create --private --source=. --remote=origin; and git push -u --all; and gh browse'
+# No --remote=origin: push.autoSetupRemote=true in ~/.gitconfig already wires
+# the new repo's upstream on the first push, so naming it here is redundant.
+abbr -a -- gh-create 'gh repo create --private --source=.; and git push -u --all; and gh browse'
 
 # ----- misc -----
 abbr -a -- ip 'curl http://ifconfig.me/ip'

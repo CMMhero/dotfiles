@@ -29,3 +29,14 @@
 
 [merge]
   conflictStyle = zdiff3
+
+# `hunk difftool` takes git difftool's exact argument shape
+# (<local> <remote> [path]), so wiring it as diff.tool makes it what runs when
+# lazygit's OpenDiffTool keybinding shells out to `git difftool <file>`.
+# lazygit 0.65 removed its own git.diffCommands setting, so this lives here.
+[diff]
+	tool = hunk
+[difftool "hunk"]
+	cmd = hunk difftool "$LOCAL" "$REMOTE"
+[difftool]
+	prompt = false
