@@ -9,9 +9,11 @@
 # Carried over:
 #   - APT base tools (build-essential, git, curl, stow, procps, file, etc.)
 #   - Homebrew + all active CLI tools (bat, eza, fzf, ripgrep, atuin, starship,
-#     fresh-editor, hunk, fastfetch, lazygit, superfile, btop, llmfit, models, etc.)
+#     fresh-editor, hunk, fastfetch, lazygit, superfile, btop, llmfit, models, uv, etc.)
 #   - Vite+ runtime manager (https://vite.plus)
 #   - Bun runtime + Pi (@earendil-works/pi-coding-agent) & Oh-My-Pi (omp)
+#   - Python tooling via uv (https://docs.astral.sh/uv/)
+#   - Herdr workspace manager (https://herdr.dev) + config
 #   - All global skills (SKILL.md definitions from npx skills)
 #   - Full configuration sync via GNU Stow & Git
 # ==============================================================================
@@ -79,7 +81,7 @@ log_ok "Homebrew is available at: $(which brew)"
 
 # ------------------------------------------------------------------------------
 # 4. Homebrew CLI Packages Installation
-# (Excludes ghostty, deja, and tuios as requested)
+# (Excludes ghostty, deja, and tuios as requested; includes uv)
 # ------------------------------------------------------------------------------
 BREW_PACKAGES=(
   atuin
@@ -107,6 +109,7 @@ BREW_PACKAGES=(
   superfile
   tealdeer
   thefuck
+  uv
   zinit
   zoxide
 )
@@ -119,6 +122,13 @@ log_ok "Homebrew formulas installed."
 if command -v tldr >/dev/null 2>&1; then
   tldr --update 2>/dev/null || true
 fi
+
+# Fallback check for uv
+if ! command -v uv >/dev/null 2>&1; then
+  log_info "Installing uv (astral.sh/uv)..."
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+fi
+log_ok "uv ready at: $(which uv 2>/dev/null || echo "$HOME/.local/bin/uv")"
 
 # ------------------------------------------------------------------------------
 # 5. Vite+ Installation
@@ -162,11 +172,19 @@ fi
 # Ensure ~/.local/bin is in PATH for standalone launchers
 mkdir -p "$HOME/.local/bin"
 export PATH="$HOME/.local/bin:$PATH"
-
 log_ok "Pi & Oh-My-Pi agent packages installed."
 
 # ------------------------------------------------------------------------------
-# 8. GNU Stow Dotfiles Deployment
+# 8. Herdr Installation (https://herdr.dev)
+# ------------------------------------------------------------------------------
+if ! command -v herdr >/dev/null 2>&1 && [ ! -x "$HOME/.local/bin/herdr" ]; then
+  log_info "Installing Herdr terminal workspace manager (https://herdr.dev)..."
+  curl -fsSL https://herdr.dev/install.sh | bash || true
+fi
+log_ok "Herdr ready at: $(which herdr 2>/dev/null || echo "$HOME/.local/bin/herdr")"
+
+# ------------------------------------------------------------------------------
+# 9. GNU Stow Dotfiles Deployment
 # ------------------------------------------------------------------------------
 STOW_PACKAGES=(
   bash
@@ -178,6 +196,7 @@ STOW_PACKAGES=(
   btop
   fastfetch
   fresh
+  herdr
   hunk
   lazygit
   superfile
@@ -217,7 +236,7 @@ done
 log_ok "All dotfiles stowed successfully."
 
 # ------------------------------------------------------------------------------
-# 9. Skills & Agent Symlinks Sync
+# 10. Skills & Agent Symlinks Sync
 # ------------------------------------------------------------------------------
 log_info "Verifying skills and agent symlinks..."
 mkdir -p "$HOME/.pi/skills" "$HOME/.pi/agent/skills"
@@ -232,7 +251,7 @@ if [ -d "$HOME/.agents/skills" ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 10. Oh-My-Pi Plugins Setup
+# 11. Oh-My-Pi Plugins Setup
 # ------------------------------------------------------------------------------
 if [ -d "$HOME/.omp/plugins" ] && [ -f "$HOME/.omp/plugins/package.json" ]; then
   log_info "Installing Oh-My-Pi plugins..."
@@ -241,7 +260,7 @@ if [ -d "$HOME/.omp/plugins" ] && [ -f "$HOME/.omp/plugins/package.json" ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 11. Default Shell Setup (Fish)
+# 12. Default Shell Setup (Fish)
 # ------------------------------------------------------------------------------
 FISH_BIN="$(which fish 2>/dev/null || echo "/home/linuxbrew/.linuxbrew/bin/fish")"
 if [ -x "$FISH_BIN" ]; then
@@ -259,7 +278,7 @@ if [ -x "$FISH_BIN" ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 12. Completion Summary
+# 13. Completion Summary
 # ------------------------------------------------------------------------------
 echo ""
 printf "\033[1;32m===============================================================\033[0m\n"
@@ -267,7 +286,9 @@ printf "\033[1;32m  Machine Bootstrap & Config Sync Complete!                   
 printf "\033[1;32m===============================================================\033[0m\n"
 echo "Active environment features:"
 echo "  - Homebrew prefix: $(brew --prefix 2>/dev/null || echo '/home/linuxbrew/.linuxbrew')"
-echo "  - CLI tools: bat, eza, fd, ripgrep, atuin, starship, fresh, lazygit, superfile, etc."
+echo "  - CLI tools: bat, eza, fd, ripgrep, atuin, starship, fresh, lazygit, superfile, uv, etc."
+echo "  - Python manager: uv (pip/venv/run/build)"
+echo "  - Terminal multiplexer: herdr (with custom keybinds & Catppuccin theme)"
 echo "  - Editor: fresh (fresh-editor)"
 echo "  - Runtimes: vite+ (vp), bun, node, pnpm"
 echo "  - AI Agents: pi, oh-my-pi (omp) with synced models & plugins"

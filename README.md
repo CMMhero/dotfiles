@@ -8,6 +8,8 @@ Modular dotfiles managed with **GNU Stow** and a zero-to-hero bootstrap script (
 
 - **Shells**: Fish (`~/.config/fish`), Bash (`.bashrc`, `.profile`), Zsh (`.zshrc`, `.zshenv`)
 - **CLI Tools**: `atuin`, `bat`, `btop`, `chafa`, `eza`, `fastfetch`, `fd`, `fzf`, `gh`, `hunk`, `jq`, `lazygit`, `llmfit`, `marksman`, `models`, `neovim`, `pipx`, `ripgrep`, `rustup`, `starship`, `superfile`, `tealdeer`, `thefuck`, `zinit`, `zoxide`
+- **Python**: `uv` (fast Python package and project manager)
+- **Terminal Workspace Manager**: `herdr` (`~/.config/herdr/config.toml`) with custom keybindings, tabs, and Catppuccin theme
 - **Editor**: `fresh-editor` (`~/.config/fresh`) with Catppuccin theme, vi mode startup, custom key calibration
 - **Runtimes**: Vite+ (`~/.config/vite-plus`), Bun, Node, pnpm
 - **AI Coding Agents**:
@@ -36,13 +38,14 @@ cd ~/dotfiles
 The script will:
 1. Update APT and install base essentials (`build-essential`, `curl`, `git`, `stow`, `procps`, `file`, etc.).
 2. Install Homebrew (Linuxbrew) and initialize shell environment.
-3. Install all Homebrew CLI formulas.
-4. Install Vite+ (`https://vite.plus`) and Bun.
-5. Install Pi and Oh-My-Pi agents globally.
-6. Back up any conflicting system defaults to `~/.dotfiles_backup/<timestamp>/`.
-7. Link all packages into `$HOME` via `gnu stow`.
-8. Wire skill symlinks into Pi and install Oh-My-Pi plugins.
-9. Configure Fish as the default login shell.
+3. Install all Homebrew CLI formulas (including `uv`).
+4. Install Herdr (`curl -fsSL https://herdr.dev/install.sh | bash`).
+5. Install Vite+ (`https://vite.plus`) and Bun.
+6. Install Pi and Oh-My-Pi agents globally.
+7. Back up any conflicting system defaults to `~/.dotfiles_backup/<timestamp>/`.
+8. Link all packages into `$HOME` via `gnu stow`.
+9. Wire skill symlinks into Pi and install Oh-My-Pi plugins.
+10. Configure Fish as the default login shell.
 
 ---
 
@@ -52,13 +55,13 @@ From within `~/dotfiles`:
 
 ```bash
 # Stow all packages to $HOME
-stow -v -R -t ~ bash zsh fish git starship atuin btop fastfetch fresh hunk lazygit superfile thefuck vite-plus pi omp skills
+stow -v -R -t ~ bash zsh fish git starship atuin btop fastfetch fresh herdr hunk lazygit superfile thefuck vite-plus pi omp skills
 
-# Stow a specific package (e.g., fresh)
-stow -v -R -t ~ fresh
+# Stow a specific package (e.g., herdr)
+stow -v -R -t ~ herdr
 
 # Unstow a package
-stow -v -D -t ~ fresh
+stow -v -D -t ~ herdr
 ```
 
 ---
