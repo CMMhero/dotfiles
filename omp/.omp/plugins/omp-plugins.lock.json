@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "pi-commandcode-provider": {
+      "version": "0.7.3",
+      "enabledFeatures": null,
+      "enabled": true
+    }
+  },
+  "settings": {}
+}

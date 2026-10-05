@@ -3,7 +3,8 @@
   "theme": "dark",
   "packages": [
     "npm:pi-commandcode-provider",
-    "npm:opencode-pi"
+    "npm:opencode-pi",
+    "npm:pi-web-access"
   ],
   "enabledModels": [
     "commandcode/stealth/space-bunny-alpha",

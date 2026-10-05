@@ -314,6 +314,20 @@ if [ -d "$FRESH_DIR/plugins/packages" ] || [ -d "$FRESH_DIR/themes/packages" ]; 
   done
 fi
 
+# fresh generates its API type definitions at runtime (`fresh --cmd script types`).
+# They are not config and are not stowed, but the stowed tsconfig.json and
+# init.ts both reference them, so regenerate them after stowing. Without this a
+# fresh install has dangling `/// <reference>` paths in init.ts.
+if command -v fresh >/dev/null 2>&1; then
+  log_info "Regenerating fresh API type definitions..."
+  fresh --cmd script types >/dev/null 2>&1 || log_warn "Could not regenerate fresh types (editor-only nicety)."
+
+  log_info "Validating fresh init.ts..."
+  fresh --cmd init check >/dev/null 2>&1 \
+    && log_ok "fresh init.ts ok." \
+    || log_warn "fresh init check failed; run 'fresh --safe' to diagnose."
+fi
+
 # ------------------------------------------------------------------------------
 # 13. Default Shell Setup (Fish)
 # ------------------------------------------------------------------------------

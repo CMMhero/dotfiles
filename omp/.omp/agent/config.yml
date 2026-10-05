@@ -1,18 +1,27 @@
+setupVersion: 2
 modelRoles:
-  default: google-antigravity/gemini-3.8-flash:medium
-symbolPreset: nerd
-composer:
-  shape: field
+  default: commandcode/stealth/space-bunny-alpha:medium
 theme:
   dark: titanium
   light: light
-defaultThinkingLevel: medium
-setupVersion: 2
+symbolPreset: nerd
+colorBlindMode: false
+composer:
+  shape: field
 statusLine:
   preset: default
   sessionAccent: true
   transparent: false
 terminal:
   showProgress: false
+defaultThinkingLevel: medium
 tui:
   resizeScrollback: rebuild
+extendedContext: false
+hideThinkingBlock: true
+autolearn:
+  enabled: false
+completion:
+  notify: "off"
+ask:
+  notify: "off"
