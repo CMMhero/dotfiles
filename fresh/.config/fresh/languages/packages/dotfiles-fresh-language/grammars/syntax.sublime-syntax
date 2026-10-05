@@ -1,0 +1,113 @@
+%YAML 1.2
+---
+# Sublime syntax file for DotENV
+# Converted from DotENV.YAML-tmLanguage
+# Documentation: https://www.sublimetext.com/docs/syntax.html
+name: DotENV
+scope: source.env
+file_extensions:
+  - .env
+  - .env.dist
+  - .env.local
+  - .env.sample
+  - .env.example
+  - .env.test
+  - .env.test.local
+  - .env.testing
+  - .env.dev
+  - .env.development
+  - .env.development.local
+  - .env.prod
+  - .env.production
+  - .env.production.local
+  - .env.dusk.local
+  - .env.staging
+  - .env.default
+  - .env.defaults
+  - .envrc
+  - .flaskenv
+
+contexts:
+  main:
+    - include: comments
+    - include: keywords
+    - include: variable-assignment
+    - include: strings-double
+    - include: strings-single
+    - include: constants
+    - include: numbers
+
+  comments:
+    # Comments - starts with #
+    - match: '(#).*$\n?'
+      scope: comment.line.number-sign.env
+      captures:
+        1: punctuation.definition.comment.env
+
+  keywords:
+    - match: '(?i)\s?(export)\b'
+      scope: keyword.other.env
+
+  variable-assignment:
+    # Variable name followed by assignment
+    - match: '([\w]+)(?=\s?=)'
+      scope: variable.other.env
+    # Assignment operator
+    - match: '(?<=[\w])\s?='
+      scope: keyword.operator.assignment.env
+
+  strings-double:
+    # Double-quoted strings with interpolation and escapes
+    - match: '"'
+      scope: punctuation.definition.string.begin.env
+      push:
+        - meta_scope: string.quoted.double.env
+        - match: '"'
+          scope: punctuation.definition.string.end.env
+          pop: true
+        - include: interpolation
+        - include: variable-reference
+        - include: escape-characters
+
+  strings-single:
+    # Single-quoted strings (no interpolation)
+    - match: "'"
+      scope: punctuation.definition.string.begin.env
+      push:
+        - meta_scope: string.quoted.single.env
+        - match: "'"
+          scope: punctuation.definition.string.end.env
+          pop: true
+
+  constants:
+    - match: '(?i)(?<==)\s?(true|false|null)\b'
+      scope: constant.language.env
+
+  numbers:
+    - match: '\b((0(x|X)[0-9a-fA-F]*)|(([0-9]+\.?[0-9]*)|(\.[0-9]+))((e|E)(\+|-)?[0-9]+)?)\b'
+      scope: constant.numeric.env
+
+  interpolation:
+    # Template Syntax: "foo ${bar} {$baz}"
+    - match: '(\$\{|\{\$)'
+      scope: keyword.other.template.begin.env string.interpolated.env
+      push:
+        - meta_scope: string.interpolated.env
+        - match: '(\$+)?([a-zA-Z_][a-zA-Z0-9_]*)\b'
+          captures:
+            1: punctuation.definition.variable.env variable.other.env
+            2: variable.other.env
+        - match: '\}'
+          scope: keyword.other.template.end.env string.interpolated.env
+          pop: true
+
+  variable-reference:
+    # Variable reference: $VAR
+    - match: '(\$+)([a-zA-Z_][a-zA-Z0-9_]*)\b'
+      captures:
+        1: punctuation.definition.variable.env variable.other.env
+        2: variable.other.env
+
+  escape-characters:
+    - match: '\\[nrt\\$"'']'
+      scope: constant.character.escape.env

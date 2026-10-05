@@ -124,6 +124,7 @@ BREW_PACKAGES=(
   fresh-editor
   fzf
   gh
+  go
   hunk
   jq
   lazygit
@@ -284,7 +285,34 @@ if [ -d "$HOME/.omp/plugins" ] && [ -f "$HOME/.omp/plugins/package.json" ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 12. Default Shell Setup (Fish)
+# 12. Fresh Editor Packages (plugins / themes / languages)
+# ------------------------------------------------------------------------------
+# The fresh package tree is stowed from the repo, but fresh keeps a private
+# registry cache under ~/.config/fresh/plugins/packages/.index and .cache.
+# Those are fetched artifacts, not config, so they are gitignored; a fresh
+# install therefore needs the registry re-fetched once to resolve the packages
+# that were stowed by reference.
+FRESH_DIR="$HOME/.config/fresh"
+if [ -d "$FRESH_DIR/plugins/packages" ] || [ -d "$FRESH_DIR/themes/packages" ]; then
+  log_info "Refreshing fresh package registry..."
+  fresh --cmd update >/dev/null 2>&1 || log_warn "fresh --cmd update failed; stowed packages still apply."
+
+  log_info "Verifying stowed fresh packages..."
+  for kind in plugins themes languages; do
+    src="$DOTFILES_DIR/fresh/.config/fresh/$kind/packages"
+    [ -d "$src" ] || continue
+    for pkg in "$src"/*/; do
+      [ -d "$pkg" ] || continue
+      name="$(basename "$pkg")"
+      if [ -d "$FRESH_DIR/$kind/packages/$name" ]; then
+        log_ok "  $kind/$name"
+      fi
+    done
+  done
+fi
+
+# ------------------------------------------------------------------------------
+# 13. Default Shell Setup (Fish)
 # ------------------------------------------------------------------------------
 FISH_BIN="$(which fish 2>/dev/null || echo "/home/linuxbrew/.linuxbrew/bin/fish")"
 if [ -x "$FISH_BIN" ]; then
@@ -303,7 +331,7 @@ if [ -x "$FISH_BIN" ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 13. Completion Summary
+# 14. Completion Summary
 # ------------------------------------------------------------------------------
 echo ""
 printf "\033[1;32m===============================================================\033[0m\n"
@@ -315,7 +343,7 @@ echo "  - Brew CLI tools: bat, eza, fd, ripgrep, atuin, starship, fresh, lazygit
 echo "  - Python manager: uv (pip/venv/run/build)"
 echo "  - Terminal multiplexer: herdr (with custom keybinds & Catppuccin theme)"
 echo "  - Terminal emulator config: wezterm (.wezterm.lua)"
-echo "  - Editor: fresh (fresh-editor)"
+echo "  - Editor: fresh (fresh-editor) with catppuccin theme, color-highlighter plugin, vi-mode + toggle"
 echo "  - Runtimes: vite+ (vp), node, pnpm (pnpm-first, managed by vite+)"
 echo "  - AI Agents: pi, opencode, oh-my-pi (omp) with synced models, plugins & skills"
 echo "  - Skills: imported into ~/.agents/skills and linked to pi"

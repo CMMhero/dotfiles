@@ -91,6 +91,7 @@ BREW_PACKAGES=(
   fresh-editor
   fzf
   gh
+  go
   hunk
   jq
   lazygit

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://raw.githubusercontent.com/sinelaw/fresh/main/crates/fresh-editor/plugins/schemas/package.schema.json",
+  "name": "dotfiles-fresh-language",
+  "version": "1.0.0",
+  "description": "Syntax Highlighting support for Environment (.env) Files",
+  "type": "language",
+  "author": "2fd <i@2fd.me>",
+  "license": "MIT",
+  "fresh": {
+    "grammar": {
+      "file": "grammars/syntax.sublime-syntax",
+      "extensions": [
+        ".env",
+        ".env.dist",
+        ".env.local",
+        ".env.sample",
+        ".env.example",
+        ".env.test",
+        ".env.test.local",
+        ".env.testing",
+        ".env.dev",
+        ".env.development",
+        ".env.development.local",
+        ".env.prod",
+        ".env.production",
+        ".env.production.local",
+        ".env.dusk.local",
+        ".env.staging",
+        ".env.default",
+        ".env.defaults",
+        ".envrc",
+        ".flaskenv"
+      ]
+    }
+  }
+}
