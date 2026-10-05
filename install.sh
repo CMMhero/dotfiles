@@ -465,7 +465,11 @@ if command -v fish >/dev/null 2>&1; then
   FISH_ERR_FILE="$(mktemp)"
   FISH_BAD=0
   while IFS= read -r fish_file; do
-    if ! fish -n "$fish_file" 2>"$FISH_ERR_FILE"; then
+    # </dev/null is deliberate: fish inherits this script's stdin, which under
+    # `curl ... | bash` is the pipe feeding the script itself. fish can block
+    # reading it ("read: interrupted") and the install appears to hang.
+    # Detaching guarantees it only parses and exits.
+    if ! fish -n "$fish_file" </dev/null 2>"$FISH_ERR_FILE"; then
       [ "$FISH_BAD" -eq 0 ] && log_warn "fish config has a syntax error:"
       FISH_BAD=1
       sed 's/^/    /' "$FISH_ERR_FILE"
