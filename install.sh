@@ -264,23 +264,11 @@ done
 log_ok "All dotfiles stowed successfully."
 
 # ------------------------------------------------------------------------------
-# 10. Skills & Agent Symlinks Sync
+# 10. Oh-My-Pi Plugins Setup
 # ------------------------------------------------------------------------------
-log_info "Verifying skills and agent symlinks..."
-mkdir -p "$HOME/.pi/skills" "$HOME/.pi/agent/skills"
-if [ -d "$HOME/.agents/skills" ]; then
-  for skill_dir in "$HOME/.agents/skills"/*; do
-    [ -d "$skill_dir" ] || continue
-    skill_name="$(basename "$skill_dir")"
-    ln -sfn "$skill_dir" "$HOME/.pi/skills/$skill_name"
-    ln -sfn "$skill_dir" "$HOME/.pi/agent/skills/$skill_name"
-  done
-  log_ok "Global skills linked to Pi and Oh-My-Pi."
-fi
-
-# ------------------------------------------------------------------------------
-# 11. Oh-My-Pi Plugins Setup
-# ------------------------------------------------------------------------------
+# NOTE: skills are not imported. ~/.agents/skills is stowed (the `skills`
+# package), but opencode/pi/omp skill directories are deliberately left alone
+# so each agent manages its own skill installs.
 if [ -d "$HOME/.omp/plugins" ] && [ -f "$HOME/.omp/plugins/package.json" ]; then
   log_info "Installing Oh-My-Pi plugins via pnpm..."
   (cd "$HOME/.omp/plugins" && (pnpm install 2>/dev/null || true))
@@ -288,7 +276,7 @@ if [ -d "$HOME/.omp/plugins" ] && [ -f "$HOME/.omp/plugins/package.json" ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 12. Fresh Editor Packages (plugins / themes / languages)
+# 11. Fresh Editor Packages (plugins / themes / languages)
 # ------------------------------------------------------------------------------
 # The fresh package tree is stowed from the repo, but fresh keeps a private
 # registry cache under ~/.config/fresh/plugins/packages/.index and .cache.
@@ -329,7 +317,7 @@ if command -v fresh >/dev/null 2>&1; then
 fi
 
 # ------------------------------------------------------------------------------
-# 13. Default Shell Setup (Fish)
+# 12. Default Shell Setup (Fish)
 # ------------------------------------------------------------------------------
 FISH_BIN="$(which fish 2>/dev/null || echo "/home/linuxbrew/.linuxbrew/bin/fish")"
 if [ -x "$FISH_BIN" ]; then
@@ -348,7 +336,7 @@ if [ -x "$FISH_BIN" ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 14. Completion Summary
+# 13. Completion Summary
 # ------------------------------------------------------------------------------
 echo ""
 printf "\033[1;32m===============================================================\033[0m\n"
@@ -362,8 +350,8 @@ echo "  - Terminal multiplexer: herdr (with custom keybinds & Catppuccin theme)"
 echo "  - Terminal emulator config: wezterm (.wezterm.lua, Windows-only; in repo, not stowed on Linux)"
 echo "  - Editor: fresh (fresh-editor) with catppuccin theme, color-highlighter plugin, vi-mode + toggle"
 echo "  - Runtimes: vite+ (vp), node, pnpm (pnpm-first, managed by vite+)"
-echo "  - AI Agents: pi, opencode, oh-my-pi (omp) with synced models, plugins & skills"
-echo "  - Skills: imported into ~/.agents/skills and linked to pi"
+echo "  - AI Agents: pi, opencode, oh-my-pi (omp) with synced models, plugins & extensions"
+echo "  - Skills: ~/.agents/skills synced; per-agent skill dirs are not managed here"
 echo "  - Shell: fish with custom aliases, abbreviations, and starship prompt"
 echo ""
 if [ -d "$BACKUP_DIR" ]; then

@@ -169,9 +169,6 @@ fi
 log_info "Cleaning up empty config directories..."
 find "$HOME/.config" -maxdepth 1 -mindepth 1 -type d -empty -delete 2>/dev/null || true
 
-# Remove skill symlinks pi/omp created outside the stow tree
-rm -f "$HOME/.pi/skills"/* "$HOME/.pi/agent/skills"/* 2>/dev/null || true
-rmdir "$HOME/.pi/skills" "$HOME/.pi/agent/skills" 2>/dev/null || true
 
 # ------------------------------------------------------------------------------
 # 4. Restore default login shell (bash)
