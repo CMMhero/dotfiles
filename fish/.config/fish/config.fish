@@ -126,8 +126,15 @@ function upd --description 'update all: apt brew vp pi omp opencode dotfiles'
 
     if contains brew $selected; and command -q brew >/dev/null 2>&1
         echo '==> brew'
-        HOMEBREW_NO_AUTO_UPDATE= brew update
+        brew update
+        # `brew upgrade` with no arguments upgrades EVERY outdated formula, but
+        # formulae only -- casks are a separate namespace and need --cask. There
+        # are no casks installed at the moment, so --cask on its own would just
+        # error, hence the conditional.
         brew upgrade
+        if test (count (brew list --cask 2>/dev/null)) -gt 0
+            brew upgrade --cask
+        end
         # -s skips the per-file "delete this?" prompt that plain cleanup asks.
         brew cleanup -s
     end
