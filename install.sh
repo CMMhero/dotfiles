@@ -318,8 +318,6 @@ MISE_TOOLS=(
   # github backend
   "github:hpjansson/chafa"       # image renderer
   "github:sinelaw/fresh"         # fresh editor
-  "github:AlexsJones/llmfit"     # local model fit checker
-  "github:reyamira/models"       # AI model TUI
   "github:can1357/oh-my-pi"      # oh-my-pi (omp)
   # npm backend
   "npm:vite-plus"                # vite+ tool; its runtime/PM modes stay system_first
