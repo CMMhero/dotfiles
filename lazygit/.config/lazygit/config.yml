@@ -27,3 +27,35 @@ git:
 # it to the staging view as well as the diff view; it makes line selection act
 # on whole hunks rather than individual lines.
   useHunkModeInDiffView: false
+
+# ---------------------------------------------------------------------------
+# Delta from inside lazygit
+# ---------------------------------------------------------------------------
+# lazygit renders its main panel itself and never calls a pager, so core.pager
+# does not reach it. These custom commands shell out to git and pipe the output
+# through delta, which is the only way to see delta's Macchiato-coloured
+# side-by-side inside lazygit. `--paging=never` is required because the output
+# goes to a lazygit view rather than a terminal pager.
+#
+#   D  diff working tree through delta
+#   S  diff staged changes through delta
+#   C  diff the selected commit's changes through delta
+customCommands:
+  - command: 'git diff | delta --paging=never'
+    description: 'Diff working tree with delta'
+    context: 'workingTree'
+    output: true
+    streaming: true
+    key: 'D'
+  - command: 'git diff --staged | delta --paging=never'
+    description: 'Diff staged changes with delta'
+    context: 'stagedFiles'
+    output: true
+    streaming: true
+    key: 'S'
+  - command: 'git show {{.FormSelectedCommit}} | delta --paging=never'
+    description: 'Show selected commit with delta'
+    context: 'commitFiles'
+    output: true
+    streaming: true
+    key: 'C'

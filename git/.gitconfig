@@ -9,8 +9,6 @@
 
 [delta]
 	theme = dark "Catppuccin Macchiato"
-	# Keep the hunk pager available for anything that wants it explicitly:
-	#   git -c core.pager='hunk pager' log -p
 	line-numbers = true
 	# side-by-side needs room; delta falls back to unified on a narrow terminal.
 	side-by-side = true
@@ -46,14 +44,3 @@
 
 [merge]
   conflictStyle = zdiff3
-
-# `hunk difftool` takes git difftool's exact argument shape
-# (<local> <remote> [path]), so wiring it as diff.tool makes it what runs when
-# lazygit's OpenDiffTool keybinding shells out to `git difftool <file>`.
-# lazygit 0.65 removed its own git.diffCommands setting, so this lives here.
-[diff]
-	tool = hunk
-[difftool "hunk"]
-	cmd = hunk difftool "$LOCAL" "$REMOTE"
-[difftool]
-	prompt = false
