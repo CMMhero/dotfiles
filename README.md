@@ -95,12 +95,9 @@ cd ~/dotfiles && git pull --ff-only && ./install.sh
 
 # non-interactive
 ./uninstall.sh --purge --yes
-
-# purge packages AND wipe agent data (~/.pi, ~/.omp, ~/.opencode, ~/.agents)
-./uninstall.sh --purge-data --yes
 ```
 
-Session data such as atuin history and the pnpm store is preserved unless you pass `--purge-data`.
+**Agent data is never deleted.** `~/.pi`, `~/.omp`, `~/.opencode` and `~/.agents` hold session history, credentials and caches that outlive the packages. No flag removes them — `--purge-data` was removed and now exits with an error rather than silently doing nothing.
 
 ---
 

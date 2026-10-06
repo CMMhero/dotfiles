@@ -12,8 +12,11 @@
 #   ./uninstall.sh --purge --yes  # non-interactive (no confirmation prompts)
 #
 # WARNING: --purge removes CLI tools, brew, vite+ runtimes, herdr, and the pi /
-# omp / opencode agent configs. Existing data in ~/.local/share (atuin history,
-# claude/opencode sessions, pnpm store) is preserved unless --purge-data is passed.
+# omp / opencode agent configs.
+#
+# Agent data is NEVER deleted, by any flag. ~/.pi, ~/.omp, ~/.opencode and
+# ~/.agents hold session history, credentials and caches that outlive the
+# packages; removing them is irreversible and there is no override.
 # ==============================================================================
 
 set -euo pipefail
@@ -25,15 +28,20 @@ log_warn()  { printf "\033[1;33m[WARN]\033[0m %s\n" "$*"; }
 log_err()   { printf "\033[1;31m[ERROR]\033[0m %s\n" "$*"; }
 
 PURGE=0
-PURGE_DATA=0
 ASSUME_YES=0
 
 for arg in "$@"; do
   case "$arg" in
     --purge)      PURGE=1 ;;
-    --purge-data) PURGE=1; PURGE_DATA=1 ;;
     --yes|-y)     ASSUME_YES=1 ;;
-    --help|-h)    sed -n '2,16p' "$0"; exit 0 ;;
+    --purge-data)
+      log_err "--purge-data has been removed: agent data is never deleted."
+      log_err "Session history, credentials and caches under ~/.pi, ~/.omp,"
+      log_err "~/.opencode and ~/.agents are yours and are always left intact."
+      log_err "Use --purge to remove packages only."
+      exit 1
+      ;;
+    --help|-h)    sed -n '2,18p' "$0"; exit 0 ;;
     *)            log_err "Unknown option: $arg"; exit 1 ;;
   esac
 done
@@ -234,13 +242,10 @@ if [ "$PURGE" -eq 1 ]; then
   sudo apt-get remove -y --purge "${APT_PACKAGES[@]}" 2>/dev/null || true
   sudo apt-get autoremove -y 2>/dev/null || true
 
-  # ---- oh-my-pi / pi / opencode data dirs ----
-  # ~/.agents and ~/skills-lock.json are deliberately NOT touched: skills are
-  # not managed by this repo, so that data belongs to the user, not to us.
-  if [ "$PURGE_DATA" -eq 1 ]; then
-    log_warn "--purge-data: removing agent data (~/.pi, ~/.omp, ~/.opencode)..."
-    rm -rf "$HOME/.pi" "$HOME/.omp" "$HOME/.opencode"
-  fi
+  # Agent data is never deleted, not even with --purge. ~/.pi, ~/.omp,
+  # ~/.opencode and ~/.agents hold session history, credentials, and caches
+  # that outlive any package; wiping them alongside a package removal is
+  # irreversible and buys nothing. There is no flag to override this.
 fi
 
 # ------------------------------------------------------------------------------
@@ -276,7 +281,7 @@ printf "\033[1;32m==============================================================
 echo "Stowed configs removed; default login shell restored."
 if [ "$PURGE" -eq 1 ]; then
   echo "Packages purged (brew formulas, apt packages, vite+, herdr, global pnpm)."
-  [ "$PURGE_DATA" -eq 1 ] && echo "Agent data removed (~/.pi, ~/.omp, ~/.opencode). ~/.agents and ~/skills-lock.json left alone."
+  echo "Agent data left intact (~/.pi, ~/.omp, ~/.opencode, ~/.agents)."
 fi
 echo "Dotfiles repo deleted."
 echo ""
