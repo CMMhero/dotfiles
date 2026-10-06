@@ -84,50 +84,52 @@ STOW_PACKAGES=(
   hunk
   lazygit
   superfile
+  vite-plus
 )
 
 MISE_TOOLS=(
-  "aqua:atuinsh/atuin"
-  "aqua:sharkdp/bat"
-  "aqua:aristocratos/btop"
-  "github:hpjansson/chafa"
-  "aqua:eza-community/eza"
-  "aqua:fastfetch-cli/fastfetch"
-  "aqua:sharkdp/fd"
-  "github:sinelaw/fresh"
-  "aqua:junegunn/fzf"
-  "aqua:cli/cli"
-  "aqua:herdrdev/herdr"
-  "aqua:modem-dev/hunk"
-  "aqua:jqlang/jq"
-  "aqua:jesseduffield/lazygit"
-  "github:AlexsJones/llmfit"
-  "aqua:artempyanykh/marksman"
-  "github:reyamira/models"
-  "aqua:neovim/neovim"
-  "aqua:anomalyco/opencode"
-  "aqua:earendil-works/pi"
-  "aqua:BurntSushi/ripgrep"
-  "aqua:dandavison/delta"
-  "aqua:starship/starship"
-  "aqua:yorukot/superfile"
-  "aqua:tealdeer-rs/tealdeer"
-  "aqua:astral-sh/uv"
-  "aqua:ajeetdsouza/zoxide"
-  "core:go"
-  "core:rust"
-  "core:node"
-  "core:pnpm"
+  # aqua backend
+  "aqua:atuinsh/atuin"           # shell history
+  "aqua:sharkdp/bat"             # cat replacement
+  "aqua:aristocratos/btop"       # process viewer
+  "aqua:eza-community/eza"       # ls replacement
+  "aqua:fastfetch-cli/fastfetch" # system info
+  "aqua:sharkdp/fd"              # find replacement
+  "aqua:junegunn/fzf"            # fuzzy finder
+  "aqua:cli/cli"                 # GitHub CLI
+  "aqua:herdrdev/herdr"          # terminal multiplexer
+  "aqua:modem-dev/hunk"          # diff viewer / git difftool
+  "aqua:jqlang/jq"               # json processor
+  "aqua:jesseduffield/lazygit"   # git TUI
+  "aqua:neovim/neovim"           # editor
+  "aqua:anomalyco/opencode"      # AI coding agent
+  "aqua:earendil-works/pi"       # AI coding agent
+  "aqua:BurntSushi/ripgrep"      # grep replacement
+  "aqua:dandavison/delta"        # git-delta
+  "aqua:starship/starship"       # prompt
+  "aqua:yorukot/superfile"       # file manager
+  "aqua:tealdeer-rs/tealdeer"    # tldr pages
+  "aqua:astral-sh/uv"            # python tooling
+  "aqua:ajeetdsouza/zoxide"      # cd jumper
+  # github backend
+  "github:hpjansson/chafa"       # image renderer
+  "github:sinelaw/fresh"         # fresh editor
+  "github:AlexsJones/llmfit"     # local model fit checker
+  "github:reyamira/models"       # AI model TUI
+  "github:can1357/oh-my-pi"      # oh-my-pi (omp)
+  # npm backend
+  "npm:vite-plus"                # vite+; runtime/PM management left system_first
+  # core backend
+  "core:go"                      # replaced the brew `go` formula
+  "core:rust"                    # replaced brew `rustup`
 )
 
 APT_PACKAGES=(
-  build-essential
-  curl
-  file
-  git
-  procps
-  stow
   ca-certificates
+  curl
+  fish
+  git
+  stow
 )
 
 if [ "$(id -u)" -eq 0 ]; then

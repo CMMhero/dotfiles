@@ -209,27 +209,23 @@ log_ok "mise ready at $(command -v mise) ($(mise --version 2>/dev/null | head -1
 # Backends: aqua (most CLI tools), github (repos without an aqua entry), core
 # (go, rust, node, pnpm - the built-in registry).
 #
-# core:pnpm replaces the pnpm that Vite+ used to manage, at the same version.
+# (pnpm comes from vite+ now; mise does not manage node/pnpm.)
 MISE_TOOLS=(
+  # aqua backend
   "aqua:atuinsh/atuin"           # shell history
   "aqua:sharkdp/bat"             # cat replacement
   "aqua:aristocratos/btop"       # process viewer
-  "github:hpjansson/chafa"       # image renderer
   "aqua:eza-community/eza"       # ls replacement
   "aqua:fastfetch-cli/fastfetch" # system info
   "aqua:sharkdp/fd"              # find replacement
-  "github:sinelaw/fresh"         # fresh editor
   "aqua:junegunn/fzf"            # fuzzy finder
   "aqua:cli/cli"                 # GitHub CLI
   "aqua:herdrdev/herdr"          # terminal multiplexer
   "aqua:modem-dev/hunk"          # diff viewer / git difftool
   "aqua:jqlang/jq"               # json processor
   "aqua:jesseduffield/lazygit"   # git TUI
-  "github:AlexsJones/llmfit"     # local model fit checker
-  "github:reyamira/models"       # AI model TUI
   "aqua:neovim/neovim"           # editor
   "aqua:anomalyco/opencode"      # AI coding agent
-  "github:can1357/oh-my-pi"     # oh-my-pi (omp)
   "aqua:earendil-works/pi"       # AI coding agent
   "aqua:BurntSushi/ripgrep"      # grep replacement
   "aqua:dandavison/delta"        # git-delta
@@ -238,10 +234,17 @@ MISE_TOOLS=(
   "aqua:tealdeer-rs/tealdeer"    # tldr pages
   "aqua:astral-sh/uv"            # python tooling
   "aqua:ajeetdsouza/zoxide"      # cd jumper
+  # github backend
+  "github:hpjansson/chafa"       # image renderer
+  "github:sinelaw/fresh"         # fresh editor
+  "github:AlexsJones/llmfit"     # local model fit checker
+  "github:reyamira/models"       # AI model TUI
+  "github:can1357/oh-my-pi"      # oh-my-pi (omp)
+  # npm backend
+  "npm:vite-plus"                # vite+; runtime/PM management left system_first
+  # core backend
   "core:go"                      # replaced the brew `go` formula
   "core:rust"                    # replaced brew `rustup`
-  "core:node"                    # replaced Vite+'s node
-  "core:pnpm"                    # replaced Vite+'s pnpm
 )
 
 log_step "Installing tools via mise..."
@@ -331,9 +334,12 @@ STOW_PACKAGES=(
   bat
   btop
   fastfetch
+  fresh
   herdr
   hunk
   lazygit
+  superfile
+  vite-plus
 )
 
 # Packages linked file-by-file instead of stowed.
