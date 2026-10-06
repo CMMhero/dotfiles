@@ -144,7 +144,6 @@ log_ok "Homebrew is available at: $(which brew)"
 BREW_PACKAGES=(
   atuin
   bat
-  bat
   btop
   chafa
   eza
@@ -161,6 +160,8 @@ BREW_PACKAGES=(
   llmfit
   models
   neovim
+  opencode
+  pi-coding-agent
   ripgrep
   rustup
   starship
@@ -234,18 +235,22 @@ log_ok "pnpm runtime ready via Vite+ ($(pnpm --version 2>/dev/null || echo 'mana
 # ------------------------------------------------------------------------------
 # Note: pi-coding-agent binary ('pi') is installed via Homebrew.
 # Oh-My-Pi ('omp') is installed via pnpm below.
-log_info "Installing Oh-My-Pi (omp) globally via pnpm..."
+log_info "Installing AI agents globally via pnpm..."
 if command -v pnpm >/dev/null 2>&1; then
   # pnpm >=10 refuses to run dependency lifecycle (build) scripts until they are
   # approved. Without this, `pnpm add -g` stops at an interactive
   # "approve-builds?" prompt that nobody can answer during a scripted install,
-  # leaving native modules (pi-natives and friends) unbuilt. `--allow-build`
-  # is the non-interactive form and persists the decision as allowBuilds.
-  OMP_BUILD_DEPS=(pi-natives pi-natives-linux-x64 esbuild)
+  # leaving native modules unbuilt. `--allow-build` is the non-interactive form
+  # and persists the decision as allowBuilds.
+  PNPM_BUILD_DEPS=(pi-natives pi-natives-linux-x64 esbuild)
   PNPM_BUILD_FLAGS=()
-  for dep in "${OMP_BUILD_DEPS[@]}"; do
+  for dep in "${PNPM_BUILD_DEPS[@]}"; do
     PNPM_BUILD_FLAGS+=(--allow-build "$dep")
   done
+
+  # Oh-My-Pi (omp). pi and opencode are Homebrew formulas and are installed
+  # with the rest of the brew packages above; omp has no brew formula, so it is
+  # the only AI agent installed through pnpm.
   pnpm add -g "${PNPM_BUILD_FLAGS[@]}" @oh-my-pi/pi-coding-agent || true
 fi
 log_ok "AI Agents ready: pi, opencode, omp."
@@ -489,6 +494,35 @@ if [ ! -s "$HOME/.pi/agent/auth.json" ]; then
 fi
 if [ ! -s "$HOME/.config/opencode/opencode.json" ] && [ ! -s "$HOME/.opencode/auth.json" ]; then
   MANUAL_STEPS+=("opencode                      # first run prompts for your provider key")
+fi
+
+# omp has no auth.json like pi. It takes credentials from an auth-broker or from
+# provider API-key env vars, and the default model role in the stowed config.yml
+# names commandcode, so that is the variable worth checking first.
+if command -v omp >/dev/null 2>&1; then
+  omp_has_creds=0
+
+  # 1. auth-broker configured
+  if omp auth-broker status --json 2>/dev/null | grep -q '"ok":true'; then
+    omp_has_creds=1
+  fi
+
+  # 2. any provider key exported
+  if [ "$omp_has_creds" -eq 0 ]; then
+    for var in COMMANDCODE_API_KEY ANTHROPIC_API_KEY OPENROUTER_API_KEY \
+               OPENAI_API_KEY GOOGLE_API_KEY GEMINI_API_KEY; do
+      if [ -n "${!var:-}" ]; then
+        omp_has_creds=1
+        break
+      fi
+    done
+  fi
+
+  if [ "$omp_has_creds" -eq 0 ]; then
+    MANUAL_STEPS+=("omp auth-broker login       # sign in, or export COMMANDCODE_API_KEY (matches the default model role in omp config.yml)")
+  else
+    log_ok "omp credentials found."
+  fi
 fi
 
 # --- atuin sync is enabled in the shell config -------------------------------

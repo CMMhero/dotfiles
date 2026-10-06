@@ -77,7 +77,6 @@ STOW_PACKAGES=(
 BREW_PACKAGES=(
   atuin
   bat
-  bat
   btop
   chafa
   eza
@@ -94,6 +93,7 @@ BREW_PACKAGES=(
   llmfit
   models
   neovim
+  opencode
   pi-coding-agent
   ripgrep
   rustup
