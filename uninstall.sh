@@ -271,27 +271,27 @@ fi
 # ------------------------------------------------------------------------------
 # 6. Move out of the repo, then remove it
 # ------------------------------------------------------------------------------
-# `cd "$HOME"` moves this script, not the shell that invoked it. If the caller's
-# cwd is inside the repo, deleting it leaves their shell on a path that no
-# longer exists: the prompt keeps working but `pwd`, tab-completion, and every
-# relative path break with "getcwd: No such file or directory". There is no way
-# for a child script to change its parent's cwd, so detect it and say so BEFORE
-# deleting, rather than leaving a silently broken shell.
+# `cd "$HOME"` moves THIS SCRIPT, not the shell that invoked it. A child process
+# cannot change its parent's working directory, so if the caller was sitting
+# inside the repo, deleting it leaves their shell on a path that no longer
+# exists: the prompt still renders but `pwd`, tab-completion and every relative
+# path fail with "getcwd: No such file or directory".
+#
+# Record it now, but say so at the very END of the script. Printed before the
+# removal it scrolls away under the uninstall output, which is exactly when a
+# broken shell is least welcome.
 CWD_REAL="$(pwd -P 2>/dev/null || pwd 2>/dev/null || echo "")"
 DOTFILES_REAL="$(cd "$DOTFILES_DIR" 2>/dev/null && pwd -P || echo "$DOTFILES_DIR")"
-
+CWD_INSIDE_REPO=0
 if [ -n "$CWD_REAL" ] && [ -n "$DOTFILES_REAL" ]; then
   case "$CWD_REAL" in
-    "$DOTFILES_REAL"/*)
-      log_warn "your shell's working directory is inside the repo:"
-      log_warn "    $CWD_REAL"
-      log_warn "It cannot be changed from this script. After this finishes, run:"
-      log_warn "    cd ~"
-      ;;
+    "$DOTFILES_REAL"/*) CWD_INSIDE_REPO=1 ;;
   esac
 fi
 
 log_step "Removing dotfiles repository at $DOTFILES_DIR ..."
+# Leave the script itself in $HOME so anything it does afterwards is relative to
+# a directory that certainly exists.
 cd "$HOME" || cd /
 rm -rf "$DOTFILES_DIR"
 log_step "Uninstall Complete."
@@ -302,5 +302,17 @@ if [ "$PURGE" -eq 1 ]; then
 fi
 echo "Dotfiles repo deleted."
 echo ""
+if [ "$CWD_INSIDE_REPO" -eq 1 ]; then
+  echo "==============================================================="
+  echo "  Your shell is still in the directory that was just deleted"
+  echo "==============================================================="
+  echo "  It was: $CWD_REAL"
+  echo ""
+  echo "  A script cannot change the shell that launched it, so run this"
+  echo "  in your terminal now:"
+  echo ""
+  echo "      cd ~"
+  echo ""
+fi
 echo "Open a new terminal (or run 'exec \$SHELL') to pick up the default shell."
 echo ""
