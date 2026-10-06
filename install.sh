@@ -74,30 +74,74 @@ log_ok()    { printf "   \033[1;32m[ok]\033[0m   %s\n" "$*"; }
 log_warn()  { printf "   \033[1;33m[warn]\033[0m %s\n" "$*"; }
 log_err()   { printf "   \033[1;31m[err]\033[0m  %s\n" "$*"; }
 
+# ---------------------------------------------------------------------------
+# Flags -- parsed before anything runs, so apt can honour --config-only.
+# ---------------------------------------------------------------------------
+# --config-only deploys the configs and skips every package install.
+#
+# `upd` already updates apt, mise and the AI agents before it pulls the
+# dotfiles and runs install.sh. Without this flag install.sh would redo all of
+# it -- apt upgrade, mise installs, omp add -- so one `upd` ran the whole
+# package cycle twice. Used by `upd dotfiles`.
+#
+# --apt-done is internal: the clone re-execs the repo's copy of this script, and
+# the base packages were already installed before that clone, so the re-exec must
+# not run apt a second time.
+SKIP_PACKAGES=0
+APT_DONE=0
+for arg in "$@"; do
+  case "$arg" in
+    --config-only) SKIP_PACKAGES=1 ;;
+    --apt-done)    APT_DONE=1 ;;
+    --help|-h)     sed -n '2,16p' "$0"; exit 0 ;;
+    *)             log_err "Unknown option: $arg"; exit 1 ;;
+  esac
+done
+
 # ------------------------------------------------------------------------------
-# 1. Bootstrap: make sure git exists, then clone
+# APT base essentials -- before the clone
 # ------------------------------------------------------------------------------
-# The documented entry point is `curl ... | bash`, which runs before anything
-# has been installed. Cloning first therefore failed on a bare box with
-# "git: command not found" -- git is only installed later, in the apt section.
-# So install git up front, which is also all section 3 needs to exist.
-if ! command -v git >/dev/null 2>&1; then
-  printf '==> git not found, installing the minimum needed to clone\n' >&2
-  if command -v apt-get >/dev/null 2>&1; then
-    if [ "$(id -u)" -eq 0 ]; then
-      apt-get update -y && apt-get install -y git ca-certificates
-    elif command -v sudo >/dev/null 2>&1; then
-      sudo apt-get update -y && sudo apt-get install -y git ca-certificates
-    else
-      printf '   \033[1;31m[err]\033[0m  git is missing and there is no sudo to install it.\n' >&2
-      printf '  Run this as a user with sudo, or: apt-get install -y git ca-certificates\n' >&2
+# Must come first: the documented entry point is `curl ... | bash`, which runs
+# before anything is installed, and the clone needs git. Installing the full
+# base set up front (rather than a git-only bootstrap) means the clone below can
+# rely on a working box.
+if [ "$APT_DONE" -eq 0 ] && [ "$SKIP_PACKAGES" -eq 0 ]; then
+  log_step "Installing base packages via apt..."
+  APT_PREFIX=""
+  if [ "$(id -u)" -ne 0 ]; then
+    command -v sudo >/dev/null 2>&1 || {
+      log_err "apt needs sudo and sudo is not available."
+      log_err "Run this as a user with sudo, or as root."
       exit 1
-    fi
-  else
-    printf '   \033[1;31m[err]\033[0m  git is missing and this is not a Debian/Ubuntu box.\n' >&2
-    printf '  Install git, then re-run: curl -fsSL .../install.sh | bash\n' >&2
+    }
+    APT_PREFIX="sudo "
+  fi
+
+  if ! command -v apt-get >/dev/null 2>&1; then
+    log_err "No apt-get found. This installer targets Debian/Ubuntu."
+    log_err "On another distro, install git, curl, stow and fish manually and re-run."
     exit 1
   fi
+
+  # Trimmed to what this setup actually needs:
+  #   ca-certificates  trust store for apt/curl/mise over HTTPS
+  #   curl             mise bootstrap (https://mise.run) and every mise download
+  #   fish             the LOGIN shell, from apt so it sits at a stable
+  #                    /usr/bin/fish that chsh and herdr can rely on
+  #   git              this repository, and the git config being deployed
+  #   stow             the deployment mechanism itself
+  #
+  # Dropped: build-essential (mise installs prebuilt binaries; nothing compiles),
+  # file and procps (no script invokes them; btop/fastfetch/eza cover the same
+  # ground). Re-add build-essential if a native module ever needs compiling.
+  $APT_PREFIX apt-get update -y
+  $APT_PREFIX apt-get install -y \
+    ca-certificates \
+    curl \
+    fish \
+    git \
+    stow
+  log_ok "Base APT packages installed."
 fi
 
 DOTFILES_REPO="https://github.com/CMMhero/dotfiles.git"
@@ -115,26 +159,14 @@ if [ ! -d "$SCRIPT_DIR/.git" ] || [ "$SCRIPT_DIR" != "$DOTFILES_DIR" ]; then
     log_info "Dotfiles already cloned, pulling latest..."
     git -C "$DOTFILES_DIR" pull --ff-only
   fi
-  exec "$DOTFILES_DIR/install.sh" "$@"
+  # --apt-done: the base packages are already installed above, so the
+  # re-exec must not run apt a second time.
+  exec "$DOTFILES_DIR/install.sh" --apt-done "$@"
 fi
 
 DOTFILES_DIR="$SCRIPT_DIR"
 BACKUP_DIR="$HOME/.dotfiles_backup/$(date +%Y%m%d_%H%M%S)"
 
-# --config-only deploys the configs and skips every package install.
-#
-# `upd` already updates apt, mise and the AI agents before it pulls the
-# dotfiles and runs install.sh. Without this flag install.sh would redo all of
-# it -- apt upgrade, mise installs, omp add -- so one `upd` ran the whole
-# package cycle twice. Used by `upd dotfiles`.
-SKIP_PACKAGES=0
-for arg in "$@"; do
-  case "$arg" in
-    --config-only) SKIP_PACKAGES=1 ;;
-    --help|-h)     sed -n '2,16p' "$0"; exit 0 ;;
-    *)             log_err "Unknown option: $arg"; exit 1 ;;
-  esac
-done
 
 # ------------------------------------------------------------------------------
 # 2. Sanity Checks
@@ -177,31 +209,6 @@ log_step "Starting system setup..."
 if [ "$SKIP_PACKAGES" -eq 0 ]; then
 
 # ------------------------------------------------------------------------------
-# 3. APT System Update & Base Essentials
-# ------------------------------------------------------------------------------
-log_step "Updating apt repositories and installing base packages..."
-sudo apt-get update -y
-sudo apt-get upgrade -y
-# Trimmed to what this setup actually needs:
-#   ca-certificates  trust store for apt/curl/mise over HTTPS
-#   curl             mise bootstrap (https://mise.run) and every mise download
-#   fish             the LOGIN shell, from apt so it sits at a stable
-#                    /usr/bin/fish that chsh and herdr can rely on
-#   git              this repository, and the git config being deployed
-#   stow             the deployment mechanism itself
-#
-# Dropped: build-essential (mise installs prebuilt binaries; nothing compiles),
-# file and procps (no script invokes them; btop/fastfetch/eza cover the same
-# ground). Re-add build-essential if a native module ever needs compiling.
-sudo apt-get install -y \
-  ca-certificates \
-  curl \
-  fish \
-  git \
-  stow
-
-log_ok "Base APT packages installed."
-
 # ------------------------------------------------------------------------------
 # 4. mise (replaces Homebrew and Vite+)
 # ------------------------------------------------------------------------------
