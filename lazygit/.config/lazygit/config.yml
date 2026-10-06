@@ -1,0 +1,29 @@
+# lazygit configuration
+#
+# NOTE ON DELTA: lazygit cannot be made to use delta. It renders the main diff
+# panel itself from git's output and never invokes a pager, so `core.pager` has
+# no effect on it. lazygit also exposes no "external diff command" setting --
+# its only diff config keys are splitDiff, diffRenderers, diffContextSize,
+# wrapLinesInDiffView and similar. delta is a pager, not a difftool, so it is
+# not a candidate for `diff.tool` either.
+#
+# The two ways to get delta/hunk output out of lazygit:
+#   - the OpenDiffTool keybinding, which runs `git difftool <file>` and is wired
+#     to hunk in ~/.gitconfig
+#   - the git CLI directly, where core.pager = delta with the Macchiato theme
+#
+# `splitDiff` is lazygit's own side-by-side, the closest equivalent.
+gui:
+  # Side-by-side diff in the main panel, matching delta's side-by-side = true.
+  splitDiff: true
+
+git:
+  # Ignore whitespace-only changes in the diff view.
+  ignoreWhitespaceInDiffView: false
+  # Number of context lines around a change.
+  diffContextSize: 3
+
+# Show a pager for diffs. lazygit calls this "hunk mode" internally and applies
+# it to the staging view as well as the diff view; it makes line selection act
+# on whole hunks rather than individual lines.
+  useHunkModeInDiffView: false

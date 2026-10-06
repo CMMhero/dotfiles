@@ -12,7 +12,10 @@
 	# Keep the hunk pager available for anything that wants it explicitly:
 	#   git -c core.pager='hunk pager' log -p
 	line-numbers = true
-	side-by-side = false
+	# side-by-side needs room; delta falls back to unified on a narrow terminal.
+	side-by-side = true
+	# Side-by-side plus line numbers needs ~120 columns to stay readable.
+	side-by-side-only = false
 	navigate = true
 	hyperlinks = true
 
