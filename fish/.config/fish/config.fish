@@ -89,50 +89,78 @@ end
 
 # ----- update -----
 # One entry point for everything this machine keeps current:
-#   upd            apt + brew + vite+
-#   upd apt        apt only
-#   upd brew       brew only
-#   upd vp         vite+ only (it keeps its own node/pnpm copies)
-#   upd dotfiles   pull ~/dotfiles and re-run install.sh
-# `install.sh` is re-run rather than just `git pull` because a pull updates the
-# repo but leaves every stow symlink pointing at what was last deployed.
+#   upd                    apt + brew + vite+ + pi + omp + opencode + dotfiles
+#   upd apt|brew|vp|pi|omp|opencode|dotfiles    just that one
 #
-# apt goes first: it is the slowest (needs sudo and a password) and can fail if
-# a package was removed from the archive, which would otherwise mask the later
-# steps. autoremove reclaims the space left by packages we no longer need.
-function upd --description 'update: apt + brew + vite+ (upd apt|brew|vp|dotfiles)'
+# Order is deliberate: apt first because it is slowest (sudo, possible password)
+# and most likely to fail, so a failure there does not mask the rest. dotfiles
+# is last because it re-runs install.sh.
+#
+# Everything is non-interactive: apt gets -y, `brew cleanup` gets -s (it
+# otherwise asks "delete this?" per file), and pi/omp get their approve/force
+# flags. sudo may still ask for a password on the first call -- that one cannot
+# be bypassed, and should not be.
+function upd --description 'update all: apt brew vp pi omp opencode dotfiles'
     set -l what $argv
 
-    if not set -q what[1]; or contains -- $what[1] apt
-        if command -v apt-get >/dev/null 2>&1
-            echo '==> apt'
-            sudo apt-get update
-            # `full-upgrade` also removes packages that became obsolete, which
-            # plain `upgrade` leaves behind.
-            sudo apt-get full-upgrade
-            sudo apt-get autoremove --purge
-            sudo apt-get clean
-        end
+    # `selected` is declared up front and only assigned inside the if/else.
+    # A `set` that creates a variable inside a fish block is block-local and
+    # disappears when the block ends, which would leave every `contains` below
+    # matching an empty list -- silently doing nothing.
+    set -l selected
+    if set -q what[1]
+        set selected $what
+    else
+        set selected apt brew vp pi omp opencode
     end
 
-    if not set -q what[1]; or contains -- $what[1] brew
-        if command -q brew
-            echo '==> brew'
-            brew update
-            # cleanup matters: without it old versions and the download cache
-            # accumulate indefinitely.
-            brew upgrade
-            brew cleanup
-        end
+    if contains apt $selected; and command -v apt-get >/dev/null 2>&1
+        echo '==> apt'
+        sudo apt-get update -y
+        # full-upgrade also removes packages that became obsolete, which plain
+        # upgrade leaves behind.
+        sudo apt-get full-upgrade -y
+        sudo apt-get autoremove --purge -y
+        sudo apt-get clean
     end
 
-    if not set -q what[1]; or contains -- $what[1] vp
-        if command -q vp
-            echo '==> vite+'
-            vp upgrade
-        end
+    if contains brew $selected; and command -q brew >/dev/null 2>&1
+        echo '==> brew'
+        HOMEBREW_NO_AUTO_UPDATE= brew update
+        brew upgrade
+        # -s skips the per-file "delete this?" prompt that plain cleanup asks.
+        brew cleanup -s
     end
 
+    if contains vp $selected; and command -q vp >/dev/null 2>&1
+        echo '==> vite+'
+        vp upgrade
+    end
+
+    # pi: --all covers pi itself plus the extensions listed in its settings
+    # (pi-commandcode-provider, opencode-pi). --approve skips the trust prompt.
+    if contains pi $selected; and command -q pi >/dev/null 2>&1
+        echo '==> pi'
+        pi update --all --approve
+    end
+
+    # omp: -f force, -l also update installed plugins.
+    if contains omp $selected; and command -q omp >/dev/null 2>&1
+        echo '==> omp'
+        omp update -f -l
+    end
+
+    # opencode ships its own installer (~/.opencode/bin), not a brew formula,
+    # so it self-updates. `opencode upgrade` is the only thing that works here;
+    # `brew upgrade opencode` errors with "not installed".
+    if contains opencode $selected; and command -q opencode >/dev/null 2>&1
+        echo '==> opencode'
+        opencode upgrade
+    end
+
+    # dotfiles is NOT in the default set: install.sh execs into fish at the end,
+    # which would replace the shell this function is running in. Pass it
+    # explicitly: `upd dotfiles`.
     if contains -- $what dotfiles
         echo '==> dotfiles'
         cd $HOME/dotfiles
