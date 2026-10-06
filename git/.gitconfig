@@ -1,6 +1,20 @@
 [core]
 	editor = fresh
-	pager = hunk pager
+	# delta renders diffs in the same Catppuccin Macchiato palette as bat, fzf,
+	# wezterm, superfile and omp. It wraps any pager input, so it also applies to
+	# `git log`, `git show` and friends.
+	pager = delta
+	# hunk is still the interactive diff reviewer for `git difftool` below; only
+	# the scrolling pager changed.
+
+[delta]
+	theme = dark "Catppuccin Macchiato"
+	# Keep the hunk pager available for anything that wants it explicitly:
+	#   git -c core.pager='hunk pager' log -p
+	line-numbers = true
+	side-by-side = false
+	navigate = true
+	hyperlinks = true
 
 [init]
 	defaultBranch = main

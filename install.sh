@@ -172,6 +172,7 @@ BREW_PACKAGES=(
   fd
   fish
   fresh-editor
+  git-delta
   fzf
   gh
   go
