@@ -1,13 +1,14 @@
 [core]
 	editor = fresh
-	# delta renders diffs in the same Catppuccin Macchiato palette as bat, fzf,
-	# wezterm, superfile and omp. It wraps any pager input, so it also applies to
-	# `git log`, `git show` and friends.
-	pager = delta
-	# hunk is still the interactive diff reviewer for `git difftool` below; only
-	# the scrolling pager changed.
+	# hunk is the pager. It detects diff output and renders it in its own
+	# review UI instead of a scrollback, and falls back to a plain pager for
+	# non-diff output such as `git log --oneline`.
+	pager = hunk pager
 
 [delta]
+	# delta is kept configured (Catppuccin Macchiato, side-by-side) for explicit
+	# use: `git diff | delta --paging=never`. It is not the pager, and lazygit
+	# cannot use it at all -- see the lazygit config.
 	theme = dark "Catppuccin Macchiato"
 	line-numbers = true
 	# side-by-side needs room; delta falls back to unified on a narrow terminal.
