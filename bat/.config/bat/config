@@ -2,4 +2,3 @@
 # bat ships all four Catppuccin flavours; Macchiato is the one used elsewhere.
 --theme="Catppuccin Macchiato"
 --style="numbers,changes,header"
---paging=never
