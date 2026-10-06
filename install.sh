@@ -69,6 +69,33 @@ if [ "$(id -u)" -eq 0 ]; then
 fi
 
 
+# ------------------------------------------------------------------------------
+# Hand off to fish, guaranteed.
+# ------------------------------------------------------------------------------
+# Registered as an EXIT trap rather than placed at the end of the script
+# because this runs under `set -euo pipefail`: any non-zero command earlier on
+# (a stow conflict, a failing sudo apt-get, `brew cleanup` returning non-zero)
+# aborts the script right there and the final `exec` is never reached -- leaving
+# the user in a shell with the old config and no explanation. An EXIT trap fires
+# on success, on `set -e` abort, and on an explicit exit alike.
+FISH_HANDED_OFF=0
+handoff_to_fish() {
+  local rc=$?
+  # Never take over the shell for a non-interactive run (CI, a script calling
+  # this, or output piped somewhere): an interactive login shell would hang.
+  [ "$rc" -eq 0 ] || log_warn "install.sh exited with status $rc; reloading fish anyway."
+  [ -t 1 ] || return $rc
+  [ "$FISH_HANDED_OFF" -eq 1 ] && return $rc
+  [ -x "$FISH_EXEC_BIN" ] || return $rc
+  FISH_HANDED_OFF=1
+  trap - EXIT
+  echo ""
+  echo "Reloading fish with the new config..."
+  exec "$FISH_EXEC_BIN" -l
+}
+FISH_EXEC_BIN="$(command -v fish 2>/dev/null || echo /home/linuxbrew/.linuxbrew/bin/fish)"
+trap handoff_to_fish EXIT
+
 log_info "Dotfiles directory: $DOTFILES_DIR"
 log_info "Starting system setup..."
 
@@ -531,21 +558,7 @@ if command -v fish >/dev/null 2>&1; then
   fi
 fi
 
-# Hand off to fish so the freshly stowed config is live immediately.
-# exec replaces this process, so anything after it would never run.
-# Only done on a TTY: in CI, over a piped one-liner without a terminal, or when
-# invoked from another script, exec'ing an interactive shell would hang. The
-# guard is `[ -t 1 ]` (stdout is a terminal), which also covers the
-# `curl ... | bash` case since bash inherits the caller's stdout.
-FISH_EXEC_BIN="$FISH_BIN"
-if [ -t 1 ] && [ -x "$FISH_EXEC_BIN" ]; then
-  echo ""
-  echo "Starting fish..."
-  exec "$FISH_EXEC_BIN" -l
-fi
-
-# Non-interactive: print the manual handoff instead of taking over the shell.
-echo ""
-echo "Non-interactive shell detected; start fish yourself with:"
-echo "  exec fish"
+# The fish handoff now lives in handoff_to_fish (an EXIT trap registered near
+# the top), so it runs even when `set -e` aborts this script partway through.
+# Nothing to do here; the trap fires when the script ends.
 echo ""

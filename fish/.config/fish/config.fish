@@ -217,8 +217,7 @@ alias gh-create 'gh repo create --private --source=.; and git push -u --all; and
 abbr -a -- ip 'curl http://ifconfig.me/ip'
 abbr -a -- please sudo
 abbr -a -- pls sudo
-abbr -a -- reload 'exec fish'
-abbr -a -- ff fastfetch
+abbr -a -- reload 'exec fish -l'
 abbr -a -- cls clear
 
 # ----- modern CLI replacements -----
