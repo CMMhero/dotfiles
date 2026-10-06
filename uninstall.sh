@@ -118,10 +118,12 @@ MISE_TOOLS=(
   "github:reyamira/models"       # AI model TUI
   "github:can1357/oh-my-pi"      # oh-my-pi (omp)
   # npm backend
-  "npm:vite-plus"                # vite+; runtime/PM management left system_first
+  "npm:vite-plus"                # vite+ tool; its runtime/PM modes stay system_first
   # core backend
   "core:go"                      # replaced the brew `go` formula
   "core:rust"                    # replaced brew `rustup`
+  "core:node"                    # node
+  "core:pnpm"                    # pnpm
 )
 
 APT_PACKAGES=(

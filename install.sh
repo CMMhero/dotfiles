@@ -100,7 +100,7 @@ BACKUP_DIR="$HOME/.dotfiles_backup/$(date +%Y%m%d_%H%M%S)"
 
 # --config-only deploys the configs and skips every package install.
 #
-# `upd` already updates apt, brew, vite+ and the AI agents before it pulls the
+# `upd` already updates apt, mise and the AI agents before it pulls the
 # dotfiles and runs install.sh. Without this flag install.sh would redo all of
 # it -- apt upgrade, mise installs, omp add -- so one `upd` ran the whole
 # package cycle twice. Used by `upd dotfiles`.
@@ -123,7 +123,7 @@ done
 # ------------------------------------------------------------------------------
 # Registered as an EXIT trap rather than placed at the end of the script
 # because this runs under `set -euo pipefail`: any non-zero command earlier on
-# (a stow conflict, a failing sudo apt-get, `brew cleanup` returning non-zero)
+# (a stow conflict, a failing sudo apt-get, a mise install returning non-zero)
 # aborts the script right there and the final `exec` is never reached -- leaving
 # the user in a shell with the old config and no explanation. An EXIT trap fires
 # on success, on `set -e` abort, and on an explicit exit alike.
@@ -241,10 +241,12 @@ MISE_TOOLS=(
   "github:reyamira/models"       # AI model TUI
   "github:can1357/oh-my-pi"      # oh-my-pi (omp)
   # npm backend
-  "npm:vite-plus"                # vite+; runtime/PM management left system_first
+  "npm:vite-plus"                # vite+ tool; its runtime/PM modes stay system_first
   # core backend
   "core:go"                      # replaced the brew `go` formula
   "core:rust"                    # replaced brew `rustup`
+  "core:node"                    # node
+  "core:pnpm"                    # pnpm
 )
 
 log_step "Installing tools via mise..."
@@ -274,8 +276,10 @@ log_ok "pnpm via mise: $(pnpm --version 2>/dev/null || echo 'pending shell reloa
 # ------------------------------------------------------------------------------
 # 6. pnpm configuration
 # ------------------------------------------------------------------------------
-# Global packages land in ~/.local/bin, matching what the old Vite+ setup did,
-# so `herdr`, `pi`, `omp` and `skills` stay on the existing PATH entries.
+# pnpm itself is a mise tool (core:pnpm); this only points its global package
+# output at ~/.local/bin so `omp` lands on a path fish already has. vite+ is
+# installed too but its runtime/PM modes are system_first, so it defers to
+# mise's node/pnpm instead of managing its own.
 export PNPM_HOME="$HOME/.local/share/pnpm"
 mkdir -p "$HOME/.local/bin" "$PNPM_HOME"
 export PATH="$HOME/.local/bin:$PNPM_HOME:$PATH"
@@ -286,7 +290,6 @@ log_ok "pnpm configured (global bin dir: $HOME/.local/bin)."
 # ------------------------------------------------------------------------------
 # 7. AI Agents: Pi & Oh-My-Pi (omp)
 # ------------------------------------------------------------------------------
-# Note: pi-coding-agent binary ('pi') is installed via Homebrew.
 # pi, opencode and oh-my-pi are all mise tools installed in section 5. Nothing
 # is left to do here beyond reporting what actually resolved, since a failed
 # mise install should be visible here rather than surfacing later as a missing
@@ -312,11 +315,11 @@ done
 if command -v herdr >/dev/null 2>&1; then
   log_ok "herdr ready at $(command -v herdr) ($(herdr --version 2>/dev/null | head -1))"
 else
-  log_warn "herdr not found; it should come from 'brew install herdr'."
+  log_warn "herdr not found; retry with: mise install aqua:herdrdev/herdr"
 fi
 
 else
-  log_info "--config-only: skipped apt, brew, vite+, pi, omp, opencode and herdr."
+  log_info "--config-only: skipped apt, mise tools, pi, omp, opencode and herdr."
   log_info "Run './install.sh' without --config-only to install packages."
 fi  # end package installation
 # ------------------------------------------------------------------------------
@@ -363,25 +366,6 @@ EXPLICIT_LINK_PACKAGES=(fresh superfile)
 # omp additionally keeps runtime state under ~/.omp (sessions/, agent.db,
 # stats.db, cache/, logs/, run/, install-id, plugins/node_modules), so it gets
 # an explicit file list rather than a whole-tree walk.
-OMP_MANAGED_FILES=(
-  .omp/agent/config.yml
-  .omp/plugins/package.json
-  .omp/agent/extensions/opencode-zen-fix.ts
-)
-
-# omp is NOT stowed. GNU Stow links a whole directory whenever that directory
-# contains files, and ~/.omp is exactly the wrong thing to link wholesale:
-# sessions/, agent.db, stats.db, cache/, logs/, run/, install-id and
-# plugins/node_modules all live under it and are per-machine. On a fresh
-# install (no existing ~/.omp) `stow omp` created ~/.omp as a single symlink
-# pointing into this repo, which would have pulled all of that runtime state
-# into the git working tree. Splitting the package into one-per-subtree did not
-# help either: .omp/plugins and .omp/agent/extensions still got linked whole,
-# so `pnpm install` would still write node_modules and its lockfile into the
-# repo through the link.
-#
-# So only these three files are linked, by hand, and every directory around them
-# is created as a real directory.
 OMP_MANAGED_FILES=(
   .omp/agent/config.yml
   .omp/plugins/package.json
@@ -585,7 +569,7 @@ fi
 # ------------------------------------------------------------------------------
 # 12. Default Shell Setup (Fish)
 # ------------------------------------------------------------------------------
-FISH_BIN="$(which fish 2>/dev/null || echo "/home/linuxbrew/.linuxbrew/bin/fish")"
+FISH_BIN="$(command -v fish 2>/dev/null || echo /usr/bin/fish)"
 if [ -x "$FISH_BIN" ]; then
   if ! grep -q "^$FISH_BIN$" /etc/shells; then
     log_info "Adding $FISH_BIN to /etc/shells..."
@@ -708,7 +692,7 @@ echo ""
 log_step "Machine Bootstrap & Config Sync Complete!"
 echo ""
 echo "Active environment features:"
-echo "  - Homebrew prefix: $(brew --prefix 2>/dev/null || echo '/home/linuxbrew/.linuxbrew')"
+echo "  - mise prefix: ${MISE_SHIMS:-$HOME/.local/share/mise/shims}"
 echo "  - Brew CLI tools: bat, eza, fd, ripgrep, atuin, starship, fresh, lazygit, superfile, stow, uv, opencode, pi-coding-agent, etc."
 echo "  - Python manager: uv (pip/venv/run/build)"
 echo "  - Terminal multiplexer: herdr (with custom keybinds & Catppuccin theme)"
