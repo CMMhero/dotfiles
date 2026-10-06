@@ -22,10 +22,15 @@
 set -euo pipefail
 
 # Visual log helpers
-log_info()  { printf "\033[1;34m[INFO]\033[0m %s\n" "$*"; }
-log_ok()    { printf "\033[1;32m[OK]\033[0m %s\n" "$*"; }
-log_warn()  { printf "\033[1;33m[WARN]\033[0m %s\n" "$*"; }
-log_err()   { printf "\033[1;31m[ERROR]\033[0m %s\n" "$*"; }
+# Output style matches the `upd` fish function so both read the same way:
+#   ==> section heading      (brew/apt/vite+/dotfiles)
+#     -> detail              (indented, for per-item progress)
+#   [ok] / [warn] / [err]    (kept bracketed so they stand out when scrolled)
+log_step() { printf "\033[1;32m==>\033[0m \033[1m%s\033[0m\n" "$*"; }
+log_info() { printf "   \033[0;36m->\033[0m %s\n" "$*"; }
+log_ok()   { printf "   \033[1;32m[ok]\033[0m   %s\n" "$*"; }
+log_warn() { printf "   \033[1;33m[warn]\033[0m %s\n" "$*"; }
+log_err()  { printf "   \033[1;31m[err]\033[0m  %s\n" "$*"; }
 
 PURGE=0
 ASSUME_YES=0
@@ -155,15 +160,25 @@ fi
 # NOTE: do not combine -D with -R. GNU stow keeps only the last mode flag, so
 # `-D -R` degrades into a restow and silently unlinks nothing.
 if command -v stow >/dev/null 2>&1; then
-  log_info "Unstowing dotfiles packages..."
+  log_step "Unstowing dotfiles packages..."
   cd "$DOTFILES_DIR"
   for pkg in "${STOW_PACKAGES[@]}"; do
-    if [ -d "$DOTFILES_DIR/$pkg" ]; then
-      if stow -v -D -t "$HOME" "$pkg" 2>/dev/null; then
-        log_ok "Unstowed: $pkg"
-      else
-        log_warn "Could not unstow $pkg (was it ever stowed?)"
+    [ -d "$DOTFILES_DIR/$pkg" ] || continue
+    # Report what is about to be unlinked. Compared by resolved path rather than
+    # test -L, because stow may have linked a whole directory: a file reached
+    # through a symlinked parent is a real file and would fail a -L test.
+    (cd "$pkg" && find . -type f | while read -r rel_file; do
+      rel_path="${rel_file#./}"
+      target_real="$(readlink -f "$HOME/$rel_path" 2>/dev/null || true)"
+      src_real="$(readlink -f "$rel_file" 2>/dev/null || true)"
+      if [ -n "$target_real" ] && [ "$target_real" = "$src_real" ]; then
+        log_info "unlinked ~/$rel_path"
       fi
+    done)
+    if stow -D -t "$HOME" "$pkg" 2>/dev/null; then
+      :
+    else
+      log_warn "Could not unstow $pkg (was it ever stowed?)"
     fi
   done
 else
@@ -178,7 +193,7 @@ OMP_MANAGED_FILES=(
   .omp/plugins/package.json
   .omp/agent/extensions/opencode-zen-fix.ts
 )
-log_info "Unlinking managed omp files..."
+log_step "Unlinking managed omp files..."
 for rel in "${OMP_MANAGED_FILES[@]}"; do
   target="$HOME/$rel"
   if [ -L "$target" ]; then
@@ -190,7 +205,7 @@ done
 find "$HOME/.omp" -depth -type d -empty -delete 2>/dev/null || true
 
 # Remove now-empty config dirs left behind by stow (e.g. ~/.config/superfile)
-log_info "Cleaning up empty config directories..."
+log_step "Cleaning up empty config directories..."
 find "$HOME/.config" -maxdepth 1 -mindepth 1 -type d -empty -delete 2>/dev/null || true
 
 
@@ -198,7 +213,7 @@ find "$HOME/.config" -maxdepth 1 -mindepth 1 -type d -empty -delete 2>/dev/null 
 # 4. Restore default login shell (bash)
 # ------------------------------------------------------------------------------
 DEFAULT_SHELL="$(getent passwd "$USER" | cut -d: -f7)"
-log_info "Restoring default login shell to $DEFAULT_SHELL ..."
+log_step "Restoring default login shell to $DEFAULT_SHELL ..."
 if [ -x "$DEFAULT_SHELL" ] && [ "$DEFAULT_SHELL" != "$(command -v fish 2>/dev/null || echo "$DEFAULT_SHELL")" ]; then
   sudo chsh -s "$DEFAULT_SHELL" "$USER" || chsh -s "$DEFAULT_SHELL" || log_warn "Could not change shell automatically; run: chsh -s $DEFAULT_SHELL"
   log_ok "Default shell restored: $DEFAULT_SHELL"
@@ -272,7 +287,7 @@ if [ -n "$CWD_REAL" ] && [ -n "$DOTFILES_REAL" ]; then
   esac
 fi
 
-log_info "Removing dotfiles repository at $DOTFILES_DIR ..."
+log_step "Removing dotfiles repository at $DOTFILES_DIR ..."
 cd "$HOME" || cd /
 rm -rf "$DOTFILES_DIR"
 echo ""

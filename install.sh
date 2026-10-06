@@ -34,10 +34,15 @@
 set -euo pipefail
 
 # Visual log helpers
-log_info()  { printf "\033[1;34m[INFO]\033[0m %s\n" "$*"; }
-log_ok()    { printf "\033[1;32m[OK]\033[0m %s\n" "$*"; }
-log_warn()  { printf "\033[1;33m[WARN]\033[0m %s\n" "$*"; }
-log_err()   { printf "\033[1;31m[ERROR]\033[0m %s\n" "$*"; }
+# Output style matches the `upd` fish function so both read the same way:
+#   ==> section heading      (brew/apt/vite+/dotfiles)
+#     -> detail              (indented, for per-item progress)
+#   [ok] / [warn] / [err]    (kept bracketed so they stand out when scrolled)
+log_step() { printf "\033[1;32m==>\033[0m \033[1m%s\033[0m\n" "$*"; }
+log_info() { printf "   \033[0;36m->\033[0m %s\n" "$*"; }
+log_ok()   { printf "   \033[1;32m[ok]\033[0m   %s\n" "$*"; }
+log_warn() { printf "   \033[1;33m[warn]\033[0m %s\n" "$*"; }
+log_err()  { printf "   \033[1;31m[err]\033[0m  %s\n" "$*"; }
 
 # ------------------------------------------------------------------------------
 # 1. Clone / Update the dotfiles repository
@@ -115,7 +120,7 @@ FISH_EXEC_BIN="$(command -v fish 2>/dev/null || echo /home/linuxbrew/.linuxbrew/
 trap handoff_to_fish EXIT
 
 log_info "Dotfiles directory: $DOTFILES_DIR"
-log_info "Starting system setup..."
+log_step "Starting system setup..."
 
 # --- package installation: skipped entirely with --config-only ---------------
 if [ "$SKIP_PACKAGES" -eq 0 ]; then
@@ -123,7 +128,7 @@ if [ "$SKIP_PACKAGES" -eq 0 ]; then
 # ------------------------------------------------------------------------------
 # 3. APT System Update & Base Essentials
 # ------------------------------------------------------------------------------
-log_info "Updating apt repositories and installing base packages..."
+log_step "Updating apt repositories and installing base packages..."
 sudo apt-get update -y
 sudo apt-get upgrade -y
 sudo apt-get install -y \
@@ -194,7 +199,7 @@ BREW_PACKAGES=(
   zoxide
 )
 
-log_info "Installing CLI tools via Homebrew..."
+log_step "Installing CLI tools via Homebrew..."
 brew install "${BREW_PACKAGES[@]}"
 log_ok "Homebrew formulas installed."
 
@@ -219,7 +224,7 @@ log_ok "uv ready at: $(which uv 2>/dev/null || echo "$HOME/.local/bin/uv")"
 # Setting them to "yes" makes it accept managed mode without a TTY, so this
 # works over SSH, in CI, and from a piped one-liner.
 if [ ! -d "$HOME/.local/share/vite-plus" ] && ! command -v vp >/dev/null 2>&1; then
-  log_info "Installing Vite+ (https://vite.plus) with managed Node.js + pnpm..."
+  log_step "Installing Vite+ (https://vite.plus) with managed Node.js + pnpm..."
   VP_NODE_MANAGER=yes \
   VP_NPM_MANAGER=yes \
   VP_PNPM_MANAGER=yes \
@@ -257,7 +262,7 @@ log_ok "pnpm runtime ready via Vite+ ($(pnpm --version 2>/dev/null || echo 'mana
 # ------------------------------------------------------------------------------
 # Note: pi-coding-agent binary ('pi') is installed via Homebrew.
 # Oh-My-Pi ('omp') is installed via pnpm below.
-log_info "Installing AI agents globally via pnpm..."
+log_step "Installing AI agents globally via pnpm..."
 if command -v pnpm >/dev/null 2>&1; then
   # pnpm >=10 refuses to run dependency lifecycle (build) scripts until they are
   # approved. Without this, `pnpm add -g` stops at an interactive
@@ -356,7 +361,7 @@ link_omp_files() {
   done
 }
 
-log_info "Deploying configs using GNU Stow..."
+log_step "Deploying configs using GNU Stow..."
 
 # Back up files that would block stowing, then let stow link them.
 #
@@ -402,15 +407,33 @@ backup_if_conflict() {
 
 cd "$DOTFILES_DIR"
 for pkg in "${STOW_PACKAGES[@]}"; do
-  if [ -d "$DOTFILES_DIR/$pkg" ]; then
-    log_info "Stowing package: $pkg"
-    backup_if_conflict "$pkg"
-    stow -v -R -t "$HOME" "$pkg"
+  [ -d "$DOTFILES_DIR/$pkg" ] || continue
+  log_step "$pkg"
+  backup_if_conflict "$pkg"
+  # stow's own -v prints bare "LINK: x => y" lines that do not match the
+  # style used everywhere else here. Run it quiet and report each linked file
+  # ourselves, in the same "-> " form used by log_info.
+  if ! stow -R -t "$HOME" "$pkg" 2>/dev/null; then
+    log_err "stow failed for package: $pkg"
+    continue
   fi
+  # Detection must compare resolved paths, not test -L: stow links a whole
+  # directory when the target directory does not already exist, so
+  # ~/.config/herdr/config.toml can be a real file reached *through* a symlinked
+  # ~/.config/herdr and would never pass a -L test. This is the same trap that
+  # made backup_if_conflict delete repo files.
+  (cd "$pkg" && find . -type f | while read -r rel_file; do
+    rel_path="${rel_file#./}"
+    target_real="$(readlink -f "$HOME/$rel_path" 2>/dev/null || true)"
+    src_real="$(readlink -f "$rel_file" 2>/dev/null || true)"
+    if [ -n "$target_real" ] && [ "$target_real" = "$src_real" ]; then
+      log_info "linked ~/$rel_path"
+    fi
+  done)
 done
 log_ok "Stow packages deployed."
 
-log_info "Linking managed omp files (not stowed - see note above)..."
+log_step "Linking managed omp files (not stowed - see note above)..."
 link_omp_files
 
 # ------------------------------------------------------------------------------
