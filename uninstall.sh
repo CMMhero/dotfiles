@@ -120,8 +120,8 @@ MISE_TOOLS=(
   # npm backend
   "npm:vite-plus"                # vite+ tool; its runtime/PM modes stay system_first
   # core backend
-  "core:go"                      # replaced the brew `go` formula
-  "core:rust"                    # replaced brew `rustup`
+  "core:go"                      # go toolchain
+  "core:rust"                    # rust toolchain
   "core:node"                    # node
   "core:pnpm"                    # pnpm
 )

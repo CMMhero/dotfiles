@@ -14,14 +14,18 @@
 #   # deploy configs only, skip every package install
 #   ./install.sh --config-only
 #
-# Installed:
-#   - apt: git, curl, stow, fish (login shell), ca-certificates
-#   - mise: every CLI tool, plus go, rust, node and pnpm (replaces Homebrew
-#     and Vite+), and oh-my-pi as github:can1357/oh-my-pi
+# Toolchain:
+#   apt    ca-certificates, curl, fish, git, stow -- installed before the clone,
+#          since this script may run on a bare box where none exist yet.
+#   mise   every other tool, installed via the aqua / github / npm / core
+#          backends. mise supplies everything except the apt base set.
 #
-# Configs are deployed with GNU Stow, except fresh, superfile and omp which are
-# linked file-by-file because stow would link those app directories whole.
-# fish is set as the default login shell.
+# Deploy order: apt, then clone, then mise, then configs.
+#
+# Configs go out through GNU Stow, except fresh, superfile and omp, which are
+# linked file-by-file because stow would link those app directories whole and
+# anything the tools write there would land in the repo. fish (from apt, so it
+# sits at a stable /usr/bin/fish) becomes the default login shell.
 # ==============================================================================
 
 set -euo pipefail
@@ -197,8 +201,8 @@ handoff_to_fish() {
   echo "Reloading fish with the new config..."
   exec "$FISH_EXEC_BIN" -l
 }
-# Fallback is /usr/bin/fish (apt), not a Homebrew path: that is where fish lives
-# now, and a login shell pointing at a removed path is the classic lockout.
+# Fallback is /usr/bin/fish, where apt puts it. A login shell pointed at some
+# other machine's removed path is the classic lockout.
 FISH_EXEC_BIN="$(command -v fish 2>/dev/null || echo /usr/bin/fish)"
 trap handoff_to_fish EXIT
 
@@ -210,22 +214,21 @@ if [ "$SKIP_PACKAGES" -eq 0 ]; then
 
 # ------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------
-# 4. mise (replaces Homebrew and Vite+)
+# 3. mise (bootstrap)
 # ------------------------------------------------------------------------------
-# Everything user-facing is installed through mise: the CLI tools that used to
-# come from brew, plus node/pnpm which used to come from Vite+.
+# Every tool beyond the apt base set comes from mise. It is bootstrapped with its
+# own installer rather than apt so the first install needs nothing but apt.
 #
 # Two deliberate exceptions:
 #   - apt stays for system packages. mise has no apt/dpkg backend at all (its
 #     backends are aqua/asdf/cargo/conda/core/gem/github/go/npm/pypi/vfox/...),
-#     so build-essential, git, stow and friends cannot move.
+#     so the base packages cannot move out of apt.
 #   - fish stays on apt, so the login shell lives at a stable /usr/bin/fish.
 #     mise installs into versioned paths that change on upgrade, which would
 #     break `chsh` and herdr's default_shell the first time fish is upgraded.
 if ! command -v mise >/dev/null 2>&1; then
   log_step "Installing mise (https://mise.jdx.dev)..."
-  # Official installer. Deliberately NOT via brew: brew is being removed, and
-  # bootstrapping the replacement with the thing it replaces would be circular.
+  # Official installer, so the very first install needs nothing but apt.
   curl -fsSL https://mise.run | sh >/dev/null 2>&1 || true
   export PATH="$HOME/.local/bin:$PATH"
   [ -x "$HOME/.local/bin/mise" ] || export PATH="/usr/local/bin:$PATH"
@@ -234,7 +237,7 @@ command -v mise >/dev/null 2>&1 || { log_err "mise failed to install; cannot con
 log_ok "mise ready at $(command -v mise) ($(mise --version 2>/dev/null | head -1))"
 
 # ------------------------------------------------------------------------------
-# 5. Tools via mise
+# 4. Tools via mise
 # ------------------------------------------------------------------------------
 # Backends: aqua (most CLI tools), github (repos without an aqua entry), core
 # (go, rust, node, pnpm - the built-in registry).
@@ -273,13 +276,13 @@ MISE_TOOLS=(
   # npm backend
   "npm:vite-plus"                # vite+ tool; its runtime/PM modes stay system_first
   # core backend
-  "core:go"                      # replaced the brew `go` formula
-  "core:rust"                    # replaced brew `rustup`
+  "core:go"                      # go toolchain
+  "core:rust"                    # rust toolchain
   "core:node"                    # node
   "core:pnpm"                    # pnpm
 )
 
-log_step "Installing tools via mise..."
+log_step "Installing $#{MISE_TOOLS[@]} tools via mise..."
 MISE_MISSING=()
 for tool in "${MISE_TOOLS[@]}"; do
   mise install "$tool" >/dev/null 2>&1 || MISE_MISSING+=("$tool")
@@ -304,7 +307,7 @@ export PATH="$MISE_SHIMS:$PATH"
 log_ok "pnpm via mise: $(pnpm --version 2>/dev/null || echo 'pending shell reload')"
 
 # ------------------------------------------------------------------------------
-# 6. pnpm configuration
+# 5. pnpm configuration
 # ------------------------------------------------------------------------------
 # pnpm itself is a mise tool (core:pnpm); this only points its global package
 # output at ~/.local/bin so `omp` lands on a path fish already has. vite+ is
@@ -318,26 +321,26 @@ pnpm config set store-dir "$PNPM_HOME/store" 2>/dev/null || true
 log_ok "pnpm configured (global bin dir: $HOME/.local/bin)."
 
 # ------------------------------------------------------------------------------
-# 7. AI Agents: Pi & Oh-My-Pi (omp)
+# 6. AI Agents
 # ------------------------------------------------------------------------------
 # pi, opencode and oh-my-pi are all mise tools installed in section 5. Nothing
 # is left to do here beyond reporting what actually resolved, since a failed
 # mise install should be visible here rather than surfacing later as a missing
 # command.
-log_step "Checking AI agents..."
+log_step "Verifying AI agents (pi, opencode, omp)"
 AI_AGENTS_OK=1
 for agent in pi opencode omp; do
   if command -v "$agent" >/dev/null 2>&1; then
     log_ok "$agent -> $(command -v "$agent")"
   else
-    log_warn "$agent not found; check the mise install output above."
+    log_warn "$agent is not on PATH; see the mise install output above."
     AI_AGENTS_OK=0
   fi
 done
 [ "$AI_AGENTS_OK" -eq 1 ] || log_info "Retry with: mise install github:can1357/oh-my-pi aqua:anomalyco/opencode aqua:earendil-works/pi"
 
 # ------------------------------------------------------------------------------
-# 8. Herdr
+# 7. Herdr
 # ------------------------------------------------------------------------------
 # herdr comes from mise (aqua:herdrdev/herdr), installed in section 5. The
 # standalone curl installer is not used: it drops a binary in ~/.local/bin,
@@ -353,12 +356,12 @@ else
   log_info "Run './install.sh' without --config-only to install packages."
 fi  # end package installation
 # ------------------------------------------------------------------------------
-# 9. GNU Stow Dotfiles Deployment
+# 8. GNU Stow Dotfiles Deployment
 # ------------------------------------------------------------------------------
 # NOTE: `wezterm` is deliberately absent. Its config targets the Windows build
 # (WSL domain, pwsh default_prog, Acrylic backdrop, win32_system_backdrop), so
 # it is version-controlled in this repo for reference but never linked into $HOME
-# on Linux and never installed via brew.
+# on Linux and never installed at all.
 STOW_PACKAGES=(
   fish
   git
@@ -453,7 +456,7 @@ link_omp_files() {
   done
 }
 
-log_step "Deploying configs using GNU Stow..."
+log_step "Deploying configs with GNU Stow (${#STOW_PACKAGES[@]} packages)"
 
 # Back up files that would block stowing, then let stow link them.
 #
@@ -527,17 +530,17 @@ for pkg in "${STOW_PACKAGES[@]}"; do
 done
 log_ok "Stow packages deployed."
 
-log_step "Linking managed omp files (not stowed - see note above)..."
+log_step "Linking omp files (not stowed - see note above)"
 link_omp_files
 
-log_step "Linking files for packages not stowed (fresh, superfile)..."
+log_step "Linking file-by-file: ${EXPLICIT_LINK_PACKAGES[*]}"
 for pkg in "${EXPLICIT_LINK_PACKAGES[@]}"; do
   log_info "$pkg"
   link_package_tree "$pkg"
 done
 
 # ------------------------------------------------------------------------------
-# 10. Oh-My-Pi Plugins Setup
+# 9. Oh-My-Pi Plugins Setup
 # ------------------------------------------------------------------------------
 # NOTE: skills are not managed at all. ~/.agents/skills and ~/skills-lock.json
 # stay per-machine, as do the opencode/pi/omp skill directories -- each agent
@@ -548,15 +551,15 @@ done
 # repo. Everything else under ~/.omp is per-machine state (sessions/, run/,
 # logs/, cache/, stats.db, install-id, plugins/node_modules).
 if [ -d "$HOME/.omp/plugins" ] && [ -f "$HOME/.omp/plugins/package.json" ]; then
-  log_info "Installing Oh-My-Pi plugins via pnpm..."
+  log_step "Installing omp plugins via pnpm..."
   # Same build-script gate as above; `2>/dev/null` would otherwise hide the
   # ERR_PNPM_IGNORED_BUILDS error that a blocked postinstall produces.
   (cd "$HOME/.omp/plugins" && pnpm install --allow-build pi-natives --allow-build pi-natives-linux-x64 2>&1 | tail -3) || log_warn "omp plugin install reported an error (see above)."
-  log_ok "Oh-My-Pi plugins installed."
+  log_ok "omp plugins installed."
 fi
 
 # ------------------------------------------------------------------------------
-# 11. Fresh Editor Packages (plugins / themes / languages)
+# 10. Fresh Editor Packages (plugins / themes / languages)
 # ------------------------------------------------------------------------------
 # The fresh package tree is stowed from the repo, but fresh keeps a private
 # registry cache under ~/.config/fresh/plugins/packages/.index and .cache.
@@ -587,17 +590,17 @@ fi
 # init.ts both reference them, so regenerate them after stowing. Without this a
 # fresh install has dangling `/// <reference>` paths in init.ts.
 if command -v fresh >/dev/null 2>&1; then
-  log_info "Regenerating fresh API type definitions..."
+  log_step "Regenerating fresh API types"
   fresh --cmd script types >/dev/null 2>&1 || log_warn "Could not regenerate fresh types (editor-only nicety)."
 
-  log_info "Validating fresh init.ts..."
+  log_info "Checking fresh init.ts"
   fresh --cmd init check >/dev/null 2>&1 \
     && log_ok "fresh init.ts ok." \
     || log_warn "fresh init check failed; run 'fresh --safe' to diagnose."
 fi
 
 # ------------------------------------------------------------------------------
-# 12. Default Shell Setup (Fish)
+# 11. Default Shell Setup (Fish)
 # ------------------------------------------------------------------------------
 FISH_BIN="$(command -v fish 2>/dev/null || echo /usr/bin/fish)"
 if [ -x "$FISH_BIN" ]; then
@@ -616,7 +619,7 @@ if [ -x "$FISH_BIN" ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 13. Post-Install: Account Logins & Cache Warmup
+# 12. Post-Install: Account Logins & Cache Warmup
 # ------------------------------------------------------------------------------
 # Everything here that can be done without a browser or a password prompt is
 # done automatically. Whatever needs interactive auth is reported at the end
@@ -626,7 +629,7 @@ MANUAL_STEPS=()
 
 # --- tealdeer page cache -----------------------------------------------------
 if command -v tldr >/dev/null 2>&1; then
-  log_info "Warming tealdeer (tldr) page cache..."
+  log_step "Warming the tealdeer (tldr) cache"
   if tldr --update >/dev/null 2>&1; then
     log_ok "tealdeer pages cached."
   else
@@ -711,7 +714,7 @@ else
 fi
 
 # ------------------------------------------------------------------------------
-# 14. Completion Summary
+# 13. Completion Summary
 # ------------------------------------------------------------------------------
 # In --config-only mode this whole summary is noise: it is an inventory of
 # packages that were deliberately not touched, printed every time `upd` pulls
@@ -723,7 +726,7 @@ log_step "Machine Bootstrap & Config Sync Complete!"
 echo ""
 echo "Active environment features:"
 echo "  - mise prefix: ${MISE_SHIMS:-$HOME/.local/share/mise/shims}"
-echo "  - Brew CLI tools: bat, eza, fd, ripgrep, atuin, starship, fresh, lazygit, superfile, stow, uv, opencode, pi-coding-agent, etc."
+echo "  - Tools via mise: bat, eza, fd, ripgrep, atuin, starship, fresh, lazygit, superfile, uv, delta, opencode, pi, omp, vite+."
 echo "  - Python manager: uv (pip/venv/run/build)"
 echo "  - Terminal multiplexer: herdr (with custom keybinds & Catppuccin theme)"
 echo "  - Terminal emulator config: wezterm (.wezterm.lua, Windows-only; in repo, not stowed on Linux)"

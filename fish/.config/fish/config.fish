@@ -13,9 +13,9 @@ end
 set -g fish_greeting ""
 
 # ---------- mise first ----------
-# mise replaces Homebrew and Vite+. `mise activate` hooks the shell so tools
-# resolve as projects change directories, and prepends the shims dir so mise
-# binaries win over ~/.local/bin and /usr/bin.
+# mise supplies every tool except the apt base set, including node and pnpm.
+# `mise activate` hooks the shell so tool versions follow the directory, and
+# prepends the shims dir so mise binaries win over ~/.local/bin and /usr/bin.
 #
 # Use the absolute path: on a fresh login there may be no mise on PATH yet.
 if test -x "$HOME/.local/bin/mise"
@@ -40,8 +40,8 @@ else
 end
 
 # ---------- pnpm ----------
-# pnpm comes from mise now (core:pnpm), so the VP_PACKAGE_MANAGER shim that
-# pointed at Vite+ is gone. PNPM_HOME stays: it is where global packages live.
+# pnpm is a mise tool (core:pnpm). PNPM_HOME stays so global packages such as
+# omp land on a path that is already here.
 set -gx PNPM_HOME "$HOME/.local/share/pnpm"
 test -d "$PNPM_HOME"; and fish_add_path "$PNPM_HOME"
 fish_add_path "$HOME/.local/bin"
@@ -70,9 +70,9 @@ set -gx FZF_CTRL_T_COMMAND $FZF_DEFAULT_COMMAND
 set -gx FZF_CTRL_T_OPTS "--preview 'bat --color=always -n --line-range :500 {}'"
 set -gx FZF_ALT_C_COMMAND 'fd --type d --hidden --follow --exclude .git'
 set -gx FZF_ALT_C_OPTS "--preview 'eza --icons=always --tree --color=always {} | head -200'"
-# fzf's shell/key-bindings.fish is vendored in conf.d/. mise's aqua fzf ships
-# only the binary, unlike the brew formula which bundled the shell integrations,
-# so Ctrl-T / Alt-C would silently stop working without it.
+# fzf's shell/key-bindings.fish is vendored in conf.d/: the aqua fzf package
+# ships only the binary and no shell integrations, so without this file
+# Ctrl-T / Alt-C would silently stop working.
 fzf_key_bindings
 
 # ---------- atuin ----------
@@ -139,11 +139,10 @@ end
 # and most likely to fail, so a failure there does not mask the rest. dotfiles
 # is last because it re-runs install.sh.
 #
-# Everything is non-interactive: apt gets -y, mise needs no flags (it
-# otherwise asks "delete this?" per file), and pi/omp get their approve/force
-# flags. sudo may still ask for a password on the first call -- that one cannot
-# be bypassed, and should not be.
-function upd --description 'update all: apt mise pi omp opencode dotfiles'
+# Everything is non-interactive: apt gets -y, mise needs no flags, and pi/omp
+# get their approve/force flags. sudo may still ask for a password the first
+# time; that one cannot be bypassed and should not be.
+function upd --description 'update everything: apt, mise, pi, omp, opencode, dotfiles'
     set -l what $argv
 
     # `selected` is declared up front and only assigned inside the if/else.
@@ -167,9 +166,9 @@ function upd --description 'update all: apt mise pi omp opencode dotfiles'
         sudo apt-get clean
     end
 
-    # mise replaces both Homebrew and Vite+: every CLI tool, plus node and pnpm,
-    # are mise-managed. `mise upgrade` updates all of them and reinstalls what
-    # moved. apt is still separate -- mise has no system-package backend.
+    # mise covers every CLI tool plus node and pnpm. `mise upgrade` updates all
+    # of them and reinstalls whatever moved. apt stays separate: mise has no
+    # system-package backend, so the base packages are not managed here.
     if contains mise $selected; and type -q mise
         step "mise"
         mise upgrade
@@ -235,9 +234,8 @@ function upd --description 'update all: apt mise pi omp opencode dotfiles'
         end
 
         # Re-run so the stow symlinks pick up the pulled changes. --config-only
-        # matters here: this function has already run the apt/brew/vite+/agent
-        # updates above, and a plain ./install.sh would repeat that entire
-        # package cycle a second time.
+        # matters: this function has already updated apt, mise and the agents
+        # above, and a plain ./install.sh would repeat that whole cycle.
         cd $HOME/dotfiles; and ./install.sh --config-only
     end
 end
@@ -295,7 +293,7 @@ abbr -a -- cls clear
 abbr -a -- htop btop
 abbr -a -- top btop
 
-# brew ships bat/fd under their real names — no distro-name shims needed.
+# bat and fd ship under their real names, so no distro-name shims are needed.
 alias cat=bat
 alias find=fd
 
