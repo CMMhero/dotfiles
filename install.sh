@@ -589,6 +589,11 @@ fi
 # ------------------------------------------------------------------------------
 # 14. Completion Summary
 # ------------------------------------------------------------------------------
+# In --config-only mode this whole summary is noise: it is an inventory of
+# packages that were deliberately not touched, printed every time `upd` pulls
+# the dotfiles. Keep the manual-step warnings (they can change with the machine)
+# and drop the rest.
+if [ "$SKIP_PACKAGES" -eq 0 ]; then
 echo ""
 printf "\033[1;32m===============================================================\033[0m\n"
 printf "\033[1;32m  Machine Bootstrap & Config Sync Complete!                   \033[0m\n"
@@ -605,6 +610,7 @@ echo "  - AI Agents: pi, opencode, oh-my-pi (omp) installed via brew/pnpm; confi
 echo "  - Skills: not managed; install with 'skills add <pkg>' (pnpm dlx, global)"
 echo "  - Shell: fish with custom aliases, abbreviations, and starship prompt"
 echo ""
+fi
 
 if [ "${#MANUAL_STEPS[@]}" -gt 0 ]; then
   printf "\033[1;33m===============================================================\033[0m\n"
@@ -614,8 +620,8 @@ if [ "${#MANUAL_STEPS[@]}" -gt 0 ]; then
   echo ""
   for step in "${MANUAL_STEPS[@]}"; do
     echo "  - $step"
-    echo ""
   done
+  echo ""
 else
   printf "\033[1;32m  All account logins already configured on this machine.\033[0m\n"
   echo ""

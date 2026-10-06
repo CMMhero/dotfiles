@@ -7,6 +7,11 @@ if not status is-interactive
     exit 0
 end
 
+# Silence fish's "Welcome to fish, the friendly interactive shell" banner.
+# Empty (not unset) is what suppresses it; unset would let fish print its
+# default. Set before anything else so it applies to every interactive start.
+set -g fish_greeting ""
+
 # ---------- Homebrew first ----------
 # brew shellenv prepends $HOMEBREW_PREFIX/{bin,sbin}. Keep this above every
 # other PATH edit below so brew binaries win over ~/.local/bin and /usr/bin.
