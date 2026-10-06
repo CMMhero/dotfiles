@@ -11,6 +11,9 @@
 #   git clone https://github.com/CMMhero/dotfiles.git ~/dotfiles
 #   cd ~/dotfiles && ./install.sh
 #
+#   # deploy configs only, skip every package install
+#   ./install.sh --config-only
+#
 # Exclusions (per user request):
 #   - ghostty, deja, tuios, zsh, marksman, pipx, thefuck, zinit, bun
 #   - wezterm config is kept in-repo for reference but never stowed (Windows-only)
@@ -60,6 +63,21 @@ fi
 DOTFILES_DIR="$SCRIPT_DIR"
 BACKUP_DIR="$HOME/.dotfiles_backup/$(date +%Y%m%d_%H%M%S)"
 
+# --config-only deploys the configs and skips every package install.
+#
+# `upd` already updates apt, brew, vite+ and the AI agents before it pulls the
+# dotfiles and runs install.sh. Without this flag install.sh would redo all of
+# it -- apt upgrade, brew install, vp env, omp add -- so one `upd` ran the whole
+# package cycle twice. Used by `upd dotfiles`.
+SKIP_PACKAGES=0
+for arg in "$@"; do
+  case "$arg" in
+    --config-only) SKIP_PACKAGES=1 ;;
+    --help|-h)     sed -n '2,16p' "$0"; exit 0 ;;
+    *)             log_err "Unknown option: $arg"; exit 1 ;;
+  esac
+done
+
 # ------------------------------------------------------------------------------
 # 2. Sanity Checks
 # ------------------------------------------------------------------------------
@@ -98,6 +116,9 @@ trap handoff_to_fish EXIT
 
 log_info "Dotfiles directory: $DOTFILES_DIR"
 log_info "Starting system setup..."
+
+# --- package installation: skipped entirely with --config-only ---------------
+if [ "$SKIP_PACKAGES" -eq 0 ]; then
 
 # ------------------------------------------------------------------------------
 # 3. APT System Update & Base Essentials
@@ -263,6 +284,11 @@ if ! command -v herdr >/dev/null 2>&1 && [ ! -x "$HOME/.local/bin/herdr" ]; then
   curl -fsSL https://herdr.dev/install.sh | bash || true
 fi
 log_ok "Herdr ready at: $(which herdr 2>/dev/null || echo "$HOME/.local/bin/herdr")"
+
+else
+  log_info "--config-only: skipped apt, brew, vite+, pi, omp, opencode and herdr."
+  log_info "Run './install.sh' without --config-only to install packages."
+fi  # end package installation
 # ------------------------------------------------------------------------------
 # 9. GNU Stow Dotfiles Deployment
 # ------------------------------------------------------------------------------

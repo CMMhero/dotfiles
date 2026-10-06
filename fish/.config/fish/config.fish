@@ -209,9 +209,11 @@ function upd --description 'update all: apt brew vp pi omp opencode dotfiles'
             return 1
         end
 
-        # Re-run so the stow symlinks pick up the pulled changes. install.sh
-        # hands off to fish through an EXIT trap.
-        cd $HOME/dotfiles; and ./install.sh
+        # Re-run so the stow symlinks pick up the pulled changes. --config-only
+        # matters here: this function has already run the apt/brew/vite+/agent
+        # updates above, and a plain ./install.sh would repeat that entire
+        # package cycle a second time.
+        cd $HOME/dotfiles; and ./install.sh --config-only
     end
 end
 
