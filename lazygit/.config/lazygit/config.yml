@@ -12,18 +12,4 @@ git:
   # lazygit calls this "hunk mode" internally and applies it to the staging view
   # as well as the diff view; it makes line selection act on whole hunks rather
   # than individual lines.
-  useHunkModeInDiffView: false
-
-# NOTE ON DELTA: delta is not used inside lazygit. lazygit renders its main
-# diff panel itself from git's output and never invokes a pager, so
-# `core.pager = delta` has no effect on it, and delta is a pager rather than a
-# difftool so it is not a candidate for `diff.tool` either.
-#
-# Earlier revisions added customCommands piping git output through delta, keyed
-# D/S/C. They were removed: the keys shadowed lazygit's own bindings, and
-# delta is redundant here since the main panel is already side-by-side via
-# gui.splitDiff.
-#
-# For delta's Macchiato colours, use the git CLI (git diff, git log -p) where
-# core.pager = delta applies. Inside lazygit, the OpenDiffTool keybinding runs
-# `git difftool <file>`, which is wired to hunk in ~/.gitconfig.
+  useHunkModeInDiffView: true
