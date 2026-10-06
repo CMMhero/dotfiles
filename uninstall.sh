@@ -101,6 +101,7 @@ BREW_PACKAGES=(
   fzf
   gh
   go
+  herdr
   hunk
   jq
   lazygit
@@ -242,8 +243,11 @@ if [ "$PURGE" -eq 1 ]; then
   fi
 
   # ---- herdr ----
+  # Now a brew formula (handled by the BREW_PACKAGES loop above). Remove a
+  # leftover copy from the old https://herdr.dev/install.sh, which installed to
+  # ~/.local/bin and can shadow brew's binary depending on PATH order.
   if [ -x "$HOME/.local/bin/herdr" ]; then
-    log_info "Removing herdr binary..."
+    log_info "Removing legacy ~/.local/bin/herdr (installed by the old herdr installer)..."
     rm -f "$HOME/.local/bin/herdr"
   fi
 

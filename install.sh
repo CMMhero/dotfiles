@@ -194,6 +194,7 @@ BREW_PACKAGES=(
   fzf
   gh
   go
+  herdr
   hunk
   jq
   lazygit
@@ -296,13 +297,17 @@ fi
 log_ok "AI Agents ready: pi, opencode, omp."
 
 # ------------------------------------------------------------------------------
-# 8. Herdr Installation (https://herdr.dev)
+# 8. Herdr
 # ------------------------------------------------------------------------------
-if ! command -v herdr >/dev/null 2>&1 && [ ! -x "$HOME/.local/bin/herdr" ]; then
-  log_info "Installing Herdr terminal workspace manager (https://herdr.dev)..."
-  curl -fsSL https://herdr.dev/install.sh | bash || true
+# herdr is a brew formula, installed with the rest in section 5. The standalone
+# curl installer (https://herdr.dev/install.sh) is no longer used: it drops a
+# binary in ~/.local/bin, which is a second copy alongside brew's and can shadow
+# it depending on PATH order.
+if command -v herdr >/dev/null 2>&1; then
+  log_ok "herdr ready at $(command -v herdr) ($(herdr --version 2>/dev/null | head -1))"
+else
+  log_warn "herdr not found; it should come from 'brew install herdr'."
 fi
-log_ok "Herdr ready at: $(which herdr 2>/dev/null || echo "$HOME/.local/bin/herdr")"
 
 else
   log_info "--config-only: skipped apt, brew, vite+, pi, omp, opencode and herdr."
@@ -323,12 +328,31 @@ STOW_PACKAGES=(
   bat
   btop
   fastfetch
-  fresh
   herdr
   hunk
   lazygit
-  superfile
   vite-plus
+)
+
+# Packages linked file-by-file instead of stowed.
+#
+# GNU Stow links a whole directory whenever the target directory does not
+# already exist. On a fresh machine ~/.config/fresh and ~/.config/superfile do
+# not exist, so 'stow fresh' links ~/.config/fresh as a single symlink into this
+# repo -- and everything fresh or superfile writes there lands in the working
+# tree. That is the same reason omp moved off stow.
+#
+# These are linked by walking the package and symlinking each file, with every
+# parent directory created as a real directory.
+EXPLICIT_LINK_PACKAGES=(fresh superfile)
+
+# omp additionally keeps runtime state under ~/.omp (sessions/, agent.db,
+# stats.db, cache/, logs/, run/, install-id, plugins/node_modules), so it gets
+# an explicit file list rather than a whole-tree walk.
+OMP_MANAGED_FILES=(
+  .omp/agent/config.yml
+  .omp/plugins/package.json
+  .omp/agent/extensions/opencode-zen-fix.ts
 )
 
 # omp is NOT stowed. GNU Stow links a whole directory whenever that directory
@@ -350,27 +374,54 @@ OMP_MANAGED_FILES=(
   .omp/agent/extensions/opencode-zen-fix.ts
 )
 
+# Link one repo file to $HOME, replacing whatever is there (backing up anything
+# that is not already a link into this repo).
+link_one_file() {
+  local pkg="$1" rel="$2"
+  local src="$DOTFILES_DIR/$pkg/$rel" target="$HOME/$rel"
+  local target_real src_real
+
+  [ -f "$src" ] || { log_warn "$pkg: missing in repo, skipped: $rel"; return 0; }
+
+  # Real parent directories, never links.
+  mkdir -p "$(dirname "$target")"
+
+  # Resolve first. Comparing resolved paths is what distinguishes "our file
+  # reached through a symlinked parent" (leave alone) from a genuine pre-existing
+  # file (back up). A test -L cannot: it is false for the first case.
+  target_real="$(readlink -f "$target" 2>/dev/null || true)"
+  src_real="$(readlink -f "$src" 2>/dev/null || true)"
+
+  if [ -n "$target_real" ] && [ "$target_real" = "$src_real" ]; then
+    # Already correctly linked.
+    log_info "$pkg: ~/$rel"
+    return 0
+  fi
+
+  if [ -L "$target" ]; then
+    rm -f "$target"          # stale link, possibly pointing at a moved repo file
+  elif [ -e "$target" ]; then
+    mkdir -p "$BACKUP_DIR/$(dirname "$rel")"
+    log_warn "Backing up existing $pkg file: ~/$rel"
+    mv "$target" "$BACKUP_DIR/$rel"
+  fi
+
+  ln -s "$src" "$target"
+  log_info "$pkg: linked ~/$rel"
+}
+
+# Walk a whole package and link each file individually.
+link_package_tree() {
+  local pkg="$1" rel
+  while IFS= read -r rel; do
+    link_one_file "$pkg" "${rel#./}"
+  done < <(cd "$DOTFILES_DIR/$pkg" 2>/dev/null && find . -type f)
+}
+
 link_omp_files() {
-  local rel target src
+  local rel
   for rel in "${OMP_MANAGED_FILES[@]}"; do
-    src="$DOTFILES_DIR/omp/$rel"
-    target="$HOME/$rel"
-    [ -f "$src" ] || { log_warn "omp: missing in repo, skipped: $rel"; continue; }
-
-    # Real parent dirs, never links.
-    mkdir -p "$(dirname "$target")"
-
-    if [ -L "$target" ]; then
-      # Already linked: refresh it in case the repo file moved.
-      rm -f "$target"
-    elif [ -e "$target" ]; then
-      mkdir -p "$BACKUP_DIR/$(dirname "$rel")"
-      log_warn "Backing up existing omp file: $target"
-      mv "$target" "$BACKUP_DIR/$rel"
-    fi
-
-    ln -s "$src" "$target"
-    log_ok "omp linked: $rel"
+    link_one_file omp "$rel"
   done
 }
 
@@ -450,6 +501,12 @@ log_ok "Stow packages deployed."
 
 log_step "Linking managed omp files (not stowed - see note above)..."
 link_omp_files
+
+log_step "Linking files for packages not stowed (fresh, superfile)..."
+for pkg in "${EXPLICIT_LINK_PACKAGES[@]}"; do
+  log_info "$pkg"
+  link_package_tree "$pkg"
+done
 
 # ------------------------------------------------------------------------------
 # 10. Oh-My-Pi Plugins Setup
