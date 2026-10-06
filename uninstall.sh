@@ -244,12 +244,31 @@ if [ "$PURGE" -eq 1 ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 6. Remove the dotfiles repo
+# 6. Move out of the repo, then remove it
 # ------------------------------------------------------------------------------
-log_info "Removing dotfiles repository at $DOTFILES_DIR ..."
-cd "$HOME"
-rm -rf "$DOTFILES_DIR"
+# `cd "$HOME"` moves this script, not the shell that invoked it. If the caller's
+# cwd is inside the repo, deleting it leaves their shell on a path that no
+# longer exists: the prompt keeps working but `pwd`, tab-completion, and every
+# relative path break with "getcwd: No such file or directory". There is no way
+# for a child script to change its parent's cwd, so detect it and say so BEFORE
+# deleting, rather than leaving a silently broken shell.
+CWD_REAL="$(pwd -P 2>/dev/null || pwd 2>/dev/null || echo "")"
+DOTFILES_REAL="$(cd "$DOTFILES_DIR" 2>/dev/null && pwd -P || echo "$DOTFILES_DIR")"
 
+if [ -n "$CWD_REAL" ] && [ -n "$DOTFILES_REAL" ]; then
+  case "$CWD_REAL" in
+    "$DOTFILES_REAL"/*)
+      log_warn "your shell's working directory is inside the repo:"
+      log_warn "    $CWD_REAL"
+      log_warn "It cannot be changed from this script. After this finishes, run:"
+      log_warn "    cd ~"
+      ;;
+  esac
+fi
+
+log_info "Removing dotfiles repository at $DOTFILES_DIR ..."
+cd "$HOME" || cd /
+rm -rf "$DOTFILES_DIR"
 echo ""
 printf "\033[1;32m===============================================================\033[0m\n"
 printf "\033[1;32m  Uninstall Complete.                                        \033[0m\n"
@@ -257,7 +276,7 @@ printf "\033[1;32m==============================================================
 echo "Stowed configs removed; default login shell restored."
 if [ "$PURGE" -eq 1 ]; then
   echo "Packages purged (brew formulas, apt packages, vite+, herdr, global pnpm)."
-  [ "$PURGE_DATA" -eq 1 ] && echo "Agent data (~/.pi, ~/.omp, ~/.opencode, ~/.agents) removed."
+  [ "$PURGE_DATA" -eq 1 ] && echo "Agent data removed (~/.pi, ~/.omp, ~/.opencode). ~/.agents and ~/skills-lock.json left alone."
 fi
 echo "Dotfiles repo deleted."
 echo ""
