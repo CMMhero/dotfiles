@@ -44,8 +44,13 @@ if [ "$(id -u)" -eq 0 ]; then
   if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ] && command -v sudo >/dev/null 2>&1; then
     echo "Re-running as $SUDO_USER (this script must not run as root)..."
     # -H so HOME is the user's home, not /root. Re-exec rather than continue so
-    # every later path resolves under their account.
-    exec sudo -u "$SUDO_USER" -H bash "$0" "$@"
+    # every later path resolves under their account. stdin is redirected to the
+    # tty because under `curl | bash` it is still the pipe carrying this script;
+    # the re-exec'd bash would otherwise resume reading it mid-file.
+    if [ -r /dev/tty ]; then
+      exec sudo -u "$SUDO_USER" -H bash "$0" "$@" < /dev/tty
+    fi
+    exec sudo -u "$SUDO_USER" -H bash "$0" "$@" < /dev/null
   fi
   printf "   \033[1;31m[err]\033[0m  Do not run this script as root.\n" >&2
   printf "  Run it as your normal user; it needs your HOME, mise and sudo.\n" >&2
@@ -199,7 +204,18 @@ handoff_to_fish() {
   trap - EXIT
   echo ""
   echo "Reloading fish with the new config..."
-  exec "$FISH_EXEC_BIN" -l
+  # Hand the new shell the terminal, not whatever this script was reading.
+  #
+  # Invoked as `curl ... | bash`, stdin is still the pipe carrying the rest of
+  # this script. fish starts, sees a non-tty stdin, and executes those bash
+  # lines as commands -- which fails loudly with
+  #   "Unsupported use of '='. In fish, please use 'set DOTFILES_DIR ...'"
+  # and leaves the shell unusable, so the config looks like it never loaded.
+  # Reading the tty instead gives fish a real interactive stdin.
+  if [ -r /dev/tty ]; then
+    exec "$FISH_EXEC_BIN" -l < /dev/tty
+  fi
+  exec "$FISH_EXEC_BIN" -l < /dev/null
 }
 # Fallback is /usr/bin/fish, where apt puts it. A login shell pointed at some
 # other machine's removed path is the classic lockout.
