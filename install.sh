@@ -282,19 +282,22 @@ MISE_TOOLS=(
   "core:pnpm"                    # pnpm
 )
 
+# `mise use -g` both installs and registers the version globally, which is what
+# makes the shim work. Doing it in two steps was wrong twice over:
+#   - `mise install` alone leaves tools uninstalled-from-config, so every shim
+#     errors with "No version is set for shim: <tool>"
+#   - `mise use --global --skip-install` is not a valid flag in mise 2026.10 and
+#     exits non-zero; a trailing `|| true` hid that, so nothing was registered
+#     and the failure only surfaced later as missing commands.
+# Output is left visible so mise's progress bar is not swallowed.
 log_step "Installing ${#MISE_TOOLS[@]} tools via mise..."
-MISE_MISSING=()
-for tool in "${MISE_TOOLS[@]}"; do
-  mise install "$tool" >/dev/null 2>&1 || MISE_MISSING+=("$tool")
-done
-if [ "${#MISE_MISSING[@]}" -gt 0 ]; then
-  log_warn "mise could not install: ${MISE_MISSING[*]}"
+if mise use -g "${MISE_TOOLS[@]}"; then
+  log_ok "mise registered ${#MISE_TOOLS[@]} tools globally."
 else
-  log_ok "mise installed ${#MISE_TOOLS[@]} tools."
+  log_warn "mise reported failures; see above. Any tool without a version set"
+  log_warn "will error as 'No version is set for shim: <name>' until re-run."
+  log_info "Retry individually with: mise use -g <tool>@<version>"
 fi
-
-# Pin them globally so they are on PATH in every shell.
-mise use --global --skip-install "${MISE_TOOLS[@]}" >/dev/null 2>&1 || true
 
 # Put mise's shims on PATH for this script's remaining steps.
 # Do NOT use `mise where` here: with no argument it prints usage and exits
