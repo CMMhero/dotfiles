@@ -51,3 +51,14 @@ fresh/.config/fresh/.staging/
 *.old
 *.orig
 service.json
+
+# Runtime state written by tools whose config dir is stowed. With per-file
+# linking these never appear in the repo, but a whole-directory stow link (which
+# happens when the target directory did not exist yet) writes them straight in.
+fish/.config/fish/fish_variables
+herdr/.config/herdr/.plugins.lock
+herdr/.config/herdr/session.json
+herdr/.config/herdr/session-snapshots/
+herdr/.config/herdr/*.log
+herdr/.config/herdr/*.sock
+herdr/.config/herdr/release-notes.json

@@ -1,6 +1,6 @@
 setupVersion: 2
 modelRoles:
-  default: opencode-zen/space-bunny-free:medium
+  default: commandcode/deepseek/deepseek-v4.1-flash-fast
 theme:
   dark: dark-catppuccin
   light: light-catppuccin

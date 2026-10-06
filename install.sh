@@ -477,6 +477,26 @@ link_omp_files() {
 
 log_step "Deploying configs with GNU Stow (${#STOW_PACKAGES[@]} packages)"
 
+# Create every target directory BEFORE stowing.
+#
+# GNU Stow links a whole directory when the target directory does not already
+# exist, and a per-file link when it does. That distinction matters: with a
+# whole-directory link, ~/.config/fish becomes a symlink to the repo package, so
+# anything fish writes there lands in the working tree -- fish_variables, and
+# for herdr the session files, logs, sockets and .plugins.lock all show up as
+# untracked files in the repo.
+#
+# Pre-creating the directories forces per-file linking, so runtime state stays on
+# the machine where it belongs.
+ensure_target_dirs() {
+  local pkg="$1" rel_path dir
+  while IFS= read -r rel_path; do
+    dir="$HOME/$(dirname "$rel_path")"
+    [ -L "$dir" ] && continue      # already a link; do not follow it
+    mkdir -p "$dir" 2>/dev/null || true
+  done < <(cd "$DOTFILES_DIR/$pkg" 2>/dev/null && find . -type f | sed 's|^\./||')
+}
+
 # Back up files that would block stowing, then let stow link them.
 #
 # The `-L` test alone is not enough, and that bug deleted files from this repo.
@@ -525,6 +545,7 @@ for pkg in "${STOW_PACKAGES[@]}"; do
   # Detail, not a section header: there are ~17 packages and a banner each
   # would bury the actual output.
   log_info "$pkg"
+  ensure_target_dirs "$pkg"
   backup_if_conflict "$pkg"
   # stow's own -v prints bare "LINK: x => y" lines that do not match the
   # style used everywhere else here. Run it quiet and report each linked file

@@ -174,24 +174,30 @@ function upd --description 'update everything: apt, mise, pi, omp, opencode, dot
         mise upgrade
     end
 
-    # pi: --all covers pi itself plus the extensions listed in its settings
-    # (pi-commandcode-provider, opencode-pi). --approve skips the trust prompt.
+    # The agent BINARIES come from mise (aqua:earendil-works/pi,
+    # aqua:anomalyco/opencode, github:can1357/oh-my-pi), already updated by the
+    # mise step above. What mise does not touch is their extensions and plugins,
+    # so these branches handle only those -- no --self-style self-update, which
+    # would move the binary behind mise's back and desync the version it pins.
+    #
+    # pi: --extensions updates the packages from its settings
+    # (pi-commandcode-provider, opencode-pi); --approve skips the trust prompt.
     if contains pi $selected; and command -q pi >/dev/null 2>&1
-        step "pi"
-        pi update --all --approve
+        step "pi extensions"
+        pi update --extensions --approve
     end
 
-    # omp: -f force, -l also update installed plugins.
+    # omp: -l updates installed plugins only.
     if contains omp $selected; and command -q omp >/dev/null 2>&1
-        step "omp"
-        omp update -f -l
+        step "omp plugins"
+        omp update -l
     end
 
-    # opencode self-updates, but it is also a mise tool. mise already handled it
-    # in the mise step above; this runs its own updater for extensions.
+    # opencode is a mise tool, so its binary is handled by the mise step. It has
+    # no separate extension registry to refresh here.
     if contains opencode $selected; and command -q opencode >/dev/null 2>&1
         step "opencode"
-        opencode upgrade 2>/dev/null || info "opencode: no separate upgrade path"
+        info "binary managed by mise; nothing extra to update"
     end
 
     if contains dotfiles $selected; or contains dotfiles $what
