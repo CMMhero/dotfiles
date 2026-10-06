@@ -33,6 +33,31 @@
 
 set -euo pipefail
 
+# ------------------------------------------------------------------------------
+# Root check -- before anything touches the filesystem
+# ------------------------------------------------------------------------------
+# Everything below assumes a normal user account: Homebrew installs to
+# /home/linuxbrew, `sudo` is used for apt, `chsh` needs the account's own shell,
+# and $HOME must be the user's home. Run as root and all of that silently
+# relocates to /root and ~/.local/share/vite-plus, which is why it is refused.
+#
+# Under `sudo ./install.sh`, SUDO_USER names the real user, so drop privileges
+# and continue as them instead of failing. Without that, `sudo upd dotfiles`
+# fails at the last step with a bare "do not run as root" and no way forward.
+if [ "$(id -u)" -eq 0 ]; then
+  if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ] && command -v sudo >/dev/null 2>&1; then
+    echo "Re-running as $SUDO_USER (this script must not run as root)..."
+    # -H so HOME is the user's home, not /root. Re-exec rather than continue so
+    # every later path resolves under their account.
+    exec sudo -u "$SUDO_USER" -H bash "$0" "$@"
+  fi
+  printf "   \033[1;31m[err]\033[0m  Do not run this script as root.\n" >&2
+  printf "  Run it as your normal user; it needs your HOME, Homebrew and sudo.\n" >&2
+  printf "  If you invoked it through sudo, that is handled automatically --\n" >&2
+  printf "  this message means there is no SUDO_USER to fall back to.\n" >&2
+  exit 1
+fi
+
 # Visual log helpers
 #
 # Three levels, matching the `upd` fish function so both read the same way:
@@ -99,10 +124,6 @@ done
 # ------------------------------------------------------------------------------
 # 2. Sanity Checks
 # ------------------------------------------------------------------------------
-if [ "$(id -u)" -eq 0 ]; then
-  log_err "Do not run this script directly as root. Run as a regular user with sudo access."
-  exit 1
-fi
 
 
 # ------------------------------------------------------------------------------
