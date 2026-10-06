@@ -331,20 +331,46 @@ link_omp_files() {
 
 log_info "Deploying configs using GNU Stow..."
 
-# Function to back up conflicting files before stowing
+# Back up files that would block stowing, then let stow link them.
+#
+# The `-L` test alone is not enough, and that bug deleted files from this repo.
+# GNU Stow links a whole directory whenever the target directory does not already
+# exist: ~/.config/bat can become a symlink to ../dotfiles/bat/.config/bat. A
+# file reached *through* that link (~/.config/bat/config) is a perfectly ordinary
+# file -- test -L says false -- so the old check treated our own repo file as a
+# pre-existing conflict and moved it into ~/.dotfiles_backup/. Every run then
+# stripped more of the working tree: bat, fastfetch, hunk, lazygit, and the
+# fresh plugins/themes/languages packages all vanished from the repo.
+#
+# Fix: resolve the target to its real path first. If it lands inside this repo,
+# it is our own file, not a conflict, and must be left alone.
 backup_if_conflict() {
-  local pkg="$1"
-  cd "$DOTFILES_DIR/$pkg"
-  find . -type f | while read -r rel_file; do
+  local pkg="$1" rel_file rel_path target_path target_real
+  cd "$DOTFILES_DIR/$pkg" || return 0
+  while IFS= read -r rel_file; do
     rel_path="${rel_file#./}"
     target_path="$HOME/$rel_path"
-    if [ -e "$target_path" ] && [ ! -L "$target_path" ]; then
-      mkdir -p "$BACKUP_DIR/$(dirname "$rel_path")"
-      log_warn "Backing up existing non-symlink: $target_path -> $BACKUP_DIR/$rel_path"
-      mv "$target_path" "$BACKUP_DIR/$rel_path"
+    [ -e "$target_path" ] || continue
+    # Already a direct link into the repo: stow is happy with this.
+    [ -L "$target_path" ] && continue
+
+    # Resolve through any directory symlinks above it.
+    target_real="$(readlink -f "$target_path" 2>/dev/null || true)"
+    if [ -n "$target_real" ]; then
+      case "$target_real" in
+        "$DOTFILES_DIR"/*)
+          # This file IS in the repo (reached via a directory symlink).
+          continue
+          ;;
+      esac
     fi
-  done
-  cd "$DOTFILES_DIR"
+
+    # Genuine pre-existing file that is not ours: move it aside.
+    mkdir -p "$BACKUP_DIR/$(dirname "$rel_path")"
+    log_warn "Backing up existing file: $target_path -> $BACKUP_DIR/$rel_path"
+    mv "$target_path" "$BACKUP_DIR/$rel_path"
+  done < <(find . -type f)
+  cd "$DOTFILES_DIR" || return 0
 }
 
 cd "$DOTFILES_DIR"
