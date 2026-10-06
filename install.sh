@@ -344,6 +344,12 @@ STOW_PACKAGES=(
 #
 # These are linked by walking the package and symlinking each file, with every
 # parent directory created as a real directory.
+#
+# Note: fresh's theme and language PACKAGES must stay in this repo even though
+# they are fetched from GitHub. fresh does not re-download them: with
+# themes/ removed, the editor silently falls back and never recreates the
+# directory (verified). superfile is different -- its themes are built in and
+# config.toml selects one by name, so those really are redundant.
 EXPLICIT_LINK_PACKAGES=(fresh superfile)
 
 # omp additionally keeps runtime state under ~/.omp (sessions/, agent.db,
