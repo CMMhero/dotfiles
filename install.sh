@@ -34,15 +34,28 @@
 set -euo pipefail
 
 # Visual log helpers
-# Output style matches the `upd` fish function so both read the same way:
-#   ==> section heading      (brew/apt/vite+/dotfiles)
-#     -> detail              (indented, for per-item progress)
-#   [ok] / [warn] / [err]    (kept bracketed so they stand out when scrolled)
-log_step() { printf "\033[1;32m==>\033[0m \033[1m%s\033[0m\n" "$*"; }
-log_info() { printf "   \033[0;36m->\033[0m %s\n" "$*"; }
-log_ok()   { printf "   \033[1;32m[ok]\033[0m   %s\n" "$*"; }
-log_warn() { printf "   \033[1;33m[warn]\033[0m %s\n" "$*"; }
-log_err()  { printf "   \033[1;31m[err]\033[0m  %s\n" "$*"; }
+#
+# Three levels, matching the `upd` fish function so both read the same way:
+#
+#   log_step  a section header, in the same banner form as "Remaining Manual
+#             Steps" -- a rule above and below a bold centred title.
+#   log_info  a detail line under the current header, indented.
+#   [ok]/[warn]/[err]
+#             status, bracketed so they stand out when scrolling back.
+#
+# log_banner takes an optional colour so a warning-style block (manual steps)
+# reads differently from a normal section without duplicating the layout.
+log_banner() {
+  local colour="$1"; shift
+  printf "\033[1;${colour}m===============================================================\033[0m\n"
+  printf "\033[1;${colour}m  %-62s\033[0m\n" "$*"
+  printf "\033[1;${colour}m===============================================================\033[0m\n"
+}
+log_step()  { log_banner "32" "$*"; }
+log_info()  { printf "   \033[0;36m->\033[0m %s\n" "$*"; }
+log_ok()    { printf "   \033[1;32m[ok]\033[0m   %s\n" "$*"; }
+log_warn()  { printf "   \033[1;33m[warn]\033[0m %s\n" "$*"; }
+log_err()   { printf "   \033[1;31m[err]\033[0m  %s\n" "$*"; }
 
 # ------------------------------------------------------------------------------
 # 1. Clone / Update the dotfiles repository
@@ -408,7 +421,9 @@ backup_if_conflict() {
 cd "$DOTFILES_DIR"
 for pkg in "${STOW_PACKAGES[@]}"; do
   [ -d "$DOTFILES_DIR/$pkg" ] || continue
-  log_step "$pkg"
+  # Detail, not a section header: there are ~17 packages and a banner each
+  # would bury the actual output.
+  log_info "$pkg"
   backup_if_conflict "$pkg"
   # stow's own -v prints bare "LINK: x => y" lines that do not match the
   # style used everywhere else here. Run it quiet and report each linked file
@@ -619,9 +634,8 @@ fi
 # and drop the rest.
 if [ "$SKIP_PACKAGES" -eq 0 ]; then
 echo ""
-printf "\033[1;32m===============================================================\033[0m\n"
-printf "\033[1;32m  Machine Bootstrap & Config Sync Complete!                   \033[0m\n"
-printf "\033[1;32m===============================================================\033[0m\n"
+log_step "Machine Bootstrap & Config Sync Complete!"
+echo ""
 echo "Active environment features:"
 echo "  - Homebrew prefix: $(brew --prefix 2>/dev/null || echo '/home/linuxbrew/.linuxbrew')"
 echo "  - Brew CLI tools: bat, eza, fd, ripgrep, atuin, starship, fresh, lazygit, superfile, stow, uv, opencode, pi-coding-agent, etc."
@@ -637,17 +651,15 @@ echo ""
 fi
 
 if [ "${#MANUAL_STEPS[@]}" -gt 0 ]; then
-  printf "\033[1;33m===============================================================\033[0m\n"
-  printf "\033[1;33m  Remaining Manual Steps                                     \033[0m\n"
-  printf "\033[1;33m===============================================================\033[0m\n"
+  log_banner "33" "Remaining Manual Steps"
   echo "These need a browser, password, or first-run prompt:"
   echo ""
   for step in "${MANUAL_STEPS[@]}"; do
-    echo "  - $step"
+    log_info "- $step"
   done
   echo ""
 else
-  printf "\033[1;32m  All account logins already configured on this machine.\033[0m\n"
+  log_ok "All account logins already configured on this machine."
   echo ""
 fi
 if [ -d "$BACKUP_DIR" ]; then

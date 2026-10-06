@@ -290,10 +290,7 @@ fi
 log_step "Removing dotfiles repository at $DOTFILES_DIR ..."
 cd "$HOME" || cd /
 rm -rf "$DOTFILES_DIR"
-echo ""
-printf "\033[1;32m===============================================================\033[0m\n"
-printf "\033[1;32m  Uninstall Complete.                                        \033[0m\n"
-printf "\033[1;32m===============================================================\033[0m\n"
+log_step "Uninstall Complete."
 echo "Stowed configs removed; default login shell restored."
 if [ "$PURGE" -eq 1 ]; then
   echo "Packages purged (brew formulas, apt packages, vite+, herdr, global pnpm)."
