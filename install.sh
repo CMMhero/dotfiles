@@ -282,7 +282,7 @@ MISE_TOOLS=(
   "core:pnpm"                    # pnpm
 )
 
-log_step "Installing $#{MISE_TOOLS[@]} tools via mise..."
+log_step "Installing ${#MISE_TOOLS[@]} tools via mise..."
 MISE_MISSING=()
 for tool in "${MISE_TOOLS[@]}"; do
   mise install "$tool" >/dev/null 2>&1 || MISE_MISSING+=("$tool")
@@ -315,7 +315,7 @@ log_ok "pnpm via mise: $(pnpm --version 2>/dev/null || echo 'pending shell reloa
 # mise's node/pnpm instead of managing its own.
 export PNPM_HOME="$HOME/.local/share/pnpm"
 mkdir -p "$HOME/.local/bin" "$PNPM_HOME"
-export PATH="$HOME/.local/bin:$PNPM_HOME:$PATH"
+log_step "Configuring pnpm"
 pnpm config set global-bin-dir "$HOME/.local/bin" 2>/dev/null || true
 pnpm config set store-dir "$PNPM_HOME/store" 2>/dev/null || true
 log_ok "pnpm configured (global bin dir: $HOME/.local/bin)."
