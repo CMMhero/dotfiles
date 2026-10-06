@@ -37,25 +37,31 @@ git:
 # side-by-side inside lazygit. `--paging=never` is required because the output
 # goes to a lazygit view rather than a terminal pager.
 #
+# CONTEXT: lazygit validates these against a fixed list and refuses to start on
+# an unknown value. The allowed ones are:
+#   global, status, files, localBranches, remotes, worktrees, remoteBranches,
+#   tags, commits, reflogCommits, subCommits, commitFiles, stash, normal,
+#   normalSecondary, mergeConflicts, menu, confirmation, prompt, search,
+#   commitMessage, submodules, suggestions, cmdLog
+# Note there is no `workingTree` or `stagedFiles`; the working-tree and staged
+# diffs therefore use `global`, which binds the key everywhere.
+#
 #   D  diff working tree through delta
 #   S  diff staged changes through delta
 #   C  diff the selected commit's changes through delta
 customCommands:
   - command: 'git diff | delta --paging=never'
     description: 'Diff working tree with delta'
-    context: 'workingTree'
-    output: true
-    streaming: true
+    context: 'global'
+    output: terminal
     key: 'D'
   - command: 'git diff --staged | delta --paging=never'
     description: 'Diff staged changes with delta'
-    context: 'stagedFiles'
-    output: true
-    streaming: true
+    context: 'global'
+    output: terminal
     key: 'S'
   - command: 'git show {{.FormSelectedCommit}} | delta --paging=never'
     description: 'Show selected commit with delta'
     context: 'commitFiles'
-    output: true
-    streaming: true
+    output: terminal
     key: 'C'
