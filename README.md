@@ -13,7 +13,7 @@ Modular dotfiles managed with **GNU Stow**, with `install.sh` / `uninstall.sh` f
   - `herdr` (`~/.config/herdr/config.toml`) with custom keybindings, tabs, and Catppuccin theme
   - `wezterm` — **Windows-only**. `wezterm/.wezterm.lua` is kept in the repo for reference (WSL domain, pwsh `default_prog`, Acrylic backdrop) but is **not stowed** and wezterm is **not installed** on Linux.
 - **Editor**: `fresh-editor` (`~/.config/fresh`) with the Catppuccin theme package, the `color-highlighter` plugin, a `dotfiles-fresh-language` grammar, vi mode enabled at startup, and a **"Toggle vi mode"** command in the palette (Ctrl+P)
-- **Runtimes & Package Managers**: Vite+ (`~/.config/vite-plus`), **pnpm-first by default** (managed through Vite+), Node.js
+- **Runtimes & Package Managers**: pnpm and Node.js via `mise` (`core:pnpm`, `core:node`). Vite+ has been removed.
 - **Theme**: Catppuccin Macchiato is the source of truth (defined once in `wezterm/.wezterm.lua`). `bat` uses it directly (`bat/.config/bat/config`), `fzf` gets an equivalent palette via `fish/.config/fish/conf.d/catppuccin.fish`, and `omp` uses its built-in `dark-catppuccin` — that one is **Mocha**-flavoured, since omp ships no Macchiato and `grep -c macchiato` over its dist returns 0.
 - **AI Coding Agents**:
   - `omp` (`@oh-my-pi/pi-coding-agent` via pnpm) — **narrowly** stowed: only `~/.omp/agent/config.yml` and `~/.omp/plugins/package.json`. Everything else in `~/.omp` (sessions, run, logs, cache, `stats.db`, `install-id`, plugin `node_modules`) stays per-machine.
@@ -44,16 +44,16 @@ cd "$HOME/dotfiles" || exit 1
 ```
 
 The script will:
-1. Update APT and install base essentials (`build-essential`, `curl`, `git`, `stow`, `procps`, `file`, etc.).
-2. Install Homebrew (Linuxbrew) and initialize shell environment.
-3. Install all Homebrew CLI formulas (including `pi-coding-agent`, `opencode`, `stow`, and `uv`).
-4. Install Herdr (`curl -fsSL https://herdr.dev/install.sh | bash`).
-5. Install Vite+ (`https://vite.plus`) and configure `pnpm` as the default managed package manager.
-6. Install Oh-My-Pi (`omp`) globally via `pnpm`.
-7. Back up any conflicting system defaults to `~/.dotfiles_backup/<timestamp>/`.
-8. Link all packages into `$HOME` via `gnu stow`.
-9. Wire skill symlinks into Pi and install Oh-My-Pi plugins via `pnpm`.
-10. Configure Fish as the default login shell (`chsh -s $(which fish)`).
+1. Update APT and install the base essentials: `ca-certificates`, `curl`, `git`, `stow`, `fish`.
+2. Install mise (via `curl https://mise.run`) -- it replaces both Homebrew and Vite+.
+3. Install every CLI tool through mise, plus `go`, `rust`, `node`, `pnpm`, and
+   oh-my-pi (`github:can1357/oh-my-pi`).
+4. Configure pnpm's global bin dir to `~/.local/bin`.
+5. Back up any conflicting system defaults to `~/.dotfiles_backup/<timestamp>/`.
+6. Link the stow packages, and link fresh / superfile / omp file-by-file.
+7. Install Oh-My-Pi plugins via `pnpm`.
+8. Configure Fish as the default login shell (`chsh -s $(which fish)`).
+9. Hand off to a fresh fish so the new config is live.
 
 ---
 
@@ -63,7 +63,7 @@ From within `~/dotfiles`:
 
 ```bash
 # Stow all managed packages to $HOME (bash/pi/opencode/wezterm excluded — not managed)
-stow -v -R -t ~ fish git starship atuin bat btop fastfetch fresh herdr hunk lazygit superfile vite-plus omp
+stow -v -R -t ~ fish git starship atuin bat btop fastfetch herdr hunk lazygit superfile
 
 # Stow a specific package (e.g., herdr)
 stow -v -R -t ~ herdr

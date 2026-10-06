@@ -14,21 +14,14 @@
 #   # deploy configs only, skip every package install
 #   ./install.sh --config-only
 #
-# Exclusions (per user request):
-#   - ghostty, deja, tuios, zsh, marksman, pipx, thefuck, zinit, bun
-#   - wezterm config is kept in-repo for reference but never stowed (Windows-only)
-#   - bash, pi, and opencode configs are NOT managed here; each is left alone on disk
-#   - skills are not managed at all (~/.agents/skills stays per-machine)
-#
 # Installed:
-#   - APT base tools (build-essential, git, curl, stow, procps, file, ...)
-#   - Homebrew + CLI tools (bat, eza, fzf, ripgrep, atuin, starship,
-#     fresh-editor, hunk, fastfetch, lazygit, superfile, btop, llmfit, models,
-#     opencode, pi-coding-agent, stow, uv, go, ...)
-#   - Vite+ with pnpm as the managed default package manager
-#   - Oh-My-Pi (omp) via pnpm; pi + opencode via Homebrew
-#   - Herdr workspace manager (https://herdr.dev)
-#   - Configs deployed with GNU Stow; fish set as the default login shell
+#   - apt: git, curl, stow, fish (login shell), ca-certificates
+#   - mise: every CLI tool, plus go, rust, node and pnpm (replaces Homebrew
+#     and Vite+), and oh-my-pi as github:can1357/oh-my-pi
+#
+# Configs are deployed with GNU Stow, except fresh, superfile and omp which are
+# linked file-by-file because stow would link those app directories whole.
+# fish is set as the default login shell.
 # ==============================================================================
 
 set -euo pipefail
@@ -36,10 +29,9 @@ set -euo pipefail
 # ------------------------------------------------------------------------------
 # Root check -- before anything touches the filesystem
 # ------------------------------------------------------------------------------
-# Everything below assumes a normal user account: Homebrew installs to
-# /home/linuxbrew, `sudo` is used for apt, `chsh` needs the account's own shell,
-# and $HOME must be the user's home. Run as root and all of that silently
-# relocates to /root and ~/.local/share/vite-plus, which is why it is refused.
+# Everything below assumes a normal user account: mise installs into $HOME,
+# `sudo` is used for apt, `chsh` needs the account's own shell. Run as root and
+# all of that silently relocates to /root, which is why it is refused.
 #
 # Under `sudo ./install.sh`, SUDO_USER names the real user, so drop privileges
 # and continue as them instead of failing. Without that, `sudo upd dotfiles`
@@ -52,7 +44,7 @@ if [ "$(id -u)" -eq 0 ]; then
     exec sudo -u "$SUDO_USER" -H bash "$0" "$@"
   fi
   printf "   \033[1;31m[err]\033[0m  Do not run this script as root.\n" >&2
-  printf "  Run it as your normal user; it needs your HOME, Homebrew and sudo.\n" >&2
+  printf "  Run it as your normal user; it needs your HOME, mise and sudo.\n" >&2
   printf "  If you invoked it through sudo, that is handled automatically --\n" >&2
   printf "  this message means there is no SUDO_USER to fall back to.\n" >&2
   exit 1
@@ -110,7 +102,7 @@ BACKUP_DIR="$HOME/.dotfiles_backup/$(date +%Y%m%d_%H%M%S)"
 #
 # `upd` already updates apt, brew, vite+ and the AI agents before it pulls the
 # dotfiles and runs install.sh. Without this flag install.sh would redo all of
-# it -- apt upgrade, brew install, vp env, omp add -- so one `upd` ran the whole
+# it -- apt upgrade, mise installs, omp add -- so one `upd` ran the whole
 # package cycle twice. Used by `upd dotfiles`.
 SKIP_PACKAGES=0
 for arg in "$@"; do
@@ -150,7 +142,9 @@ handoff_to_fish() {
   echo "Reloading fish with the new config..."
   exec "$FISH_EXEC_BIN" -l
 }
-FISH_EXEC_BIN="$(command -v fish 2>/dev/null || echo /home/linuxbrew/.linuxbrew/bin/fish)"
+# Fallback is /usr/bin/fish (apt), not a Homebrew path: that is where fish lives
+# now, and a login shell pointing at a removed path is the classic lockout.
+FISH_EXEC_BIN="$(command -v fish 2>/dev/null || echo /usr/bin/fish)"
 trap handoff_to_fish EXIT
 
 log_info "Dotfiles directory: $DOTFILES_DIR"
@@ -165,15 +159,23 @@ if [ "$SKIP_PACKAGES" -eq 0 ]; then
 log_step "Updating apt repositories and installing base packages..."
 sudo apt-get update -y
 sudo apt-get upgrade -y
+# Trimmed to what this setup actually needs:
+#   ca-certificates  trust store for apt/curl/mise over HTTPS
+#   curl             mise bootstrap (https://mise.run) and every mise download
+#   fish             the LOGIN shell, from apt so it sits at a stable
+#                    /usr/bin/fish that chsh and herdr can rely on
+#   git              this repository, and the git config being deployed
+#   stow             the deployment mechanism itself
+#
+# Dropped: build-essential (mise installs prebuilt binaries; nothing compiles),
+# file and procps (no script invokes them; btop/fastfetch/eza cover the same
+# ground). Re-add build-essential if a native module ever needs compiling.
 sudo apt-get install -y \
-  build-essential \
+  ca-certificates \
   curl \
-  file \
-  git \
   fish \
-  procps \
-  stow \
-  ca-certificates
+  git \
+  stow
 
 log_ok "Base APT packages installed."
 
@@ -224,10 +226,10 @@ MISE_TOOLS=(
   "aqua:jqlang/jq"               # json processor
   "aqua:jesseduffield/lazygit"   # git TUI
   "github:AlexsJones/llmfit"     # local model fit checker
-  "aqua:artempyanykh/marksman"  # LSP server
   "github:reyamira/models"       # AI model TUI
   "aqua:neovim/neovim"           # editor
   "aqua:anomalyco/opencode"      # AI coding agent
+  "github:can1357/oh-my-pi"     # oh-my-pi (omp)
   "aqua:earendil-works/pi"       # AI coding agent
   "aqua:BurntSushi/ripgrep"      # grep replacement
   "aqua:dandavison/delta"        # git-delta
@@ -282,25 +284,21 @@ log_ok "pnpm configured (global bin dir: $HOME/.local/bin)."
 # 7. AI Agents: Pi & Oh-My-Pi (omp)
 # ------------------------------------------------------------------------------
 # Note: pi-coding-agent binary ('pi') is installed via Homebrew.
-# Oh-My-Pi ('omp') is installed via pnpm below.
-log_step "Installing AI agents globally via pnpm..."
-if command -v pnpm >/dev/null 2>&1; then
-  # pnpm >=10 refuses to run dependency lifecycle (build) scripts until they are
-  # approved. Without this, `pnpm add -g` stops at an interactive
-  # "approve-builds?" prompt that nobody can answer during a scripted install,
-  # leaving native modules unbuilt. `--allow-build` is the non-interactive form
-  # and persists the decision as allowBuilds.
-  PNPM_BUILD_DEPS=(pi-natives pi-natives-linux-x64 esbuild)
-  PNPM_BUILD_FLAGS=()
-  for dep in "${PNPM_BUILD_DEPS[@]}"; do
-    PNPM_BUILD_FLAGS+=(--allow-build "$dep")
-  done
-
-  # Oh-My-Pi (omp). pi and opencode come from mise; omp has no registry entry,
-  # so it stays a pnpm global package -- pnpm itself now comes from mise.
-  pnpm add -g "${PNPM_BUILD_FLAGS[@]}" @oh-my-pi/pi-coding-agent || true
-fi
-log_ok "AI Agents ready: pi, opencode, omp."
+# pi, opencode and oh-my-pi are all mise tools installed in section 5. Nothing
+# is left to do here beyond reporting what actually resolved, since a failed
+# mise install should be visible here rather than surfacing later as a missing
+# command.
+log_step "Checking AI agents..."
+AI_AGENTS_OK=1
+for agent in pi opencode omp; do
+  if command -v "$agent" >/dev/null 2>&1; then
+    log_ok "$agent -> $(command -v "$agent")"
+  else
+    log_warn "$agent not found; check the mise install output above."
+    AI_AGENTS_OK=0
+  fi
+done
+[ "$AI_AGENTS_OK" -eq 1 ] || log_info "Retry with: mise install github:can1357/oh-my-pi aqua:anomalyco/opencode aqua:earendil-works/pi"
 
 # ------------------------------------------------------------------------------
 # 8. Herdr
@@ -336,7 +334,6 @@ STOW_PACKAGES=(
   herdr
   hunk
   lazygit
-  vite-plus
 )
 
 # Packages linked file-by-file instead of stowed.
@@ -712,7 +709,7 @@ echo "  - Terminal multiplexer: herdr (with custom keybinds & Catppuccin theme)"
 echo "  - Terminal emulator config: wezterm (.wezterm.lua, Windows-only; in repo, not stowed on Linux)"
 echo "  - Editor: fresh (fresh-editor) with catppuccin theme, color-highlighter plugin, vi-mode + toggle"
 echo "  - Runtimes: vite+ (vp), node, pnpm (pnpm-first, managed by vite+)"
-echo "  - AI Agents: pi, opencode, oh-my-pi (omp) installed via brew/pnpm; configs NOT stowed"
+echo "  - AI Agents: pi, opencode, oh-my-pi (omp) via mise; configs NOT stowed"
 echo "  - Skills: not managed; install with 'skills add <pkg>' (pnpm dlx, global)"
 echo "  - Shell: fish with custom aliases, abbreviations, and starship prompt"
 echo ""
