@@ -147,7 +147,6 @@ if [ "$APT_DONE" -eq 0 ] && [ "$SKIP_PACKAGES" -eq 0 ]; then
   $APT_PREFIX apt-get install -y \
     ca-certificates \
     curl \
-    fish \
     git \
     stow
   log_ok "Base APT packages installed."
@@ -229,6 +228,39 @@ log_step "Starting system setup..."
 if [ "$SKIP_PACKAGES" -eq 0 ]; then
 
 # ------------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------
+# Homebrew Installation & Environment
+# ------------------------------------------------------------------------------
+if ! command -v brew >/dev/null 2>&1 && [ ! -x "/home/linuxbrew/.linuxbrew/bin/brew" ]; then
+  log_info "Installing Homebrew (Linuxbrew)..."
+  NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+fi
+
+# Load brew into current shell environment
+if [ -d "/home/linuxbrew/.linuxbrew" ]; then
+  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+elif [ -d "$HOME/.linuxbrew" ]; then
+  eval "$("$HOME/.linuxbrew/bin/brew" shellenv)"
+fi
+
+if ! command -v brew >/dev/null 2>&1; then
+  log_err "Homebrew could not be located in PATH after installation."
+  exit 1
+fi
+log_ok "Homebrew is available at: $(which brew)"
+
+# ------------------------------------------------------------------------------
+# Homebrew CLI Packages Installation
+# ------------------------------------------------------------------------------
+BREW_PACKAGES=(
+  fish
+)
+
+log_step "Installing CLI tools via Homebrew..."
+brew install "${BREW_PACKAGES[@]}"
+log_ok "Homebrew formulas installed."
+
 # ------------------------------------------------------------------------------
 # 3. mise (bootstrap)
 # ------------------------------------------------------------------------------
@@ -642,7 +674,7 @@ fi
 # ------------------------------------------------------------------------------
 # 11. Default Shell Setup (Fish)
 # ------------------------------------------------------------------------------
-FISH_BIN="$(command -v fish 2>/dev/null || echo /usr/bin/fish)"
+FISH_BIN="$(which fish 2>/dev/null || echo "/home/linuxbrew/.linuxbrew/bin/fish")"
 if [ -x "$FISH_BIN" ]; then
   if ! grep -q "^$FISH_BIN$" /etc/shells; then
     log_info "Adding $FISH_BIN to /etc/shells..."
@@ -771,8 +803,8 @@ echo "  - Python manager: uv (pip/venv/run/build)"
 echo "  - Terminal multiplexer: herdr (with custom keybinds & Catppuccin theme)"
 echo "  - Terminal emulator config: wezterm (.wezterm.lua, Windows-only; in repo, not stowed on Linux)"
 echo "  - Editor: fresh (fresh-editor) with catppuccin theme, color-highlighter plugin, vi-mode + toggle"
-echo "  - Runtimes: vite+ (vp), node, pnpm (pnpm-first, managed by vite+)"
-echo "  - AI Agents: pi, opencode, oh-my-pi (omp) via mise; configs NOT stowed"
+echo "  - Runtimes: vite+ (vp), node, pnpm"
+echo "  - AI Agents: pi, opencode, oh-my-pi (omp) via mise"
 echo "  - Skills: not managed; install with 'skills add <pkg>' (pnpm dlx, global)"
 echo "  - Shell: fish with custom aliases, abbreviations, and starship prompt"
 echo ""

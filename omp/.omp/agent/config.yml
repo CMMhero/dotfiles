@@ -1,6 +1,6 @@
 setupVersion: 2
 modelRoles:
-  default: commandcode/deepseek/deepseek-v4.1-flash-fast
+  default: commandcode/deepseek/deepseek-v4.1-flash:high
 theme:
   dark: dark-catppuccin
   light: light-catppuccin

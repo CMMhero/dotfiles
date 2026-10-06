@@ -24,6 +24,16 @@ else if type -q mise
     mise activate fish | source
 end
 
+# ---------- homebrew ----------
+# brew shellenv prepends $HOMEBREW_PREFIX/{bin,sbin}. Keep this above every
+# other PATH edit below so brew binaries win over ~/.local/bin and /usr/bin.
+# rustup is keg-only (conflicts with the `rust` formula) and is NOT linked
+# into brew/bin, so its rustc/cargo/clippy shims need an explicit add.
+eval (/home/linuxbrew/.linuxbrew/bin/brew shellenv fish)
+fish_add_path /home/linuxbrew/.linuxbrew/opt/rustup/bin
+
+set -gx HOMEBREW_PREFIX /home/linuxbrew/.linuxbrew
+
 # ---------- Editor ----------
 if command -q fresh
     set -gx EDITOR fresh
@@ -191,13 +201,6 @@ function upd --description 'update everything: apt, mise, pi, omp, opencode, dot
     if contains omp $selected; and command -q omp >/dev/null 2>&1
         step "omp plugins"
         omp update -l
-    end
-
-    # opencode is a mise tool, so its binary is handled by the mise step. It has
-    # no separate extension registry to refresh here.
-    if contains opencode $selected; and command -q opencode >/dev/null 2>&1
-        step "opencode"
-        info "binary managed by mise; nothing extra to update"
     end
 
     if contains dotfiles $selected; or contains dotfiles $what
