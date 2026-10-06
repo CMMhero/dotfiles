@@ -170,6 +170,7 @@ sudo apt-get install -y \
   curl \
   file \
   git \
+  fish \
   procps \
   stow \
   ca-certificates
@@ -177,120 +178,105 @@ sudo apt-get install -y \
 log_ok "Base APT packages installed."
 
 # ------------------------------------------------------------------------------
-# 4. Homebrew Installation & Environment
+# 4. mise (replaces Homebrew and Vite+)
 # ------------------------------------------------------------------------------
-if ! command -v brew >/dev/null 2>&1 && [ ! -x "/home/linuxbrew/.linuxbrew/bin/brew" ]; then
-  log_info "Installing Homebrew (Linuxbrew)..."
-  NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+# Everything user-facing is installed through mise: the CLI tools that used to
+# come from brew, plus node/pnpm which used to come from Vite+.
+#
+# Two deliberate exceptions:
+#   - apt stays for system packages. mise has no apt/dpkg backend at all (its
+#     backends are aqua/asdf/cargo/conda/core/gem/github/go/npm/pypi/vfox/...),
+#     so build-essential, git, stow and friends cannot move.
+#   - fish stays on apt, so the login shell lives at a stable /usr/bin/fish.
+#     mise installs into versioned paths that change on upgrade, which would
+#     break `chsh` and herdr's default_shell the first time fish is upgraded.
+if ! command -v mise >/dev/null 2>&1; then
+  log_step "Installing mise (https://mise.jdx.dev)..."
+  # Official installer. Deliberately NOT via brew: brew is being removed, and
+  # bootstrapping the replacement with the thing it replaces would be circular.
+  curl -fsSL https://mise.run | sh >/dev/null 2>&1 || true
+  export PATH="$HOME/.local/bin:$PATH"
+  [ -x "$HOME/.local/bin/mise" ] || export PATH="/usr/local/bin:$PATH"
 fi
-
-# Load brew into current shell environment
-if [ -d "/home/linuxbrew/.linuxbrew" ]; then
-  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-elif [ -d "$HOME/.linuxbrew" ]; then
-  eval "$("$HOME/.linuxbrew/bin/brew" shellenv)"
-fi
-
-if ! command -v brew >/dev/null 2>&1; then
-  log_err "Homebrew could not be located in PATH after installation."
-  exit 1
-fi
-log_ok "Homebrew is available at: $(which brew)"
+command -v mise >/dev/null 2>&1 || { log_err "mise failed to install; cannot continue."; exit 1; }
+log_ok "mise ready at $(command -v mise) ($(mise --version 2>/dev/null | head -1))"
 
 # ------------------------------------------------------------------------------
-# 5. Homebrew CLI Packages Installation
-# (Includes pi-coding-agent, opencode, stow, uv; excludes ghostty, deja, tuios)
+# 5. Tools via mise
 # ------------------------------------------------------------------------------
-BREW_PACKAGES=(
-  atuin
-  bat
-  btop
-  chafa
-  eza
-  fastfetch
-  fd
-  fish
-  fresh-editor
-  git-delta
-  fzf
-  gh
-  go
-  herdr
-  hunk
-  jq
-  lazygit
-  llmfit
-  models
-  neovim
-  opencode
-  pi-coding-agent
-  ripgrep
-  rustup
-  starship
-  stow
-  superfile
-  tealdeer
-  uv
-  zoxide
+# Backends: aqua (most CLI tools), github (repos without an aqua entry), core
+# (go, rust, node, pnpm - the built-in registry).
+#
+# core:pnpm replaces the pnpm that Vite+ used to manage, at the same version.
+MISE_TOOLS=(
+  "aqua:atuinsh/atuin"           # shell history
+  "aqua:sharkdp/bat"             # cat replacement
+  "aqua:aristocratos/btop"       # process viewer
+  "github:hpjansson/chafa"       # image renderer
+  "aqua:eza-community/eza"       # ls replacement
+  "aqua:fastfetch-cli/fastfetch" # system info
+  "aqua:sharkdp/fd"              # find replacement
+  "github:sinelaw/fresh"         # fresh editor
+  "aqua:junegunn/fzf"            # fuzzy finder
+  "aqua:cli/cli"                 # GitHub CLI
+  "aqua:herdrdev/herdr"          # terminal multiplexer
+  "aqua:modem-dev/hunk"          # diff viewer / git difftool
+  "aqua:jqlang/jq"               # json processor
+  "aqua:jesseduffield/lazygit"   # git TUI
+  "github:AlexsJones/llmfit"     # local model fit checker
+  "aqua:artempyanykh/marksman"  # LSP server
+  "github:reyamira/models"       # AI model TUI
+  "aqua:neovim/neovim"           # editor
+  "aqua:anomalyco/opencode"      # AI coding agent
+  "aqua:earendil-works/pi"       # AI coding agent
+  "aqua:BurntSushi/ripgrep"      # grep replacement
+  "aqua:dandavison/delta"        # git-delta
+  "aqua:starship/starship"       # prompt
+  "aqua:yorukot/superfile"       # file manager
+  "aqua:tealdeer-rs/tealdeer"    # tldr pages
+  "aqua:astral-sh/uv"            # python tooling
+  "aqua:ajeetdsouza/zoxide"      # cd jumper
+  "core:go"                      # replaced the brew `go` formula
+  "core:rust"                    # replaced brew `rustup`
+  "core:node"                    # replaced Vite+'s node
+  "core:pnpm"                    # replaced Vite+'s pnpm
 )
 
-log_step "Installing CLI tools via Homebrew..."
-brew install "${BREW_PACKAGES[@]}"
-log_ok "Homebrew formulas installed."
-
-# Initialize tealdeer cache
-if command -v tldr >/dev/null 2>&1; then
-  tldr --update 2>/dev/null || true
+log_step "Installing tools via mise..."
+MISE_MISSING=()
+for tool in "${MISE_TOOLS[@]}"; do
+  mise install "$tool" >/dev/null 2>&1 || MISE_MISSING+=("$tool")
+done
+if [ "${#MISE_MISSING[@]}" -gt 0 ]; then
+  log_warn "mise could not install: ${MISE_MISSING[*]}"
+else
+  log_ok "mise installed ${#MISE_TOOLS[@]} tools."
 fi
 
-# Fallback check for uv
-if ! command -v uv >/dev/null 2>&1; then
-  log_info "Installing uv (astral.sh/uv)..."
-  curl -LsSf https://astral.sh/uv/install.sh | sh
-fi
-log_ok "uv ready at: $(which uv 2>/dev/null || echo "$HOME/.local/bin/uv")"
+# Pin them globally so they are on PATH in every shell.
+mise use --global --skip-install "${MISE_TOOLS[@]}" >/dev/null 2>&1 || true
+
+# Put mise's shims on PATH for this script's remaining steps.
+# Do NOT use `mise where` here: with no argument it prints usage and exits
+# non-zero, so the fallback silently produced an empty PATH entry. The shims dir
+# is a fixed location under MISE_DATA_DIR (default ~/.local/share/mise).
+MISE_SHIMS="${MISE_DATA_DIR:-$HOME/.local/share/mise}/shims"
+mkdir -p "$MISE_SHIMS"
+export PATH="$MISE_SHIMS:$PATH"
+
+log_ok "pnpm via mise: $(pnpm --version 2>/dev/null || echo 'pending shell reload')"
 
 # ------------------------------------------------------------------------------
-# 6. Vite+ Installation & pnpm Runtime Management (Default)
+# 6. pnpm configuration
 # ------------------------------------------------------------------------------
-# Non-interactive install. The curl|bash bootstrap only forwards these to the
-# installed `vp` binary's self-setup, which is what actually asks the
-# "manage Node.js with Vite+?" question (it reads stdin from /dev/tty).
-# Setting them to "yes" makes it accept managed mode without a TTY, so this
-# works over SSH, in CI, and from a piped one-liner.
-if [ ! -d "$HOME/.local/share/vite-plus" ] && ! command -v vp >/dev/null 2>&1; then
-  log_step "Installing Vite+ (https://vite.plus) with managed Node.js + pnpm..."
-  VP_NODE_MANAGER=yes \
-  VP_NPM_MANAGER=yes \
-  VP_PNPM_MANAGER=yes \
-  VP_YARN_MANAGER=yes \
-  VP_BUN_MANAGER=yes \
-  VP_SELF_SETUP_SHELL=sh \
-    curl -fsSL https://vite.plus | bash
-fi
-
-if [ -f "$HOME/.config/vite-plus/env" ]; then
-  # shellcheck disable=SC1090
-  . "$HOME/.config/vite-plus/env"
-elif [ -d "$HOME/.local/share/vite-plus/bin" ]; then
-  export PATH="$HOME/.local/share/vite-plus/bin:$PATH"
-fi
-
-log_info "Enabling Vite+ managed mode for Node.js and package managers..."
-VP_NODE_MANAGER=yes vp env on 2>/dev/null || vp env on 2>/dev/null || true
-log_info "Setting pnpm as the default managed package manager..."
-vp env default pnpm@latest 2>/dev/null || true
-vp env install pnpm@latest 2>/dev/null || true
-
-# Configure pnpm environment and global bin directory
-export VP_PACKAGE_MANAGER="pnpm@latest"
+# Global packages land in ~/.local/bin, matching what the old Vite+ setup did,
+# so `herdr`, `pi`, `omp` and `skills` stay on the existing PATH entries.
 export PNPM_HOME="$HOME/.local/share/pnpm"
 mkdir -p "$HOME/.local/bin" "$PNPM_HOME"
-export PATH="$HOME/.local/share/vite-plus/bin:$HOME/.local/bin:$PNPM_HOME:$PATH"
-if command -v pnpm >/dev/null 2>&1; then
-  pnpm config set global-bin-dir "$HOME/.local/bin" 2>/dev/null || true
-fi
-log_ok "pnpm runtime ready via Vite+ ($(pnpm --version 2>/dev/null || echo 'managed'))."
+export PATH="$HOME/.local/bin:$PNPM_HOME:$PATH"
+pnpm config set global-bin-dir "$HOME/.local/bin" 2>/dev/null || true
+pnpm config set store-dir "$PNPM_HOME/store" 2>/dev/null || true
+log_ok "pnpm configured (global bin dir: $HOME/.local/bin)."
 
 # ------------------------------------------------------------------------------
 # 7. AI Agents: Pi & Oh-My-Pi (omp)
@@ -310,9 +296,8 @@ if command -v pnpm >/dev/null 2>&1; then
     PNPM_BUILD_FLAGS+=(--allow-build "$dep")
   done
 
-  # Oh-My-Pi (omp). pi and opencode are Homebrew formulas and are installed
-  # with the rest of the brew packages above; omp has no brew formula, so it is
-  # the only AI agent installed through pnpm.
+  # Oh-My-Pi (omp). pi and opencode come from mise; omp has no registry entry,
+  # so it stays a pnpm global package -- pnpm itself now comes from mise.
   pnpm add -g "${PNPM_BUILD_FLAGS[@]}" @oh-my-pi/pi-coding-agent || true
 fi
 log_ok "AI Agents ready: pi, opencode, omp."
@@ -320,10 +305,9 @@ log_ok "AI Agents ready: pi, opencode, omp."
 # ------------------------------------------------------------------------------
 # 8. Herdr
 # ------------------------------------------------------------------------------
-# herdr is a brew formula, installed with the rest in section 5. The standalone
-# curl installer (https://herdr.dev/install.sh) is no longer used: it drops a
-# binary in ~/.local/bin, which is a second copy alongside brew's and can shadow
-# it depending on PATH order.
+# herdr comes from mise (aqua:herdrdev/herdr), installed in section 5. The
+# standalone curl installer is not used: it drops a binary in ~/.local/bin,
+# which is a second copy that can shadow the mise one depending on PATH order.
 if command -v herdr >/dev/null 2>&1; then
   log_ok "herdr ready at $(command -v herdr) ($(herdr --version 2>/dev/null | head -1))"
 else

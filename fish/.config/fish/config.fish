@@ -12,15 +12,17 @@ end
 # default. Set before anything else so it applies to every interactive start.
 set -g fish_greeting ""
 
-# ---------- Homebrew first ----------
-# brew shellenv prepends $HOMEBREW_PREFIX/{bin,sbin}. Keep this above every
-# other PATH edit below so brew binaries win over ~/.local/bin and /usr/bin.
-# rustup is keg-only (conflicts with the `rust` formula) and is NOT linked
-# into brew/bin, so its rustc/cargo/clippy shims need an explicit add.
-eval (/home/linuxbrew/.linuxbrew/bin/brew shellenv fish)
-fish_add_path /home/linuxbrew/.linuxbrew/opt/rustup/bin
-
-set -gx HOMEBREW_PREFIX /home/linuxbrew/.linuxbrew
+# ---------- mise first ----------
+# mise replaces Homebrew and Vite+. `mise activate` hooks the shell so tools
+# resolve as projects change directories, and prepends the shims dir so mise
+# binaries win over ~/.local/bin and /usr/bin.
+#
+# Use the absolute path: on a fresh login there may be no mise on PATH yet.
+if test -x "$HOME/.local/bin/mise"
+    "$HOME/.local/bin/mise" activate fish | source
+else if type -q mise
+    mise activate fish | source
+end
 
 # ---------- Editor ----------
 if command -q fresh
@@ -37,8 +39,9 @@ else
     set -gx VISUAL nano
 end
 
-# ---------- Vite+ default (pnpm-first) ----------
-set -gx VP_PACKAGE_MANAGER "pnpm@latest"
+# ---------- pnpm ----------
+# pnpm comes from mise now (core:pnpm), so the VP_PACKAGE_MANAGER shim that
+# pointed at Vite+ is gone. PNPM_HOME stays: it is where global packages live.
 set -gx PNPM_HOME "$HOME/.local/share/pnpm"
 test -d "$PNPM_HOME"; and fish_add_path "$PNPM_HOME"
 fish_add_path "$HOME/.local/bin"
@@ -56,7 +59,7 @@ if command -q zoxide
 end
 
 # ---------- fzf keybindings (Ctrl-T / Ctrl-R / Alt-C feel) ----------
-# brew fzf; Ctrl-R is owned by atuin, which binds the same muscle memory.
+# fzf; Ctrl-R is owned by atuin, which binds the same muscle memory.
 set -gx FZF_DEFAULT_COMMAND 'fd --type f --hidden --follow --exclude .git'
 # Styled popup + previews for Ctrl-T (files) / Alt-C (dirs). Ctrl-R is owned
 # by atuin, so FZF_DEFAULT_COMMAND only feeds the file pickers.
@@ -67,7 +70,9 @@ set -gx FZF_CTRL_T_COMMAND $FZF_DEFAULT_COMMAND
 set -gx FZF_CTRL_T_OPTS "--preview 'bat --color=always -n --line-range :500 {}'"
 set -gx FZF_ALT_C_COMMAND 'fd --type d --hidden --follow --exclude .git'
 set -gx FZF_ALT_C_OPTS "--preview 'eza --icons=always --tree --color=always {} | head -200'"
-source /home/linuxbrew/.linuxbrew/opt/fzf/shell/key-bindings.fish
+# fzf's shell/key-bindings.fish is vendored in conf.d/. mise's aqua fzf ships
+# only the binary, unlike the brew formula which bundled the shell integrations,
+# so Ctrl-T / Alt-C would silently stop working without it.
 fzf_key_bindings
 
 # ---------- atuin ----------
@@ -127,18 +132,18 @@ end
 
 # ----- update -----
 # One entry point for everything this machine keeps current:
-#   upd                    apt + brew + vite+ + pi + omp + opencode + dotfiles
-#   upd apt|brew|vp|pi|omp|opencode|dotfiles    just that one
+#   upd                    apt + mise + pi + omp + opencode + dotfiles
+#   upd apt|mise|pi|omp|opencode|dotfiles    just that one
 #
 # Order is deliberate: apt first because it is slowest (sudo, possible password)
 # and most likely to fail, so a failure there does not mask the rest. dotfiles
 # is last because it re-runs install.sh.
 #
-# Everything is non-interactive: apt gets -y, `brew cleanup` gets -s (it
+# Everything is non-interactive: apt gets -y, mise needs no flags (it
 # otherwise asks "delete this?" per file), and pi/omp get their approve/force
 # flags. sudo may still ask for a password on the first call -- that one cannot
 # be bypassed, and should not be.
-function upd --description 'update all: apt brew vp pi omp opencode dotfiles'
+function upd --description 'update all: apt mise pi omp opencode dotfiles'
     set -l what $argv
 
     # `selected` is declared up front and only assigned inside the if/else.
@@ -149,7 +154,7 @@ function upd --description 'update all: apt brew vp pi omp opencode dotfiles'
     if set -q what[1]
         set selected $what
     else
-        set selected apt brew vp pi omp opencode dotfiles
+        set selected apt mise pi omp opencode dotfiles
     end
 
     if contains apt $selected; and command -v apt-get >/dev/null 2>&1
@@ -162,24 +167,12 @@ function upd --description 'update all: apt brew vp pi omp opencode dotfiles'
         sudo apt-get clean
     end
 
-    if contains brew $selected; and command -q brew >/dev/null 2>&1
-        step "brew"
-        brew update
-        # `brew upgrade` with no arguments upgrades EVERY outdated formula, but
-        # formulae only -- casks are a separate namespace and need --cask. There
-        # are no casks installed at the moment, so --cask on its own would just
-        # error, hence the conditional.
-        brew upgrade
-        if test (count (brew list --cask 2>/dev/null)) -gt 0
-            brew upgrade --cask
-        end
-        # -s skips the per-file "delete this?" prompt that plain cleanup asks.
-        brew cleanup -s
-    end
-
-    if contains vp $selected; and command -q vp >/dev/null 2>&1
-        step "vite+"
-        vp upgrade
+    # mise replaces both Homebrew and Vite+: every CLI tool, plus node and pnpm,
+    # are mise-managed. `mise upgrade` updates all of them and reinstalls what
+    # moved. apt is still separate -- mise has no system-package backend.
+    if contains mise $selected; and type -q mise
+        step "mise"
+        mise upgrade
     end
 
     # pi: --all covers pi itself plus the extensions listed in its settings
@@ -195,17 +188,11 @@ function upd --description 'update all: apt brew vp pi omp opencode dotfiles'
         omp update -f -l
     end
 
-    # opencode is a brew formula, and brew is the single source of truth for it
-    # (the self-install at ~/.opencode/bin was removed precisely so there is
-    # one copy). `brew upgrade` is non-interactive; `opencode upgrade` would
-    # only work if a self-install were still on PATH.
+    # opencode self-updates, but it is also a mise tool. mise already handled it
+    # in the mise step above; this runs its own updater for extensions.
     if contains opencode $selected; and command -q opencode >/dev/null 2>&1
         step "opencode"
-        if command -q brew >/dev/null 2>&1
-            brew upgrade opencode
-        else
-            opencode upgrade
-        end
+        opencode upgrade 2>/dev/null || info "opencode: no separate upgrade path"
     end
 
     if contains dotfiles $selected; or contains dotfiles $what
@@ -351,11 +338,11 @@ if command -q pnpm
     end
 end
 
-# ----- Vite+ (`vp`) shortcuts -----
-# Only defined when `vp` exists; kept identical otherwise.
-if command -q vp
-    function vpcr --description 'vp create --package-manager pnpm --editor zed --agent agents,claude' --wraps vp
-        vp create --package-manager pnpm --editor zed --agent agents,claude $argv
+# ----- pnpm project scaffolding -----
+# Replaces the old `vp create` shortcut. pnpm comes from mise now.
+if command -q pnpm
+    function pncr --description 'pnpm create --editor zed --package-manager pnpm' --wraps pnpm
+        pnpm create --editor zed --package-manager pnpm $argv
     end
 end
 

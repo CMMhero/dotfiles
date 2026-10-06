@@ -8,10 +8,10 @@
 #
 # Usage:
 #   ./uninstall.sh              # unstow configs, restore default shell, keep packages
-#   ./uninstall.sh --purge      # also uninstall brew formulas + apt packages
+#   ./uninstall.sh --purge      # also uninstall mise tools + apt packages
 #   ./uninstall.sh --purge --yes  # non-interactive (no confirmation prompts)
 #
-# WARNING: --purge removes CLI tools, brew, vite+ runtimes, herdr, and the pi /
+# WARNING: --purge removes the mise tools, mise itself, and the pi /
 # omp / opencode agent configs.
 #
 # Agent data is NEVER deleted, by any flag. ~/.pi, ~/.omp, ~/.opencode and
@@ -23,7 +23,7 @@ set -euo pipefail
 
 # Visual log helpers
 # Output style matches the `upd` fish function so both read the same way:
-#   ==> section heading      (brew/apt/vite+/dotfiles)
+#   ==> section heading      (apt/mise/dotfiles)
 #     -> detail              (indented, for per-item progress)
 #   [ok] / [warn] / [err]    (kept bracketed so they stand out when scrolled)
 log_step() { printf "\033[1;32m==>\033[0m \033[1m%s\033[0m\n" "$*"; }
@@ -84,40 +84,40 @@ STOW_PACKAGES=(
   hunk
   lazygit
   superfile
-  vite-plus
 )
 
-BREW_PACKAGES=(
-  atuin
-  bat
-  btop
-  chafa
-  eza
-  fastfetch
-  fd
-  fish
-  fresh-editor
-  git-delta
-  fzf
-  gh
-  go
-  herdr
-  hunk
-  jq
-  lazygit
-  llmfit
-  models
-  neovim
-  opencode
-  pi-coding-agent
-  ripgrep
-  rustup
-  starship
-  stow
-  superfile
-  tealdeer
-  uv
-  zoxide
+MISE_TOOLS=(
+  "aqua:atuinsh/atuin"
+  "aqua:sharkdp/bat"
+  "aqua:aristocratos/btop"
+  "github:hpjansson/chafa"
+  "aqua:eza-community/eza"
+  "aqua:fastfetch-cli/fastfetch"
+  "aqua:sharkdp/fd"
+  "github:sinelaw/fresh"
+  "aqua:junegunn/fzf"
+  "aqua:cli/cli"
+  "aqua:herdrdev/herdr"
+  "aqua:modem-dev/hunk"
+  "aqua:jqlang/jq"
+  "aqua:jesseduffield/lazygit"
+  "github:AlexsJones/llmfit"
+  "aqua:artempyanykh/marksman"
+  "github:reyamira/models"
+  "aqua:neovim/neovim"
+  "aqua:anomalyco/opencode"
+  "aqua:earendil-works/pi"
+  "aqua:BurntSushi/ripgrep"
+  "aqua:dandavison/delta"
+  "aqua:starship/starship"
+  "aqua:yorukot/superfile"
+  "aqua:tealdeer-rs/tealdeer"
+  "aqua:astral-sh/uv"
+  "aqua:ajeetdsouza/zoxide"
+  "core:go"
+  "core:rust"
+  "core:node"
+  "core:pnpm"
 )
 
 APT_PACKAGES=(
@@ -146,7 +146,7 @@ if [ "$ASSUME_YES" -ne 1 ]; then
   printf '  %s\n' "${STOW_PACKAGES[@]}"
   echo ""
   if [ "$PURGE" -eq 1 ]; then
-    log_warn "--purge is set: Homebrew formulas, apt packages, vite+, herdr, and global npm/pnpm packages will also be removed."
+    log_warn "--purge is set: mise tools, mise itself, apt packages, and global pnpm packages will also be removed."
   fi
   echo ""
   read -r -p "Continue? [y/N] " reply
@@ -226,14 +226,15 @@ fi
 # 5. Purge packages (optional)
 # ------------------------------------------------------------------------------
 if [ "$PURGE" -eq 1 ]; then
-  # ---- Homebrew formulas ----
-  if command -v brew >/dev/null 2>&1 || [ -x /home/linuxbrew/.linuxbrew/bin/brew ]; then
-    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv 2>/dev/null || true)"
-    log_info "Uninstalling Homebrew formulas..."
-    brew uninstall --ignore-dependencies "${BREW_PACKAGES[@]}" 2>/dev/null || true
-    log_ok "Homebrew formulas removed."
+  # ---- mise tools ----
+  if command -v mise >/dev/null 2>&1; then
+    log_info "Removing mise-managed tools..."
+    for tool in "${MISE_TOOLS[@]}"; do
+      mise uninstall "$tool" >/dev/null 2>&1 || true
+    done
+    log_ok "mise tools removed."
   else
-    log_warn "Homebrew not found; skipping formula purge."
+    log_warn "mise not found; skipping tool purge."
   fi
 
   # ---- Global pnpm packages (oh-my-pi) ----
@@ -243,18 +244,19 @@ if [ "$PURGE" -eq 1 ]; then
   fi
 
   # ---- herdr ----
-  # Now a brew formula (handled by the BREW_PACKAGES loop above). Remove a
-  # leftover copy from the old https://herdr.dev/install.sh, which installed to
-  # ~/.local/bin and can shadow brew's binary depending on PATH order.
+  # Now a mise tool (handled by the MISE_TOOLS loop above). Remove a leftover
+  # copy from the old https://herdr.dev/install.sh, which installed to
+  # ~/.local/bin and can shadow the mise one depending on PATH order.
   if [ -x "$HOME/.local/bin/herdr" ]; then
     log_info "Removing legacy ~/.local/bin/herdr (installed by the old herdr installer)..."
     rm -f "$HOME/.local/bin/herdr"
   fi
 
-  # ---- Vite+ ----
-  if [ -d "$HOME/.local/share/vite-plus" ]; then
-    log_info "Removing Vite+ runtimes..."
-    rm -rf "$HOME/.local/share/vite-plus"
+  # ---- mise itself ----
+  if [ -x "$HOME/.local/bin/mise" ]; then
+    log_info "Removing mise and its config..."
+    rm -f "$HOME/.local/bin/mise"
+    rm -rf "$HOME/.local/share/mise" "$HOME/.config/mise"
   fi
 
   # ---- apt packages ----
@@ -297,7 +299,7 @@ rm -rf "$DOTFILES_DIR"
 log_step "Uninstall Complete."
 echo "Stowed configs removed; default login shell restored."
 if [ "$PURGE" -eq 1 ]; then
-  echo "Packages purged (brew formulas, apt packages, vite+, herdr, global pnpm)."
+  echo "Packages purged (mise tools, mise itself, apt packages, global pnpm)."
   echo "Agent data left intact (~/.pi, ~/.omp, ~/.opencode, ~/.agents)."
 fi
 echo "Dotfiles repo deleted."

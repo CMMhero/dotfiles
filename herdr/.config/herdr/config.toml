@@ -36,7 +36,7 @@ name = "catppuccin"
 auto_switch = false
 
 [terminal]
-default_shell = "/home/linuxbrew/.linuxbrew/bin/fish"
+default_shell = "/usr/bin/fish"
 
 [remote]
 manage_ssh_config = true
