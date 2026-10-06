@@ -242,9 +242,51 @@ STOW_PACKAGES=(
   hunk
   lazygit
   superfile
-  omp
   vite-plus
 )
+
+# omp is NOT stowed. GNU Stow links a whole directory whenever that directory
+# contains files, and ~/.omp is exactly the wrong thing to link wholesale:
+# sessions/, agent.db, stats.db, cache/, logs/, run/, install-id and
+# plugins/node_modules all live under it and are per-machine. On a fresh
+# install (no existing ~/.omp) `stow omp` created ~/.omp as a single symlink
+# pointing into this repo, which would have pulled all of that runtime state
+# into the git working tree. Splitting the package into one-per-subtree did not
+# help either: .omp/plugins and .omp/agent/extensions still got linked whole,
+# so `pnpm install` would still write node_modules and its lockfile into the
+# repo through the link.
+#
+# So only these three files are linked, by hand, and every directory around them
+# is created as a real directory.
+OMP_MANAGED_FILES=(
+  .omp/agent/config.yml
+  .omp/plugins/package.json
+  .omp/agent/extensions/opencode-zen-fix.ts
+)
+
+link_omp_files() {
+  local rel target src
+  for rel in "${OMP_MANAGED_FILES[@]}"; do
+    src="$DOTFILES_DIR/omp/$rel"
+    target="$HOME/$rel"
+    [ -f "$src" ] || { log_warn "omp: missing in repo, skipped: $rel"; continue; }
+
+    # Real parent dirs, never links.
+    mkdir -p "$(dirname "$target")"
+
+    if [ -L "$target" ]; then
+      # Already linked: refresh it in case the repo file moved.
+      rm -f "$target"
+    elif [ -e "$target" ]; then
+      mkdir -p "$BACKUP_DIR/$(dirname "$rel")"
+      log_warn "Backing up existing omp file: $target"
+      mv "$target" "$BACKUP_DIR/$rel"
+    fi
+
+    ln -s "$src" "$target"
+    log_ok "omp linked: $rel"
+  done
+}
 
 log_info "Deploying configs using GNU Stow..."
 
@@ -272,7 +314,10 @@ for pkg in "${STOW_PACKAGES[@]}"; do
     stow -v -R -t "$HOME" "$pkg"
   fi
 done
-log_ok "All dotfiles stowed successfully."
+log_ok "Stow packages deployed."
+
+log_info "Linking managed omp files (not stowed - see note above)..."
+link_omp_files
 
 # ------------------------------------------------------------------------------
 # 10. Oh-My-Pi Plugins Setup

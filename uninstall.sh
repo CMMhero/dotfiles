@@ -71,7 +71,6 @@ STOW_PACKAGES=(
   hunk
   lazygit
   superfile
-  omp
   vite-plus
 )
 
@@ -101,7 +100,6 @@ BREW_PACKAGES=(
   starship
   stow
   superfile
-  omp
   tealdeer
   uv
   zoxide
@@ -162,6 +160,25 @@ if command -v stow >/dev/null 2>&1; then
 else
   log_warn "stow not found in PATH; skipping unstow step."
 fi
+
+# omp is linked file-by-file rather than stowed (install.sh explains why), so it
+# is unlinked the same way. Only the three managed files are removed; every
+# directory under ~/.omp, and all per-machine state inside it, is left alone.
+OMP_MANAGED_FILES=(
+  .omp/agent/config.yml
+  .omp/plugins/package.json
+  .omp/agent/extensions/opencode-zen-fix.ts
+)
+log_info "Unlinking managed omp files..."
+for rel in "${OMP_MANAGED_FILES[@]}"; do
+  target="$HOME/$rel"
+  if [ -L "$target" ]; then
+    rm -f "$target"
+    log_ok "Unlinked omp: $rel"
+  fi
+done
+# Drop directories left empty by the unlink, never the ones holding real files.
+find "$HOME/.omp" -depth -type d -empty -delete 2>/dev/null || true
 
 # Remove now-empty config dirs left behind by stow (e.g. ~/.config/superfile)
 log_info "Cleaning up empty config directories..."
