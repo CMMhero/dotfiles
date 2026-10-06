@@ -111,7 +111,7 @@ function upd --description 'update all: apt brew vp pi omp opencode dotfiles'
     if set -q what[1]
         set selected $what
     else
-        set selected apt brew vp pi omp opencode
+        set selected apt brew vp pi omp opencode dotfiles
     end
 
     if contains apt $selected; and command -v apt-get >/dev/null 2>&1
@@ -158,17 +158,48 @@ function upd --description 'update all: apt brew vp pi omp opencode dotfiles'
         opencode upgrade
     end
 
-    # dotfiles is NOT in the default set: install.sh execs into fish at the end,
-    # which would replace the shell this function is running in. Pass it
-    # explicitly: `upd dotfiles`.
-    if contains -- $what dotfiles
+    if contains dotfiles $selected; or contains dotfiles $what
         echo '==> dotfiles'
-        cd $HOME/dotfiles
-        or return 1
-        git pull --ff-only
-        or return 1
-        # Re-run so the stow symlinks pick up the pulled changes.
-        ./install.sh
+        # Run from the repo without leaving the caller's cwd behind.
+        pushd $HOME/dotfiles >/dev/null
+
+        # Two things made this silently do nothing before:
+        #  - `--ff-only` contradicts `pull.rebase = true` in ~/.gitconfig, so
+        #    git refused outright.
+        #  - Because every config is a stow symlink, editing a config in a live
+        #    session writes straight into this repo, so the working tree is
+        #    routinely dirty and a plain pull refuses. `--autostash` stashes,
+        #    pulls, then restores.
+        # Output is shown rather than swallowed so a failure is visible instead
+        # of the function just quietly returning.
+        git pull --rebase --autostash
+        set -l pull_status $status
+
+        # An autostash that will not re-apply cleanly leaves conflict markers in
+        # the worktree. That happens routinely here: the live tree is dirty
+        # because editing a stowed config writes into this repo, and upstream
+        # often edits the same file. Never run install.sh on a conflicted tree.
+        set -l conflicts (git diff --name-only --diff-filter=U)
+        popd >/dev/null
+
+        if [ (count $conflicts) -gt 0 ]
+            echo ""
+            echo "    autostash conflicted on: "(string join -- ', ' $conflicts)
+            echo "    Your local edits are safe in the stash; upstream is already pulled."
+            echo "    Resolve with:  git -C $HOME/dotfiles stash pop"
+            echo "    (or discard with: git -C $HOME/dotfiles checkout -- . && git -C $HOME/dotfiles stash drop)"
+            echo "    install.sh was NOT run."
+            return 1
+        end
+
+        if [ $pull_status -ne 0 ]
+            echo "    dotfiles pull failed (status $pull_status); skipping install.sh"
+            return 1
+        end
+
+        # Re-run so the stow symlinks pick up the pulled changes. install.sh
+        # hands off to fish through an EXIT trap.
+        cd $HOME/dotfiles; and ./install.sh
     end
 end
 

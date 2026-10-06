@@ -161,7 +161,6 @@ BREW_PACKAGES=(
   llmfit
   models
   neovim
-  pi-coding-agent
   ripgrep
   rustup
   starship
@@ -237,7 +236,17 @@ log_ok "pnpm runtime ready via Vite+ ($(pnpm --version 2>/dev/null || echo 'mana
 # Oh-My-Pi ('omp') is installed via pnpm below.
 log_info "Installing Oh-My-Pi (omp) globally via pnpm..."
 if command -v pnpm >/dev/null 2>&1; then
-  pnpm add -g @oh-my-pi/pi-coding-agent || true
+  # pnpm >=10 refuses to run dependency lifecycle (build) scripts until they are
+  # approved. Without this, `pnpm add -g` stops at an interactive
+  # "approve-builds?" prompt that nobody can answer during a scripted install,
+  # leaving native modules (pi-natives and friends) unbuilt. `--allow-build`
+  # is the non-interactive form and persists the decision as allowBuilds.
+  OMP_BUILD_DEPS=(pi-natives pi-natives-linux-x64 esbuild)
+  PNPM_BUILD_FLAGS=()
+  for dep in "${OMP_BUILD_DEPS[@]}"; do
+    PNPM_BUILD_FLAGS+=(--allow-build "$dep")
+  done
+  pnpm add -g "${PNPM_BUILD_FLAGS[@]}" @oh-my-pi/pi-coding-agent || true
 fi
 log_ok "AI Agents ready: pi, opencode, omp."
 
@@ -353,14 +362,15 @@ link_omp_files
 # stay per-machine, as do the opencode/pi/omp skill directories -- each agent
 # manages its own installs via the `skills` wrapper (pnpm dlx, global by default).
 #
-# The `omp` stow package is deliberately narrow: only agent/config.yml and
-# plugins/package.json are linked. ~/.omp also holds per-machine state
-# (sessions/, run/, logs/, cache/, stats.db, install-id, and the plugins
-# node_modules) which must never come from the repo. Stow folds into the
-# existing ~/.omp tree instead of replacing it, so those stay real files.
+# The `omp` config is linked file-by-file, not stowed: only agent/config.yml,
+# plugins/package.json and agent/extensions/opencode-zen-fix.ts come from the
+# repo. Everything else under ~/.omp is per-machine state (sessions/, run/,
+# logs/, cache/, stats.db, install-id, plugins/node_modules).
 if [ -d "$HOME/.omp/plugins" ] && [ -f "$HOME/.omp/plugins/package.json" ]; then
   log_info "Installing Oh-My-Pi plugins via pnpm..."
-  (cd "$HOME/.omp/plugins" && (pnpm install 2>/dev/null || true))
+  # Same build-script gate as above; `2>/dev/null` would otherwise hide the
+  # ERR_PNPM_IGNORED_BUILDS error that a blocked postinstall produces.
+  (cd "$HOME/.omp/plugins" && pnpm install --allow-build pi-natives --allow-build pi-natives-linux-x64 2>&1 | tail -3) || log_warn "omp plugin install reported an error (see above)."
   log_ok "Oh-My-Pi plugins installed."
 fi
 
