@@ -150,12 +150,17 @@ function upd --description 'update all: apt brew vp pi omp opencode dotfiles'
         omp update -f -l
     end
 
-    # opencode ships its own installer (~/.opencode/bin), not a brew formula,
-    # so it self-updates. `opencode upgrade` is the only thing that works here;
-    # `brew upgrade opencode` errors with "not installed".
+    # opencode is a brew formula, and brew is the single source of truth for it
+    # (the self-install at ~/.opencode/bin was removed precisely so there is
+    # one copy). `brew upgrade` is non-interactive; `opencode upgrade` would
+    # only work if a self-install were still on PATH.
     if contains opencode $selected; and command -q opencode >/dev/null 2>&1
         echo '==> opencode'
-        opencode upgrade
+        if command -q brew >/dev/null 2>&1
+            brew upgrade opencode
+        else
+            opencode upgrade
+        end
     end
 
     if contains dotfiles $selected; or contains dotfiles $what
