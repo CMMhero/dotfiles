@@ -92,6 +92,39 @@ if command -q eza
     alias dtree='eza -aF --tree --only-dirs --icons=auto --ignore-glob "node_modules|.git"'
 end
 
+# ----- output helpers -----
+# Same three levels as install.sh / uninstall.sh, so all three read alike:
+#   step  a section header, banner form (rule, bold centred title, rule)
+#   info  a detail line under the current header, indented
+#   ok / warn / err
+#         status, bracketed so they stand out when scrolling back
+set -g __CATPPPUCCIN_RULE '==============================================================='
+
+function step --description 'section header, banner form'
+    set -l title (string join ' ' $argv)
+    set_color yellow --bold
+    echo $__CATPPPUCCIN_RULE
+    printf '  %s%s\n' (string pad -r -w 62 -- "$title") ''
+    echo $__CATPPPUCCIN_RULE
+    set_color normal
+end
+
+function info --description 'indented detail line'
+    printf '   \e[0;36m->\e[0m %s\n' "$argv"
+end
+
+function ok --description 'success status line'
+    printf '   \e[1;32m[ok]\e[0m   %s\n' "$argv"
+end
+
+function warn --description 'warning status line'
+    printf '   \e[1;33m[warn]\e[0m %s\n' "$argv"
+end
+
+function err --description 'error status line'
+    printf '   \e[1;31m[err]\e[0m  %s\n' "$argv"
+end
+
 # ----- update -----
 # One entry point for everything this machine keeps current:
 #   upd                    apt + brew + vite+ + pi + omp + opencode + dotfiles
@@ -120,7 +153,7 @@ function upd --description 'update all: apt brew vp pi omp opencode dotfiles'
     end
 
     if contains apt $selected; and command -v apt-get >/dev/null 2>&1
-        echo '==> apt'
+        step "apt"
         sudo apt-get update -y
         # full-upgrade also removes packages that became obsolete, which plain
         # upgrade leaves behind.
@@ -130,7 +163,7 @@ function upd --description 'update all: apt brew vp pi omp opencode dotfiles'
     end
 
     if contains brew $selected; and command -q brew >/dev/null 2>&1
-        echo '==> brew'
+        step "brew"
         brew update
         # `brew upgrade` with no arguments upgrades EVERY outdated formula, but
         # formulae only -- casks are a separate namespace and need --cask. There
@@ -145,20 +178,20 @@ function upd --description 'update all: apt brew vp pi omp opencode dotfiles'
     end
 
     if contains vp $selected; and command -q vp >/dev/null 2>&1
-        echo '==> vite+'
+        step "vite+"
         vp upgrade
     end
 
     # pi: --all covers pi itself plus the extensions listed in its settings
     # (pi-commandcode-provider, opencode-pi). --approve skips the trust prompt.
     if contains pi $selected; and command -q pi >/dev/null 2>&1
-        echo '==> pi'
+        step "pi"
         pi update --all --approve
     end
 
     # omp: -f force, -l also update installed plugins.
     if contains omp $selected; and command -q omp >/dev/null 2>&1
-        echo '==> omp'
+        step "omp"
         omp update -f -l
     end
 
@@ -167,7 +200,7 @@ function upd --description 'update all: apt brew vp pi omp opencode dotfiles'
     # one copy). `brew upgrade` is non-interactive; `opencode upgrade` would
     # only work if a self-install were still on PATH.
     if contains opencode $selected; and command -q opencode >/dev/null 2>&1
-        echo '==> opencode'
+        step "opencode"
         if command -q brew >/dev/null 2>&1
             brew upgrade opencode
         else
@@ -176,7 +209,7 @@ function upd --description 'update all: apt brew vp pi omp opencode dotfiles'
     end
 
     if contains dotfiles $selected; or contains dotfiles $what
-        echo '==> dotfiles'
+        step "dotfiles"
         # Run from the repo without leaving the caller's cwd behind.
         pushd $HOME/dotfiles >/dev/null
 
@@ -201,16 +234,16 @@ function upd --description 'update all: apt brew vp pi omp opencode dotfiles'
 
         if [ (count $conflicts) -gt 0 ]
             echo ""
-            echo "    autostash conflicted on: "(string join -- ', ' $conflicts)
-            echo "    Your local edits are safe in the stash; upstream is already pulled."
-            echo "    Resolve with:  git -C $HOME/dotfiles stash pop"
-            echo "    (or discard with: git -C $HOME/dotfiles checkout -- . && git -C $HOME/dotfiles stash drop)"
-            echo "    install.sh was NOT run."
+            info "autostash conflicted on: "(string join -- ', ' $conflicts)
+            info "Your local edits are safe in the stash; upstream is already pulled."
+            info "Resolve with:  git -C $HOME/dotfiles stash pop"
+            info "(or discard with: git -C $HOME/dotfiles checkout -- . && git -C $HOME/dotfiles stash drop)"
+            info "install.sh was NOT run."
             return 1
         end
 
         if [ $pull_status -ne 0 ]
-            echo "    dotfiles pull failed (status $pull_status); skipping install.sh"
+            err "dotfiles pull failed (status $pull_status); skipping install.sh"
             return 1
         end
 
