@@ -75,8 +75,31 @@ log_warn()  { printf "   \033[1;33m[warn]\033[0m %s\n" "$*"; }
 log_err()   { printf "   \033[1;31m[err]\033[0m  %s\n" "$*"; }
 
 # ------------------------------------------------------------------------------
-# 1. Clone / Update the dotfiles repository
+# 1. Bootstrap: make sure git exists, then clone
 # ------------------------------------------------------------------------------
+# The documented entry point is `curl ... | bash`, which runs before anything
+# has been installed. Cloning first therefore failed on a bare box with
+# "git: command not found" -- git is only installed later, in the apt section.
+# So install git up front, which is also all section 3 needs to exist.
+if ! command -v git >/dev/null 2>&1; then
+  printf '==> git not found, installing the minimum needed to clone\n' >&2
+  if command -v apt-get >/dev/null 2>&1; then
+    if [ "$(id -u)" -eq 0 ]; then
+      apt-get update -y && apt-get install -y git ca-certificates
+    elif command -v sudo >/dev/null 2>&1; then
+      sudo apt-get update -y && sudo apt-get install -y git ca-certificates
+    else
+      printf '   \033[1;31m[err]\033[0m  git is missing and there is no sudo to install it.\n' >&2
+      printf '  Run this as a user with sudo, or: apt-get install -y git ca-certificates\n' >&2
+      exit 1
+    fi
+  else
+    printf '   \033[1;31m[err]\033[0m  git is missing and this is not a Debian/Ubuntu box.\n' >&2
+    printf '  Install git, then re-run: curl -fsSL .../install.sh | bash\n' >&2
+    exit 1
+  fi
+fi
+
 DOTFILES_REPO="https://github.com/CMMhero/dotfiles.git"
 DOTFILES_DIR="$HOME/dotfiles"
 SCRIPT_PATH="${BASH_SOURCE[0]:-$0}"
