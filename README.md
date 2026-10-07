@@ -85,8 +85,8 @@ is what `upd dotfiles` uses so it does not repeat the package work.
 From within `~/dotfiles`:
 
 ```bash
-# Stow all managed packages to $HOME (wezterm / omp excluded — never stowed)
-stow -v -R -t ~ fish git starship atuin bat btop fastfetch fresh herdr hunk lazygit superfile vite-plus
+# Stow all managed packages to $HOME (fresh / superfile / omp / wezterm excluded)
+stow -v -R -t ~ fish git starship atuin bat btop fastfetch herdr hunk lazygit vite-plus
 
 # Stow a specific package (e.g., herdr)
 stow -v -R -t ~ herdr
@@ -95,9 +95,11 @@ stow -v -R -t ~ herdr
 stow -v -D -t ~ herdr
 ```
 
-`superfile` is stowed **and** walked file-by-file by `install.sh`, and `omp` is
-only ever linked from its three managed files. See the comment above
-`STOW_PACKAGES` in `install.sh` for why those two need that.
+`fresh`, `superfile` and `omp` are **not** stowed — `install.sh` links them
+file-by-file instead. See the comment above `STOW_PACKAGES` for why. Stowing a
+package that is also linked by hand does not work: stow refuses to adopt a link it
+did not create, so it aborts with `existing target is not owned by stow` and exits
+1.
 
 ---
 

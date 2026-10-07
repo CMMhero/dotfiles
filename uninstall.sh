@@ -73,7 +73,10 @@ fi
 
 DOTFILES_DIR="$SCRIPT_DIR"
 
-# Same package list install.sh deploys (wezterm is Windows-only, never stowed).
+# Same package list install.sh deploys. fresh and superfile are absent because
+# install.sh links them file-by-file rather than stowing them (being in both
+# lists is what made 'stow fresh' abort on every run). omp is absent for the
+# same reason, with its own unlink step below. wezterm is never deployed at all.
 STOW_PACKAGES=(
   fish
   git
@@ -82,11 +85,9 @@ STOW_PACKAGES=(
   bat
   btop
   fastfetch
-  fresh
   herdr
   hunk
   lazygit
-  superfile
   vite-plus
 )
 
@@ -190,6 +191,32 @@ if command -v stow >/dev/null 2>&1; then
 else
   log_warn "stow not found in PATH; skipping unstow step."
 fi
+
+# fresh and superfile are linked file-by-file by install.sh rather than stowed
+# (it explains why), so they are unlinked the same way here: walk the package and
+# remove any file under $HOME that is a link into this repo.
+#
+# Only links are removed, and only ones resolving into the repo. Everything the
+# tools wrote themselves -- fresh's logs/, types/, .staging/, languages/, plugins/,
+# themes/ and superfile's theme/ -- is a real file or directory and is left alone.
+# That check matters: `rm -f` on a resolved path would follow the link and delete
+# the repo's copy of the file.
+EXPLICIT_LINK_PACKAGES=(fresh superfile)
+log_step "Unlinking file-by-file packages: ${EXPLICIT_LINK_PACKAGES[*]}"
+for pkg in "${EXPLICIT_LINK_PACKAGES[@]}"; do
+  [ -d "$DOTFILES_DIR/$pkg" ] || continue
+  (cd "$DOTFILES_DIR/$pkg" && find . -type f | while read -r rel_file; do
+    rel_path="${rel_file#./}"
+    target="$HOME/$rel_path"
+    [ -L "$target" ] || continue
+    target_real="$(readlink -f "$target" 2>/dev/null || true)"
+    src_real="$(readlink -f "$rel_file" 2>/dev/null || true)"
+    if [ -n "$target_real" ] && [ "$target_real" = "$src_real" ]; then
+      rm -f "$target"
+      log_ok "Unlinked $pkg: ~/$rel_path"
+    fi
+  done)
+done
 
 # omp is linked file-by-file rather than stowed (install.sh explains why), so it
 # is unlinked the same way. Only the three managed files are removed; every

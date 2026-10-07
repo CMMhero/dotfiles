@@ -489,15 +489,17 @@ STOW_PACKAGES=(
   bat
   btop
   fastfetch
-  fresh
   herdr
   hunk
   lazygit
-  superfile
   vite-plus
 )
 
-# Packages linked file-by-file instead of stowed.
+# Packages linked file-by-file instead of stowed. These are NOT in
+# STOW_PACKAGES -- being in both is what produced "stow failed for package:
+# fresh" on every run. Stow refuses to adopt a link it did not create, so a
+# package installed by this loop and then handed to stow is a conflict by
+# construction: stow aborts every operation and exits 1.
 #
 # GNU Stow links a whole directory whenever the target directory does not
 # already exist. On a fresh machine ~/.config/fresh and ~/.config/superfile do
@@ -556,7 +558,24 @@ link_one_file() {
     mv "$target" "$BACKUP_DIR/$rel"
   fi
 
-  ln -s "$src" "$target"
+  # Link RELATIVE to the target's directory, matching what stow itself would
+  # create. An absolute link breaks two things:
+  #   - the link dies if the repo is ever moved or the tree checked out elsewhere
+  #   - stow refuses to adopt it. Given an absolute symlink where it expects to
+  #     own a link, it prints "Ignoring an absolute symlink" then "existing
+  #     target is not owned by stow", aborts every operation, and exits 1 --
+  #     even though the link points at exactly the right file. That is what made
+  #     'stow failed for package: fresh' appear on every run.
+  #
+  # realpath --relative-to is coreutils 8.16+ (2012). The absolute fallback is
+  # only for a box that somehow lacks it.
+  local relpath_target
+  if relpath_target="$(realpath --relative-to="$(dirname "$target")" "$src" 2>/dev/null)" \
+     && [ -n "$relpath_target" ]; then
+    ln -s "$relpath_target" "$target"
+  else
+    ln -s "$src" "$target"
+  fi
   log_info "$pkg: linked ~/$rel"
 }
 
