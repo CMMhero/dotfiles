@@ -133,11 +133,17 @@ if functions -q fzf_key_bindings
     fzf_key_bindings
 end
 
+
+set -gx ATUIN_NOBIND "true"
+
 # ---------- atuin ----------
 # Load only if present.
 if command -q atuin
     atuin init fish | source
 end
+
+bind \cr _atuin_search
+bind -M insert \cr _atuin_search
 
 # ============================================================
 # Abbreviations + aliases
