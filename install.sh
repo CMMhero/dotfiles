@@ -829,6 +829,12 @@ fi
 # inside the shell the user is about to be dropped into. The usual cause is a
 # bash-ism (VAR="x", [ ... ], foo=) left in config.fish or a conf.d snippet;
 # fish rejects those outright and skips the rest of the file.
+#
+# -L is required, not a nicety. Every deployed config is a stow symlink, so a
+# plain `-type f` matches none of them: on a correctly stowed machine this check
+# used to validate only whatever real .fish file happened to sit in conf.d/
+# (vite-plus.fish) and report "fish config syntax ok." while config.fish itself
+# went unchecked -- the one file most likely to break.
 if command -v fish >/dev/null 2>&1; then
   FISH_ERR_FILE="$(mktemp)"
   FISH_BAD=0
@@ -842,7 +848,7 @@ if command -v fish >/dev/null 2>&1; then
       FISH_BAD=1
       sed 's/^/    /' "$FISH_ERR_FILE"
     fi
-  done < <(find "$HOME/.config/fish" -name '*.fish' -type f 2>/dev/null | sort)
+  done < <(find -L "$HOME/.config/fish" -name '*.fish' -type f 2>/dev/null | sort)
   rm -f "$FISH_ERR_FILE"
   if [ "$FISH_BAD" -eq 1 ]; then
     echo ""
