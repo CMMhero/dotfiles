@@ -106,7 +106,6 @@ MISE_TOOLS=(
   "aqua:jqlang/jq"               # json processor
   "aqua:jesseduffield/lazygit"   # git TUI
   "aqua:neovim/neovim"           # editor
-  "aqua:anomalyco/opencode"      # AI coding agent
   "aqua:earendil-works/pi"       # AI coding agent
   "aqua:BurntSushi/ripgrep"      # grep replacement
   "aqua:dandavison/delta"        # git-delta
@@ -306,7 +305,11 @@ if [ "$PURGE" -eq 1 ]; then
   fi
 
   # ---- other Homebrew formulas ----
-  # fish and mise are the only two install.sh installs through brew.
+  # fish, mise and opencode are what install.sh installs through brew.
+  #
+  # opencode needs no guard: unlike fish it is not the login shell, so deleting
+  # it cannot lock anyone out. It is handled after fish because fish's branch may
+  # bail out early.
   #
   # fish gets a guard because it is the login shell. Unstowing configs and
   # restoring the shell happen earlier in this script, but that restore is a
@@ -322,6 +325,12 @@ if [ "$PURGE" -eq 1 ]; then
   NEEDS_NEW_SHELL=0
   CALLER_SHELL="$(cat "/proc/$PPID/comm" 2>/dev/null || true)"
   if command -v brew >/dev/null 2>&1; then
+    if brew list --formula opencode >/dev/null 2>&1; then
+      log_info "Removing the opencode formula via Homebrew..."
+      NONINTERACTIVE=1 HOMEBREW_NO_AUTO_UPDATE=1 brew uninstall opencode || \
+        log_warn "brew uninstall opencode failed; remove it with: brew uninstall opencode"
+    fi
+
     if brew list --formula fish >/dev/null 2>&1; then
       CURRENT_LOGIN_SHELL="$(getent passwd "$USER" | cut -d: -f7)"
       case "$CURRENT_LOGIN_SHELL" in
@@ -384,7 +393,7 @@ rm -rf "$DOTFILES_DIR"
 log_step "Uninstall Complete."
 echo "Stowed configs removed; default login shell restored."
 if [ "$PURGE" -eq 1 ]; then
-  echo "Packages purged (mise tools, mise + fish formulas, apt packages, global pnpm)."
+  echo "Packages purged (mise tools, brew formulas, apt packages, global pnpm)."
   # fish is the login shell and the purge refuses to remove it while
   # /etc/passwd still points at it, so say so plainly instead of leaving the
   # user to wonder why one formula survived.

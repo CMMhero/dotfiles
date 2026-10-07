@@ -15,10 +15,12 @@
 #   ./install.sh --config-only
 #
 # Toolchain:
-#   apt    ca-certificates, curl, git, stow -- installed before the clone,
-#          since this script may run on a bare box where none exist yet.
+#   apt    git, stow -- installed before the clone, since this script may run
+#          on a bare box where neither exists yet. Skipped entirely when both
+#          are already present.
 #   brew   Homebrew / Linuxbrew, installed if absent. Supplies fish (the login
-#          shell) and mise itself, both at stable prefixes.
+#          shell) and mise itself, both at stable prefixes. Only missing
+#          formulas are installed.
 #   mise   every other tool, installed via the aqua / github / npm / core
 #          backends. mise supplies everything except the apt base set, fish and
 #          mise.
@@ -30,6 +32,11 @@
 # `curl ... | bash` there is no TTY, so a prompt from either one is a hang with
 # nobody to answer it. (sudo may still ask for a password; that one is left
 # alone on purpose.)
+#
+# Each step installs only what is missing. apt, brew and mise all treat a
+# re-install of something present as a no-op, but the resolution and the network
+# round trips behind it are not free -- so an already-provisioned machine skips
+# all three outright instead of paying for no-ops.
 #
 # Configs go out through GNU Stow. superfile and omp are additionally linked
 # file-by-file (fresh is linked both ways), because stow would link those app
@@ -151,14 +158,39 @@ if [ "$APT_DONE" -eq 0 ] && [ "$SKIP_PACKAGES" -eq 0 ]; then
   #   git              this repository, and the git config being deployed
   #   stow             the deployment mechanism itself
   #
-  # fish is NOT in this set: it comes from Homebrew below. Dropped: build-essential (mise installs prebuilt binaries; nothing compiles),
-  # file and procps (no script invokes them; btop/fastfetch/eza cover the same
-  # ground). Re-add build-essential if a native module ever needs compiling.
-  $APT_PREFIX apt-get update -y
-  $APT_PREFIX apt-get install -y \
-    git \
-    stow
-  log_ok "Base APT packages installed."
+  # Not in this set: fish and mise (both come from Homebrew below), and
+  # ca-certificates/curl (Homebrew brings its own TLS trust and a curl, and on a
+  # box that somehow has neither, brew's own installer fetches with its embedded
+  # curl, so neither is a hard prerequisite here).
+  #
+  # Also dropped: build-essential (mise installs prebuilt binaries; nothing
+  # compiles), file and procps (no script invokes them; btop/fastfetch/eza cover
+  # the same ground). Re-add build-essential if a native module ever needs
+  # compiling.
+  #
+  # Skip whatever is already present. `apt-get install` is a no-op for an
+  # installed package, but the `apt-get update` behind it is a network round trip
+  # on every run -- so on an already-provisioned machine the whole apt step can
+  # be skipped outright instead of paying for a no-op.
+  APT_MISSING=()
+  for pkg in git stow; do
+    # `install ok installed` is dpkg's own wording. Anything else (not-installed,
+    # config-files, deinstall ok config-files) counts as needing install.
+    if [ "$(dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null || true)" = "install ok installed" ]; then
+      log_info "already installed: $pkg"
+    else
+      APT_MISSING+=("$pkg")
+    fi
+  done
+
+  if [ "${#APT_MISSING[@]}" -eq 0 ]; then
+    log_ok "Base APT packages already present; skipping apt."
+  else
+    log_step "Installing via apt: ${APT_MISSING[*]}"
+    $APT_PREFIX apt-get update -y
+    $APT_PREFIX apt-get install -y "${APT_MISSING[@]}"
+    log_ok "Base APT packages installed."
+  fi
 fi
 
 DOTFILES_REPO="https://github.com/CMMhero/dotfiles.git"
@@ -295,30 +327,84 @@ log_ok "Homebrew is available at: $(which brew)"
 # ------------------------------------------------------------------------------
 # Homebrew CLI Packages Installation
 # ------------------------------------------------------------------------------
-# fish and mise. Both are here for the same reason: each must stay at one fixed
-# path across upgrades.
-#   fish   the login shell -- a moving path would break chsh and herdr's
-#          default_shell the first time it is upgraded.
-#   mise   installs every tool below. Sourcing its own activation from a
-#          fixed prefix is more predictable than a version-managed copy that
-#          would itself need activating before it could activate anything else.
+# Three formulas, and the reason each is here differs.
+#   fish      the login shell -- a moving path would break chsh and herdr's
+#             default_shell the first time it is upgraded.
+#   mise      installs every tool below. Sourcing its own activation from a
+#             fixed prefix is more predictable than a version-managed copy that
+#             would itself need activating before it could activate anything else.
+#   opencode  deliberately NOT a mise tool. mise tracked it behind the aqua
+#             backend, which pins an old release (1.18.34 against brew's 2.0.20
+#             here) with no channel for the current one. brew ships a bottle, so
+#             it tracks upstream on its own.
+#
 # Everything else comes from mise.
 BREW_PACKAGES=(
   fish
   mise
+  opencode
 )
 
-log_step "Installing CLI tools via Homebrew..."
-if HOMEBREW_NO_AUTO_UPDATE=1 NONINTERACTIVE=1 brew install "${BREW_PACKAGES[@]}"; then
-  log_ok "Homebrew formulas installed."
+# Split into missing vs present. `brew install` already skips installed
+# formulas, but it still resolves and prints for each one, and `brew list` is a
+# cheap local read -- so on an already-provisioned machine this step becomes a
+# no-op that reports what it skipped instead of a working pass over both names.
+BREW_MISSING=()
+for formula in "${BREW_PACKAGES[@]}"; do
+  if brew list --formula "$formula" >/dev/null 2>&1; then
+    log_info "already installed: $formula"
+  else
+    BREW_MISSING+=("$formula")
+  fi
+done
+
+if [ "${#BREW_MISSING[@]}" -eq 0 ]; then
+  log_ok "Homebrew formulas already present; skipping brew install."
 else
-  log_err "brew install failed for: ${BREW_PACKAGES[*]}"
-  log_err "Already-installed formulas are fine; re-run to retry the rest."
+  log_step "Installing via Homebrew: ${BREW_MISSING[*]}"
+  if HOMEBREW_NO_AUTO_UPDATE=1 NONINTERACTIVE=1 brew install "${BREW_MISSING[@]}"; then
+    log_ok "Homebrew formulas installed."
+  else
+    log_err "brew install failed for: ${BREW_MISSING[*]}"
+    log_err "Already-installed formulas are fine; re-run to retry the rest."
+  fi
 fi
-# Not fatal. Both formulas may already be present (mise especially, on a machine
-# that installed it by hand), and a failure here must not strand a box that
-# could otherwise finish its config. What actually needs mise is section 4,
+# Not fatal either way. The formulas may already be present (mise especially, on
+# a machine that installed it by hand), and a failure here must not strand a box
+# that could otherwise finish its config. What actually needs mise is section 5,
 # which fails loudly on its own if the binary is missing.
+
+# Drop opencode from mise if a previous install tracked it there.
+#
+# Leaving it registered is not merely untidy. brew/bin is ahead of the mise shims
+# on PATH, so brew's binary wins today -- but any later `mise install` would
+# restore the shim, and if brew's formula were ever removed the shim would
+# silently take over again, resurrecting the old pinned version with no change on
+# the user's part.
+#
+# `mise unuse --global` and not `mise uninstall`: uninstall drops the installed
+# copy but leaves the request in config.toml, so the entry survives and the next
+# `mise install` brings the shim straight back. unuse edits the config.
+#
+# unuse only prunes an install when nothing else still needs it, and a leftover
+# shim is enough to hold it -- the shim stays on disk after unuse, still on PATH,
+# and would error with "No version is set for shim: opencode". So unuse first,
+# then uninstall unconditionally to take the install directory and shim with it.
+if command -v mise >/dev/null 2>&1 \
+   && mise ls --installed 2>/dev/null | grep -q '^aqua:anomalyco/opencode'; then
+  log_info "Removing opencode from mise (now a Homebrew formula)..."
+  mise unuse --global aqua:anomalyco/opencode >/dev/null 2>&1 || true
+  # No --force: if anything genuinely still references the tool, leave it alone
+  # and say so rather than deleting a version some other config asked for.
+  if mise uninstall aqua:anomalyco/opencode >/dev/null 2>&1; then
+    log_ok "mise no longer tracks opencode."
+  elif mise ls --installed 2>/dev/null | grep -q '^aqua:anomalyco/opencode'; then
+    log_warn "mise still holds an opencode install; finish with:"
+    log_warn "  mise unuse --global aqua:anomalyco/opencode"
+  else
+    log_ok "mise no longer tracks opencode."
+  fi
+fi
 
 # ------------------------------------------------------------------------------
 # 3. mise on PATH
@@ -371,7 +457,6 @@ MISE_TOOLS=(
   "aqua:jqlang/jq"               # json processor
   "aqua:jesseduffield/lazygit"   # git TUI
   "aqua:neovim/neovim"           # editor
-  "aqua:anomalyco/opencode"      # AI coding agent
   "aqua:earendil-works/pi"       # AI coding agent
   "aqua:BurntSushi/ripgrep"      # grep replacement
   "aqua:dandavison/delta"        # git-delta
@@ -401,18 +486,70 @@ MISE_TOOLS=(
 #     exits non-zero; a trailing `|| true` hid that, so nothing was registered
 #     and the failure only surfaced later as missing commands.
 # Output is left visible so mise's progress bar is not swallowed.
-log_step "Installing ${#MISE_TOOLS[@]} tools via mise..."
-# MISE_YES=1 accepts every prompt mise can raise -- chiefly the trust prompt for
-# a newly seen aqua/github backend. Without it `mise use -g` blocks on stdin
-# with no TTY of its own under `curl ... | bash`, and the whole installer hangs
-# on a question nobody can see. YES/ASSUME_YES are the same switch under other
-# names; both spellings are set so a version change cannot silently un-set it.
-if MISE_YES=1 YES=1 mise use -g "${MISE_TOOLS[@]}"; then
-  log_ok "mise registered ${#MISE_TOOLS[@]} tools globally."
+#
+# Only the tools that are missing get passed to mise. Passing all 30 every run
+# works but re-resolves each one against its backend, which is the slow part of
+# a re-run; skipping them turns a provisioned machine's tool step into a single
+# local `mise ls --installed` read.
+#
+# A tool counts as present only if it is BOTH installed AND registered in a
+# config file. Installed-but-unregistered is the broken state that makes every
+# shim error with "No version is set for shim", so that case must still go
+# through `mise use -g` to be registered -- it is exactly why the original
+# two-step attempt failed.
+#
+# `mise ls --installed` prints the full backend:owner/name, except for core
+# tools, which it prints with no prefix at all -- `core:go` comes back as `go`.
+# Matching only the exact spec therefore never matched the four runtimes, and
+# they were re-resolved on every run. Both spellings are tried.
+#
+# Matching on the full string, not a substring: `aqua:cli/cli` installs a binary
+# named `gh`, and `cli` also shows up in the output of unrelated tools, so a
+# looser test would call a missing tool present.
+MISE_INSTALLED=""
+if MISE_INSTALLED="$(mise ls --installed 2>/dev/null)"; then
+  :
 else
-  log_warn "mise reported failures; see above. Any tool without a version set"
-  log_warn "will error as 'No version is set for shim: <name>' until re-run."
-  log_info "Retry individually with: mise use -g <tool>@<version>"
+  MISE_INSTALLED=""
+fi
+
+mise_is_present() {
+  local tool="$1" full bare
+  bare="${tool#core:}"
+  full="$(printf '%s\n' "$MISE_INSTALLED" | awk -v a="$tool" -v b="$bare" '$1 == a || $1 == b {print; exit}')"
+  [ -n "$full" ] || return 1
+  # Column 3 is the config file a tool is registered in. Empty means installed
+  # but not registered anywhere -- the state that needs `mise use -g` again.
+  [ -n "$(printf '%s\n' "$full" | awk '{print $3}')" ]
+}
+
+MISE_MISSING=()
+for tool in "${MISE_TOOLS[@]}"; do
+  if mise_is_present "$tool"; then
+    log_info "already installed: ${tool##*/}"
+  else
+    MISE_MISSING+=("$tool")
+  fi
+done
+
+if [ "${#MISE_MISSING[@]}" -eq 0 ]; then
+  log_step "All ${#MISE_TOOLS[@]} mise tools already installed and registered."
+  log_ok "Nothing to do via mise."
+else
+  log_step "Installing ${#MISE_MISSING[@]} of ${#MISE_TOOLS[@]} tools via mise..."
+  # MISE_YES=1 accepts every prompt mise can raise -- chiefly the trust prompt
+  # for a newly seen aqua/github backend. Without it `mise use -g` blocks on
+  # stdin with no TTY of its own under `curl ... | bash`, and the whole installer
+  # hangs on a question nobody can see. YES/ASSUME_YES are the same switch under
+  # other names; both spellings are set so a version change cannot silently
+  # un-set it.
+  if MISE_YES=1 YES=1 mise use -g "${MISE_MISSING[@]}"; then
+    log_ok "mise registered ${#MISE_MISSING[@]} tools globally."
+  else
+    log_warn "mise reported failures; see above. Any tool without a version set"
+    log_warn "will error as 'No version is set for shim: <name>' until re-run."
+    log_info "Retry individually with: mise use -g <tool>@<version>"
+  fi
 fi
 
 # Put mise's shims on PATH for this script's remaining steps.
@@ -442,21 +579,21 @@ log_ok "pnpm configured (global bin dir: $HOME/.local/bin)."
 # ------------------------------------------------------------------------------
 # 6. AI Agents
 # ------------------------------------------------------------------------------
-# pi, opencode and oh-my-pi are all mise tools installed in section 5. Nothing
-# is left to do here beyond reporting what actually resolved, since a failed
-# mise install should be visible here rather than surfacing later as a missing
-# command.
+# pi and oh-my-pi are mise tools installed in section 5; opencode is a Homebrew
+# formula from section 3. Nothing is left to do here beyond reporting what
+# actually resolved, since a failed install should be visible here rather than
+# surfacing later as a missing command.
 log_step "Verifying AI agents (pi, opencode, omp)"
 AI_AGENTS_OK=1
 for agent in pi opencode omp; do
   if command -v "$agent" >/dev/null 2>&1; then
     log_ok "$agent -> $(command -v "$agent")"
   else
-    log_warn "$agent is not on PATH; see the mise install output above."
+    log_warn "$agent is not on PATH; see the install output above."
     AI_AGENTS_OK=0
   fi
 done
-[ "$AI_AGENTS_OK" -eq 1 ] || log_info "Retry with: mise install github:can1357/oh-my-pi aqua:anomalyco/opencode aqua:earendil-works/pi"
+[ "$AI_AGENTS_OK" -eq 1 ] || log_info "Retry with: brew install opencode; mise use -g github:can1357/oh-my-pi aqua:earendil-works/pi"
 
 # ------------------------------------------------------------------------------
 # 7. Herdr
@@ -884,7 +1021,7 @@ echo ""
 log_step "Machine Bootstrap & Config Sync Complete!"
 echo ""
 echo "Active environment features:"
-echo "  - Package sources: apt (base system) + Homebrew (fish); mise for everything else"
+echo "  - Package sources: apt (base system) + Homebrew (fish, mise, opencode); mise for the rest"
 echo "  - mise prefix: ${MISE_SHIMS:-$HOME/.local/share/mise/shims}"
 echo "  - Tools via mise (${#MISE_TOOLS[@]}): atuin, bat, btop, chafa, delta, eza, fastfetch,"
 echo "      fd, fzf, gh, herdr, hunk, jq, lazygit, neovim, ripgrep, starship, superfile,"
@@ -894,7 +1031,7 @@ echo "  - Runtimes via mise: go, rust, node, pnpm"
 echo "  - Terminal multiplexer: herdr (with custom keybinds & Catppuccin theme)"
 echo "  - Terminal emulator config: wezterm (.wezterm.lua, Windows-only; in repo, not stowed on Linux)"
 echo "  - Editor: fresh (fresh-editor) with catppuccin theme, color-highlighter plugin, vi-mode + toggle"
-echo "  - AI Agents: pi, opencode, oh-my-pi (omp) via mise"
+echo "  - AI Agents: opencode (Homebrew), pi + oh-my-pi (omp) via mise"
 echo "  - Skills: not managed; install with 'skills add <pkg>' (pnpm dlx, global)"
 echo "  - Shell: fish (Homebrew formula) with custom aliases, abbreviations, and starship prompt"
 echo "  - Configs: ${#STOW_PACKAGES[@]} stow packages, plus fresh/superfile walked and omp linked file-by-file"

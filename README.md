@@ -7,8 +7,8 @@ Modular dotfiles managed with **GNU Stow**, with `install.sh` / `uninstall.sh` f
 ## What's Included
 
 - **Shell (managed)**: Fish (`~/.config/fish`), installed as a **Homebrew formula**, not from apt — brew holds it at a fixed path (`/home/linuxbrew/.linuxbrew/bin/fish`) so upgrading it never breaks `chsh` or herdr's `default_shell`
-- **Package managers**: `apt` for the base system, **Homebrew / Linuxbrew** for `fish` and `mise` itself, `mise` for everything else
-- **CLI Tools (via `mise`)**: `atuin`, `bat`, `btop`, `chafa`, `delta`, `eza`, `fastfetch`, `fd`, `fzf`, `gh`, `go`, `herdr`, `hunk`, `jq`, `lazygit`, `neovim`, `node`, `opencode`, `pi`, `pnpm`, `ripgrep`, `rust`, `starship`, `superfile`, `tealdeer`, `uv`, `vite+`, `zoxide`
+- **Package managers**: `apt` for the base system, **Homebrew / Linuxbrew** for `fish`, `mise` and `opencode`, `mise` for everything else
+- **CLI Tools (via `mise`)**: `atuin`, `bat`, `btop`, `chafa`, `delta`, `eza`, `fastfetch`, `fd`, `fzf`, `gh`, `go`, `herdr`, `hunk`, `jq`, `lazygit`, `neovim`, `node`, `pi`, `pnpm`, `ripgrep`, `rust`, `starship`, `superfile`, `tealdeer`, `uv`, `vite+`, `zoxide`
 - **Python**: `uv` (via `mise`)
 - **Terminal Workspace & Emulators**:
   - `herdr` (`~/.config/herdr/config.toml`) with custom keybindings, tabs, and Catppuccin theme
@@ -18,7 +18,8 @@ Modular dotfiles managed with **GNU Stow**, with `install.sh` / `uninstall.sh` f
 - **Theme**: Catppuccin Macchiato is the source of truth (defined once in `wezterm/.wezterm.lua`). `bat` uses it directly (`bat/.config/bat/config`), `fzf` gets an equivalent palette via `fish/.config/fish/conf.d/catppuccin.fish`, and `omp` uses its built-in `dark-catppuccin` — that one is **Mocha**-flavoured, since omp ships no Macchiato and `grep -c macchiato` over its dist returns 0.
 - **AI Coding Agents**:
   - `omp` (via `mise` as `github:can1357/oh-my-pi`) — **narrowly** stowed: only `~/.omp/agent/config.yml`, `~/.omp/plugins/package.json` and `~/.omp/agent/extensions/opencode-zen-fix.ts`. Everything else in `~/.omp` (sessions, run, logs, cache, `stats.db`, `install-id`, plugin `node_modules`) stays per-machine.
-  - `pi` (`aqua:earendil-works/pi`) and `opencode` (`aqua:anomalyco/opencode`) — installed via `mise`, configs **not** managed
+  - `opencode` — installed as a **Homebrew formula**, not a `mise` tool. `mise` tracked it behind the `aqua` backend, which pins an old release with no channel for the current one; brew ships a bottle and tracks upstream itself. Config **not** managed
+  - `pi` (`aqua:earendil-works/pi`) — installed via `mise`, config **not** managed
 - **Skills**: not managed. `~/.agents/skills` and `~/skills-lock.json` stay per-machine, as do the `opencode/` / `pi/` / `omp/` skill dirs. Install with the `skills` wrapper (`pnpm dlx`, global by default): `skills add <pkg>`.
 
 ---
@@ -45,19 +46,30 @@ cd "$HOME/dotfiles" || exit 1
 ```
 
 The script will, in order:
-1. Install the apt base essentials: `ca-certificates`, `curl`, `git`, `stow`.
+1. Install the apt base essentials: `git` and `stow`.
    This runs **before** the clone, because the `curl | bash` entry point may run
    on a machine where nothing is installed yet -- which is why the clone cannot
    come first.
 2. Clone the repository (or pull, if it already exists).
-3. Install **Homebrew (Linuxbrew)** if it is missing, then install `fish` and
-   `mise` as formulas. `mise` is deliberately no longer bootstrapped with
-   `curl https://mise.run | sh` — that dropped a second `mise` into
-   `~/.local/bin` that could shadow or be shadowed by brew's copy depending on
+3. Install **Homebrew (Linuxbrew)** if it is missing, then install any missing
+   `fish` / `mise` / `opencode` formulas. `mise` is deliberately no longer
+   bootstrapped with `curl https://mise.run | sh` — that dropped a second `mise`
+   into `~/.local/bin` that could shadow or be shadowed by brew's copy depending on
    PATH order, and `uninstall.sh` then had to delete it by hand. One `mise`, owned
-   by brew.
-4. Install all 30 tools in a single `mise use -g` call: the CLI tools plus `go`,
-   `rust`, `node`, `pnpm`, `vite+` and oh-my-pi (`github:can1357/oh-my-pi`).
+   by brew. `opencode` is a formula rather than a `mise` tool so it tracks upstream
+   instead of sitting on a pinned old release; if `mise` still tracks it from an
+   older install, `install.sh` unregisters it so it cannot silently shadow brew
+   later.
+4. Install the missing tools with `mise use -g`: the CLI tools plus `go`, `rust`,
+   `node`, `pnpm`, `vite+` and oh-my-pi (`github:can1357/oh-my-pi`), 29 in total.
+
+**Every step installs only what is missing**, and reports what it skipped. apt, brew
+and mise all treat a re-install of something present as a no-op, but the resolution
+and network round trips behind it are not free — so an already-provisioned machine
+skips all three outright. A mise tool counts as present only when it is both
+*installed and registered in a config file*: installed-but-unregistered is the state
+that makes every shim error with `No version is set for shim`, so those still go
+through `mise use -g`.
 
 Steps 3 and 4 run **non-interactive and auto-accepting** — brew with
 `NONINTERACTIVE=1` and `HOMEBREW_NO_AUTO_UPDATE=1`, mise with `MISE_YES=1`. Under
@@ -123,8 +135,11 @@ in a live session writes straight into this repo and the tree is routinely dirty
 ```fish
 upd                        # everything
 upd apt                    # or any one of:
-upd brew mise pi omp opencode dotfiles
+upd brew mise pi omp dotfiles
 ```
+
+`opencode` has no target of its own — it is a Homebrew formula, so `upd brew`
+covers it.
 
 Order is apt → brew → mise → agents → dotfiles. apt and brew go first because
 they are the slow system-package steps and the likeliest to fail, so a failure
@@ -165,7 +180,7 @@ behind every other brew command; `upd brew` does it explicitly instead.
 ```
 
 `--purge` removes the 30 mise tools, the `mise` formula, mise's data directories,
-the apt base set (`ca-certificates`, `curl`, `git`, `stow`) and global pnpm
+the apt base set (`git`, `stow`) and global pnpm
 packages.
 
 ### The two commands it asks you to run

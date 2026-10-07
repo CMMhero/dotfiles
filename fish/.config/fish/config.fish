@@ -77,10 +77,9 @@ end
 
 # ---------- Zoxide (cd = __zoxide_z, cdi = __zoxide_zi) ----------
 if command -q zoxide
-    zoxide init --cmd cd fish | source
+    zoxide init --cmd z fish | source
     # zoxide --cmd cd already provides `cdi` (interactive); keep explicit
     # alias as well for muscle memory in case init ever changes:
-    alias cdi='cd -i'
 end
 
 # ---------- fzf keybindings (Ctrl-T / Ctrl-R / Alt-C feel) ----------
@@ -126,8 +125,8 @@ if command -q eza
     alias ls='eza -aF --icons=auto --group-directories-first'
     alias la='eza -laF --no-filesize --no-permissions --no-user --icons=auto --group-directories-first'
     alias ll='eza -laF --git --icons=auto --group-directories-first'
-    alias tree='eza -F --tree --icons=auto --ignore-glob "node_modules|.git"'
-    alias dtree='eza -aF --tree --only-dirs --icons=auto --ignore-glob "node_modules|.git"'
+    alias tree='tree -aR --icons=auto --ignore-glob "node_modules|.git"'
+    alias dtree='tree -aR --only-dirs --icons=auto --ignore-glob "node_modules|.git"'
 end
 
 # ----- output helpers -----
@@ -165,8 +164,12 @@ end
 
 # ----- update -----
 # One entry point for everything this machine keeps current:
-#   upd                    apt + brew + mise + pi + omp + opencode + dotfiles
-#   upd apt|brew|mise|pi|omp|opencode|dotfiles    just that one
+#   upd                    apt + brew + mise + pi + omp + dotfiles
+#   upd apt|brew|mise|pi|omp|dotfiles    just that one
+#
+# opencode has no target of its own: it is a Homebrew formula now, so `upd brew`
+# covers it. It used to be listed here and matched no branch, which made
+# `upd opencode` silently do nothing.
 #
 # Order is deliberate: apt first because it is slowest (sudo, possible password)
 # and most likely to fail, so a failure there does not mask the rest. brew next,
@@ -179,7 +182,7 @@ end
 # prompt that, from a script or a non-interactive run, has nobody to answer it.
 # sudo may still ask for a password the first time; that one cannot be bypassed
 # and should not be.
-function upd --description 'update everything: apt, brew, mise, pi, omp, opencode, dotfiles'
+function upd --description 'update everything: apt, brew, mise, pi, omp, dotfiles'
     set -l what $argv
 
     # `selected` is declared up front and only assigned inside the if/else.
@@ -190,7 +193,7 @@ function upd --description 'update everything: apt, brew, mise, pi, omp, opencod
     if set -q what[1]
         set selected $what
     else
-        set selected apt brew mise pi omp opencode dotfiles
+        set selected apt brew mise pi omp dotfiles
     end
 
     if contains apt $selected; and command -v apt-get >/dev/null 2>&1
@@ -240,10 +243,11 @@ function upd --description 'update everything: apt, brew, mise, pi, omp, opencod
     end
 
     # The agent BINARIES come from mise (aqua:earendil-works/pi,
-    # aqua:anomalyco/opencode, github:can1357/oh-my-pi), already updated by the
-    # mise step above. What mise does not touch is their extensions and plugins,
-    # so these branches handle only those -- no --self-style self-update, which
-    # would move the binary behind mise's back and desync the version it pins.
+    # github:can1357/oh-my-pi), already updated by the mise step above. opencode
+    # is a brew formula and is updated by the brew step. What mise does not touch
+    # is the extensions and plugins, so these branches handle only those -- no
+    # --self-style self-update, which would move the binary behind mise's back and
+    # desync the version it pins.
     #
     # pi: --extensions updates the packages from its settings
     # (pi-commandcode-provider, opencode-pi); --approve skips the trust prompt.
