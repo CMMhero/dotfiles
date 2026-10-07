@@ -178,7 +178,12 @@ behind every other brew command; `upd brew` does it explicitly instead.
 
 ## Uninstall / Reset to Default
 
-`uninstall.sh` reverses everything `install.sh` did.
+`uninstall.sh` reverses everything `install.sh` did, in the reverse of the order
+`install.sh` set things up: with `--purge`, mise's tools are removed **first**,
+while `~/.config/mise/config.toml` is still linked, and only then are the configs
+unstowed. (`mise uninstall --all` turns out not to need the config — a dry run
+found the same 54 tools with it present and deleted — so this is about not
+depending on that staying true, not about fixing a failure.)
 
 ```bash
 # unstow all configs, restore the default login shell, delete the repo

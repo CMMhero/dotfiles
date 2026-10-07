@@ -6,13 +6,16 @@
 # login shell, and (with --purge) uninstalls all packages installed by
 # install.sh, then deletes the dotfiles repo.
 #
+# Order: with --purge, mise's own tools go first, while ~/.config/mise/config.toml
+# is still linked; then the configs are unstowed. See section 3 for why.
+#
 # Usage:
 #   ./uninstall.sh              # unstow configs, restore default shell, keep packages
 #   ./uninstall.sh --purge      # also uninstall mise tools, brew formulas + apt packages
 #   ./uninstall.sh --purge --yes  # non-interactive (no confirmation prompts)
 #
-# WARNING: --purge removes the mise tools, the mise and fish Homebrew formulas,
-# the apt base packages, and the pi / omp / opencode agent configs.
+# WARNING: --purge removes the mise tools, the mise, fish and opencode Homebrew
+# formulas, the apt base packages, and the pi / omp / opencode agent configs.
 #
 # fish is the one exception: the purge refuses to remove it while it is still
 # the account's login shell, and prints the two commands that do it safely.
@@ -132,7 +135,36 @@ if [ "$ASSUME_YES" -ne 1 ]; then
   esac
 fi
 # ------------------------------------------------------------------------------
-# 3. Unstow configs (GNU Stow)
+# 3. Remove mise's tools -- BEFORE the configs are unstowed
+# ------------------------------------------------------------------------------
+# Ordering matters, and it is not the order the section numbers used to imply.
+# `mise uninstall --all` runs here, ahead of the stow step, while
+# ~/.config/mise/config.toml is still linked and still describes the tool set.
+#
+# It happens to work either way: --all enumerates installed versions rather than
+# reading the config, and a dry run found the same 54 tools with the config
+# present and with it deleted. So this is not fixing an observed failure. What it
+# removes is the dependency on that staying true -- an operation run against a
+# config whose link has already been pulled out from under it is relying on mise
+# continuing not to care, and nothing here should need that.
+#
+# Also: if this step fails or is interrupted, the config is still in place, so
+# re-running still knows what the machine was meant to have.
+if [ "$PURGE" -eq 1 ] && command -v mise >/dev/null 2>&1; then
+  log_step "Removing mise-managed tools..."
+  # -y is required, not politeness: --all asks for confirmation, and this runs
+  # inside a purge that was already confirmed once at the top. Left to ask, it
+  # would sit at a prompt the rest of the script never returns from.
+  if mise uninstall --all -y >/dev/null 2>&1; then
+    log_ok "mise tools removed."
+  else
+    log_warn "mise uninstall --all reported an error; the data directories"
+    log_warn "in the purge step are removed regardless."
+  fi
+fi
+
+# ------------------------------------------------------------------------------
+# 4. Unstow configs (GNU Stow)
 # ------------------------------------------------------------------------------
 # NOTE: do not combine -D with -R. GNU stow keeps only the last mode flag, so
 # `-D -R` degrades into a restow and silently unlinks nothing.
@@ -213,7 +245,7 @@ find "$HOME/.config" -maxdepth 1 -mindepth 1 -type d -empty -delete 2>/dev/null 
 
 
 # ------------------------------------------------------------------------------
-# 4. Restore default login shell (bash)
+# 5. Restore default login shell (bash)
 # ------------------------------------------------------------------------------
 DEFAULT_SHELL="$(getent passwd "$USER" | cut -d: -f7)"
 log_step "Restoring default login shell to $DEFAULT_SHELL ..."
@@ -225,28 +257,12 @@ else
 fi
 
 # ------------------------------------------------------------------------------
-# 5. Purge packages (optional)
+# 6. Purge packages (optional)
 # ------------------------------------------------------------------------------
 if [ "$PURGE" -eq 1 ]; then
-  # ---- mise tools ----
-  if command -v mise >/dev/null 2>&1; then
-    log_info "Removing mise-managed tools..."
-    # --all, and no per-tool loop. A purge wants every installed version gone,
-    # which is exactly what mise uninstall --all does, so there is nothing to
-    # enumerate and no list here that could fall behind the stowed config.
-    #
-    # -y is required, not politeness: --all asks for confirmation, and this runs
-    # inside a purge that has already been confirmed once at the top. Left to
-    # ask, it would sit at a prompt the rest of the script never returns from.
-    if mise uninstall --all -y >/dev/null 2>&1; then
-      log_ok "mise tools removed."
-    else
-      log_warn "mise uninstall --all reported an error; the data directories"
-      log_warn "below are removed regardless, so nothing is left behind."
-    fi
-  else
-    log_warn "mise not found; skipping tool purge."
-  fi
+  # mise's own tools were already removed in the step before the unstow, while
+  # its config was still linked. The formula and the data directories are dealt
+  # with further down, next to the other Homebrew removals.
 
   # ---- Global pnpm packages (oh-my-pi) ----
   if command -v pnpm >/dev/null 2>&1; then
@@ -345,7 +361,7 @@ if [ "$PURGE" -eq 1 ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 6. Move out of the repo, then remove it
+# 7. Move out of the repo, then remove it
 # ------------------------------------------------------------------------------
 # `cd "$HOME"` moves THIS SCRIPT, not the shell that invoked it. A child process
 # cannot change its parent's working directory, so if the caller was sitting
