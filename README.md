@@ -95,13 +95,54 @@ stow -v -R -t ~ herdr
 stow -v -D -t ~ herdr
 ```
 
+`superfile` is stowed **and** walked file-by-file by `install.sh`, and `omp` is
+only ever linked from its three managed files. See the comment above
+`STOW_PACKAGES` in `install.sh` for why those two need that.
+
 ---
 
 ## Updating an Existing Machine
 
 ```bash
-cd ~/dotfiles && git pull --ff-only && ./install.sh
+cd ~/dotfiles && git pull --rebase --autostash && ./install.sh
 ```
+
+Or, from any fish session, `upd dotfiles` — which does the pull, refuses to run
+`install.sh` if the autostash left conflict markers, and passes `--config-only`
+since it has already updated the packages itself.
+
+Two flags are not optional here. Every config is a stow symlink, so editing one
+in a live session writes straight into this repo and the tree is routinely dirty;
+`--autostash` is what lets the pull succeed anyway. And `--ff-only` contradicts
+`pull.rebase = true` in `~/.gitconfig`, which makes git refuse outright.
+
+### `upd` — one command for all of it
+
+```fish
+upd                        # everything
+upd apt                    # or any one of:
+upd brew mise pi omp opencode dotfiles
+```
+
+Order is apt → brew → mise → agents → dotfiles. apt and brew go first because
+they are the slow system-package steps and the likeliest to fail, so a failure
+there does not mask the rest; dotfiles is last because it re-runs `install.sh`.
+
+The **brew** step is `brew update`, then `brew upgrade`, then `brew cleanup`. The
+order of the first two is not interchangeable: `upgrade` resolves against the
+metadata `update` refreshes, so upgrading against stale metadata skips versions
+that were already published when it last ran.
+
+Everything is non-interactive and auto-accepting, because `upd` runs unattended
+and a prompt with nobody to answer it just hangs: `apt` gets `-y`, brew runs with
+`NONINTERACTIVE=1 HOMEBREW_NO_AUTO_UPDATE=1`, mise with `MISE_YES=1`, and pi/omp
+get their approve flags. `sudo` may still ask for a password the first time.
+
+The same brew environment is exported globally in `config.fish`, so an
+interactive `brew install` is non-interactive too — a licence or tap prompt in a
+terminal you are watching is tolerable; the same prompt inside `upd` is not.
+`HOMEBREW_NO_AUTO_UPDATE=1` is what stops brew silently re-running `brew update`
+behind every other brew command; `upd brew` does it explicitly instead.
 
 ---
 
