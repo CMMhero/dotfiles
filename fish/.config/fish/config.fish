@@ -165,17 +165,21 @@ end
 
 # ----- update -----
 # One entry point for everything this machine keeps current:
-#   upd                    apt + mise + pi + omp + opencode + dotfiles
-#   upd apt|mise|pi|omp|opencode|dotfiles    just that one
+#   upd                    apt + brew + mise + pi + omp + opencode + dotfiles
+#   upd apt|brew|mise|pi|omp|opencode|dotfiles    just that one
 #
 # Order is deliberate: apt first because it is slowest (sudo, possible password)
-# and most likely to fail, so a failure there does not mask the rest. dotfiles
-# is last because it re-runs install.sh.
+# and most likely to fail, so a failure there does not mask the rest. brew next,
+# because it is the other system package manager and also needs a refresh before
+# anything reads its metadata. dotfiles is last because it re-runs install.sh.
 #
-# Everything is non-interactive: apt gets -y, mise needs no flags, and pi/omp
-# get their approve/force flags. sudo may still ask for a password the first
-# time; that one cannot be bypassed and should not be.
-function upd --description 'update everything: apt, mise, pi, omp, opencode, dotfiles'
+# Everything is non-interactive and auto-accepting: apt gets -y, brew runs with
+# NONINTERACTIVE=1 and HOMEBREW_NO_AUTO_UPDATE=1, mise gets MISE_YES=1, and
+# pi/omp get their approve/force flags. Each of these can otherwise block on a
+# prompt that, from a script or a non-interactive run, has nobody to answer it.
+# sudo may still ask for a password the first time; that one cannot be bypassed
+# and should not be.
+function upd --description 'update everything: apt, brew, mise, pi, omp, opencode, dotfiles'
     set -l what $argv
 
     # `selected` is declared up front and only assigned inside the if/else.
