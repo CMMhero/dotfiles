@@ -113,11 +113,28 @@ cd ~/dotfiles && git pull --ff-only && ./install.sh
 # unstow all configs, restore the default login shell, delete the repo
 ./uninstall.sh
 
-# also purge installed packages (mise tools, mise itself, apt packages, global pnpm)
+# also purge installed packages (mise tools, the mise + fish formulas,
+# apt packages, global pnpm)
 ./uninstall.sh --purge
 
 # non-interactive
 ./uninstall.sh --purge --yes
+```
+
+`--purge` removes the 30 mise tools, the `mise` formula, mise's data directories,
+the apt base set (`ca-certificates`, `curl`, `git`, `stow`) and global pnpm
+packages.
+
+**fish is refused, on purpose.** The shell-restore step reads the *current* shell
+out of `getent passwd`, so when that is fish the comparison matches and it
+changes nothing — `install.sh` ran `chsh` without recording the previous value.
+So `/etc/passwd` still points at the brew fish binary when the purge reaches it.
+`uninstall.sh` detects that and declines to remove the formula rather than
+leaving the account pointing at a path that no longer exists. Finish it by hand:
+
+```bash
+chsh -s /bin/bash   # or whatever your distro's default was
+brew uninstall fish
 ```
 
 **Agent data is never deleted.** `~/.pi`, `~/.omp`, `~/.opencode` and `~/.agents` hold session history, credentials and caches that outlive the packages. No flag removes them — `--purge-data` was removed and now exits with an error rather than silently doing nothing.
