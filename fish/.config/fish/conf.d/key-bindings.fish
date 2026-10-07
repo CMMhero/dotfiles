@@ -220,4 +220,17 @@ function fzf_key_bindings
 end
 
 # Run setup
-fzf_key_bindings
+#
+# NOTE on load order, because this call always used to fail: fish runs every
+# conf.d/*.fish BEFORE config.fish, so this runs before config.fish activates
+# mise -- which is where fzf comes from. fzf_key_bindings bails out when the
+# binary is missing, so this first pass never bound anything and printed
+# "fzf was not found in path." at every single shell start.
+#
+# The bindings that matter are installed by config.fish, after mise is live, and
+# that call is the one that reports a genuine miss. Keep this early call as a
+# fallback for a machine where fzf comes from somewhere else entirely (a distro
+# package, a manual install) -- just do not let it shout on the way past.
+begin
+    fzf_key_bindings
+end 2>/dev/null

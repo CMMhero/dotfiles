@@ -83,7 +83,15 @@ set -gx FZF_ALT_C_OPTS "--preview 'eza --icons=always --tree --color=always {} |
 # fzf's shell/key-bindings.fish is vendored in conf.d/: the aqua fzf package
 # ships only the binary and no shell integrations, so without this file
 # Ctrl-T / Alt-C would silently stop working.
-fzf_key_bindings
+#
+# Called HERE, not just in conf.d/, because fish loads conf.d/ before this file:
+# the call in conf.d/ ran before mise was activated above and so never found
+# fzf. This is the pass that actually installs the bindings, and the pass whose
+# "fzf was not found in path." message means something real. Re-calling is safe
+# -- it rebinds, it does not append.
+if functions -q fzf_key_bindings
+    fzf_key_bindings
+end
 
 # ---------- atuin ----------
 # Load only if present.
