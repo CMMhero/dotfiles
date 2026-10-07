@@ -124,10 +124,10 @@ MISE_TOOLS=(
   "core:pnpm"                    # pnpm
 )
 
+# Mirrors the apt set install.sh actually installs. fish is NOT here: it comes
+# from Homebrew and is removed as a formula below. Listing it would only produce
+# a spurious "Unable to locate package fish" on every purge.
 APT_PACKAGES=(
-  ca-certificates
-  curl
-  fish
   git
   stow
 )

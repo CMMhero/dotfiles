@@ -15,17 +15,26 @@
 #   ./install.sh --config-only
 #
 # Toolchain:
-#   apt    ca-certificates, curl, fish, git, stow -- installed before the clone,
+#   apt    ca-certificates, curl, git, stow -- installed before the clone,
 #          since this script may run on a bare box where none exist yet.
+#   brew   Homebrew / Linuxbrew, installed if absent. Supplies fish (the login
+#          shell) and mise itself, both at stable prefixes.
 #   mise   every other tool, installed via the aqua / github / npm / core
-#          backends. mise supplies everything except the apt base set.
+#          backends. mise supplies everything except the apt base set, fish and
+#          mise.
 #
-# Deploy order: apt, then clone, then mise, then configs.
+# Deploy order: apt, then clone, then brew, then mise, then configs.
 #
-# Configs go out through GNU Stow, except fresh, superfile and omp, which are
-# linked file-by-file because stow would link those app directories whole and
-# anything the tools write there would land in the repo. fish (from apt, so it
-# sits at a stable /usr/bin/fish) becomes the default login shell.
+# Every package step is non-interactive and auto-accepting: brew runs with
+# NONINTERACTIVE=1 and HOMEBREW_NO_AUTO_UPDATE=1, mise with MISE_YES=1. Under
+# `curl ... | bash` there is no TTY, so a prompt from either one is a hang with
+# nobody to answer it. (sudo may still ask for a password; that one is left
+# alone on purpose.)
+#
+# Configs go out through GNU Stow. superfile and omp are additionally linked
+# file-by-file (fresh is linked both ways), because stow would link those app
+# directories whole and anything the tools write there would land in the repo.
+# fish -- from Homebrew -- becomes the default login shell.
 # ==============================================================================
 
 set -euo pipefail
@@ -102,7 +111,13 @@ for arg in "$@"; do
   case "$arg" in
     --config-only) SKIP_PACKAGES=1 ;;
     --apt-done)    APT_DONE=1 ;;
-    --help|-h)     sed -n '2,16p' "$0"; exit 0 ;;
+    # Print the whole header block: everything from line 2 up to the closing
+    # banner. Marking the end structurally rather than with a literal line number
+    # means editing the description above cannot silently truncate --help, which
+    # is exactly what a hardcoded range did when the brew step was added.
+    --help|-h)     awk 'NR == 1 {next}
+                         /^# ={20,}/ {if (seen) exit; seen = 1}
+                         {print}' "$0"; exit 0 ;;
     *)             log_err "Unknown option: $arg"; exit 1 ;;
   esac
 done
@@ -128,25 +143,19 @@ if [ "$APT_DONE" -eq 0 ] && [ "$SKIP_PACKAGES" -eq 0 ]; then
 
   if ! command -v apt-get >/dev/null 2>&1; then
     log_err "No apt-get found. This installer targets Debian/Ubuntu."
-    log_err "On another distro, install git, curl, stow and fish manually and re-run."
+    log_err "On another distro, install git, curl and stow manually and re-run."
     exit 1
   fi
 
   # Trimmed to what this setup actually needs:
-  #   ca-certificates  trust store for apt/curl/mise over HTTPS
-  #   curl             mise bootstrap (https://mise.run) and every mise download
-  #   fish             the LOGIN shell, from apt so it sits at a stable
-  #                    /usr/bin/fish that chsh and herdr can rely on
   #   git              this repository, and the git config being deployed
   #   stow             the deployment mechanism itself
   #
-  # Dropped: build-essential (mise installs prebuilt binaries; nothing compiles),
+  # fish is NOT in this set: it comes from Homebrew below. Dropped: build-essential (mise installs prebuilt binaries; nothing compiles),
   # file and procps (no script invokes them; btop/fastfetch/eza cover the same
   # ground). Re-add build-essential if a native module ever needs compiling.
   $APT_PREFIX apt-get update -y
   $APT_PREFIX apt-get install -y \
-    ca-certificates \
-    curl \
     git \
     stow
   log_ok "Base APT packages installed."
@@ -216,9 +225,17 @@ handoff_to_fish() {
   fi
   exec "$FISH_EXEC_BIN" -l < /dev/null
 }
-# Fallback is /usr/bin/fish, where apt puts it. A login shell pointed at some
-# other machine's removed path is the classic lockout.
-FISH_EXEC_BIN="$(command -v fish 2>/dev/null || echo /usr/bin/fish)"
+# fish comes from Homebrew, and --config-only skips the brew shellenv above, so
+# `command -v fish` can miss on a PATH that never loaded brew. Fall back to the
+# brew prefixes directly. A login shell pointed at some other machine's removed
+# path is the classic lockout, so /usr/bin/fish (where apt used to put it) stays
+# as a last resort.
+FISH_EXEC_BIN="$(command -v fish 2>/dev/null || true)"
+for fish_candidate in /home/linuxbrew/.linuxbrew/bin/fish "$HOME/.linuxbrew/bin/fish" /usr/bin/fish; do
+  if [ -n "$FISH_EXEC_BIN" ]; then break; fi
+  if [ -x "$fish_candidate" ]; then FISH_EXEC_BIN="$fish_candidate"; fi
+done
+FISH_EXEC_BIN="${FISH_EXEC_BIN:-/usr/bin/fish}"
 trap handoff_to_fish EXIT
 
 log_info "Dotfiles directory: $DOTFILES_DIR"
@@ -253,35 +270,58 @@ log_ok "Homebrew is available at: $(which brew)"
 # ------------------------------------------------------------------------------
 # Homebrew CLI Packages Installation
 # ------------------------------------------------------------------------------
+# fish and mise. Both are here for the same reason: each must stay at one fixed
+# path across upgrades.
+#   fish   the login shell -- a moving path would break chsh and herdr's
+#          default_shell the first time it is upgraded.
+#   mise   installs every tool below. Sourcing its own activation from a
+#          fixed prefix is more predictable than a version-managed copy that
+#          would itself need activating before it could activate anything else.
+# Everything else comes from mise.
 BREW_PACKAGES=(
   fish
+  mise
 )
 
 log_step "Installing CLI tools via Homebrew..."
-brew install "${BREW_PACKAGES[@]}"
-log_ok "Homebrew formulas installed."
+if HOMEBREW_NO_AUTO_UPDATE=1 NONINTERACTIVE=1 brew install "${BREW_PACKAGES[@]}"; then
+  log_ok "Homebrew formulas installed."
+else
+  log_err "brew install failed for: ${BREW_PACKAGES[*]}"
+  log_err "Already-installed formulas are fine; re-run to retry the rest."
+fi
+# Not fatal. Both formulas may already be present (mise especially, on a machine
+# that installed it by hand), and a failure here must not strand a box that
+# could otherwise finish its config. What actually needs mise is section 4,
+# which fails loudly on its own if the binary is missing.
 
 # ------------------------------------------------------------------------------
-# 3. mise (bootstrap)
+# 3. mise on PATH
 # ------------------------------------------------------------------------------
-# Every tool beyond the apt base set comes from mise. It is bootstrapped with its
-# own installer rather than apt so the first install needs nothing but apt.
+# mise itself was installed as a Homebrew formula in the previous section, so
+# there is nothing to bootstrap here -- this only has to make sure the shellenv
+# block earlier in the script actually put it on PATH, and report clearly if not.
 #
-# Two deliberate exceptions:
-#   - apt stays for system packages. mise has no apt/dpkg backend at all (its
-#     backends are aqua/asdf/cargo/conda/core/gem/github/go/npm/pypi/vfox/...),
-#     so the base packages cannot move out of apt.
-#   - fish stays on apt, so the login shell lives at a stable /usr/bin/fish.
-#     mise installs into versioned paths that change on upgrade, which would
-#     break `chsh` and herdr's default_shell the first time fish is upgraded.
-if ! command -v mise >/dev/null 2>&1; then
-  log_step "Installing mise (https://mise.jdx.dev)..."
-  # Official installer, so the very first install needs nothing but apt.
-  curl -fsSL https://mise.run | sh >/dev/null 2>&1 || true
-  export PATH="$HOME/.local/bin:$PATH"
-  [ -x "$HOME/.local/bin/mise" ] || export PATH="/usr/local/bin:$PATH"
+# The curl bootstrap (curl -fsSL https://mise.run | sh) used to live here. It is
+# gone: it installed a second mise into ~/.local/bin, which could shadow brew's
+# copy or be shadowed by it depending on PATH order, and uninstall.sh then had
+# to remove that copy by hand. One mise, owned by brew.
+if command -v mise >/dev/null 2>&1; then
+  :
+else
+  # Re-run shellenv once before giving up: `brew install mise` in a previous run
+  # can succeed while this script's own eval was skipped or landed elsewhere.
+  if [ -x "/home/linuxbrew/.linuxbrew/bin/brew" ]; then
+    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+  elif [ -x "$HOME/.linuxbrew/bin/brew" ]; then
+    eval "$("$HOME/.linuxbrew/bin/brew" shellenv)"
+  fi
 fi
-command -v mise >/dev/null 2>&1 || { log_err "mise failed to install; cannot continue."; exit 1; }
+command -v mise >/dev/null 2>&1 || {
+  log_err "mise is not on PATH after installing the Homebrew formula."
+  log_err "Check: brew --prefix, and that /home/linuxbrew/.linuxbrew/bin is in PATH."
+  exit 1
+}
 log_ok "mise ready at $(command -v mise) ($(mise --version 2>/dev/null | head -1))"
 
 # ------------------------------------------------------------------------------

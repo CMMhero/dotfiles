@@ -6,8 +6,9 @@ Modular dotfiles managed with **GNU Stow**, with `install.sh` / `uninstall.sh` f
 
 ## What's Included
 
-- **Shell (managed)**: Fish (`~/.config/fish`)
-- **CLI Tools (via `mise`)**: `atuin`, `bat`, `btop`, `chafa`, `delta`, `eza`, `fastfetch`, `fd`, `fzf`, `gh`, `go`, `herdr`, `hunk`, `jq`, `lazygit`, `llmfit`, `models`, `neovim`, `node`, `opencode`, `pi`, `pnpm`, `ripgrep`, `rust`, `starship`, `superfile`, `tealdeer`, `uv`, `vite+`, `zoxide`
+- **Shell (managed)**: Fish (`~/.config/fish`), installed as a **Homebrew formula**, not from apt — brew holds it at a fixed path (`/home/linuxbrew/.linuxbrew/bin/fish`) so upgrading it never breaks `chsh` or herdr's `default_shell`
+- **Package managers**: `apt` for the base system, **Homebrew / Linuxbrew** for `fish` and `mise` itself, `mise` for everything else
+- **CLI Tools (via `mise`)**: `atuin`, `bat`, `btop`, `chafa`, `delta`, `eza`, `fastfetch`, `fd`, `fzf`, `gh`, `go`, `herdr`, `hunk`, `jq`, `lazygit`, `neovim`, `node`, `opencode`, `pi`, `pnpm`, `ripgrep`, `rust`, `starship`, `superfile`, `tealdeer`, `uv`, `vite+`, `zoxide`
 - **Python**: `uv` (via `mise`)
 - **Terminal Workspace & Emulators**:
   - `herdr` (`~/.config/herdr/config.toml`) with custom keybindings, tabs, and Catppuccin theme
