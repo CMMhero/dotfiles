@@ -8,11 +8,14 @@
 #
 # Usage:
 #   ./uninstall.sh              # unstow configs, restore default shell, keep packages
-#   ./uninstall.sh --purge      # also uninstall mise tools + apt packages
+#   ./uninstall.sh --purge      # also uninstall mise tools, brew formulas + apt packages
 #   ./uninstall.sh --purge --yes  # non-interactive (no confirmation prompts)
 #
-# WARNING: --purge removes the mise tools, mise itself, and the pi /
-# omp / opencode agent configs.
+# WARNING: --purge removes the mise tools, the mise and fish Homebrew formulas,
+# the apt base packages, and the pi / omp / opencode agent configs.
+#
+# fish is the one exception: the purge refuses to remove it while it is still
+# the account's login shell, and prints the two commands that do it safely.
 #
 # Agent data is NEVER deleted, by any flag. ~/.pi, ~/.omp, ~/.opencode and
 # ~/.agents hold session history, credentials and caches that outlive the
@@ -148,7 +151,7 @@ if [ "$ASSUME_YES" -ne 1 ]; then
   printf '  %s\n' "${STOW_PACKAGES[@]}"
   echo ""
   if [ "$PURGE" -eq 1 ]; then
-    log_warn "--purge is set: mise tools, mise itself, apt packages, and global pnpm packages will also be removed."
+    log_warn "--purge is set: mise tools, the mise and fish formulas, apt packages, and global pnpm packages will also be removed."
   fi
   echo ""
   read -r -p "Continue? [y/N] " reply
@@ -255,10 +258,52 @@ if [ "$PURGE" -eq 1 ]; then
   fi
 
   # ---- mise itself ----
-  if [ -x "$HOME/.local/bin/mise" ]; then
+  # mise is a Homebrew formula now, so brew owns the binary. Its data
+  # directories are still plain files under $HOME and are removed directly --
+  # brew has nothing to say about those.
+  if command -v brew >/dev/null 2>&1 && brew list --formula mise >/dev/null 2>&1; then
+    log_info "Removing the mise formula via Homebrew..."
+    NONINTERACTIVE=1 HOMEBREW_NO_AUTO_UPDATE=1 brew uninstall mise || \
+      log_warn "brew uninstall mise failed; remove it with: brew uninstall mise"
+  elif [ -x "$HOME/.local/bin/mise" ]; then
+    # Legacy curl bootstrap (curl -fsSL https://mise.run | sh) put it here.
     log_info "Removing mise and its config..."
     rm -f "$HOME/.local/bin/mise"
+  fi
+
+  # The data directories go either way: a purge that removes the binary but
+  # leaves ~/.local/share/mise behind leaves every installed tool on disk.
+  if [ -d "$HOME/.local/share/mise" ] || [ -d "$HOME/.config/mise" ]; then
+    log_info "Removing mise data directories..."
     rm -rf "$HOME/.local/share/mise" "$HOME/.config/mise"
+  fi
+
+  # ---- other Homebrew formulas ----
+  # fish and mise are the only two install.sh installs through brew.
+  #
+  # fish gets a guard because it is the login shell. Unstowing configs and
+  # restoring the shell happen earlier in this script, but that restore is a
+  # no-op whenever the current shell already IS fish (it reads the shell out of
+  # getent passwd), so /etc/passwd still points at this binary when the purge
+  # runs. Removing it then would leave the account pointing at a path that no
+  # longer exists -- the classic lockout. Decline and say how to do it properly
+  # rather than breaking the account on the way out.
+  if command -v brew >/dev/null 2>&1; then
+    if brew list --formula fish >/dev/null 2>&1; then
+      CURRENT_LOGIN_SHELL="$(getent passwd "$USER" | cut -d: -f7)"
+      case "$CURRENT_LOGIN_SHELL" in
+        *linuxbrew*/bin/fish)
+          log_warn "NOT removing the fish formula: it is still your login shell"
+          log_warn "($CURRENT_LOGIN_SHELL). Change it first, e.g.:"
+          log_warn "  chsh -s /bin/bash && brew uninstall fish"
+          ;;
+        *)
+          log_info "Removing the fish formula via Homebrew..."
+          NONINTERACTIVE=1 HOMEBREW_NO_AUTO_UPDATE=1 brew uninstall fish || \
+            log_warn "brew uninstall fish failed; remove it with: brew uninstall fish"
+          ;;
+      esac
+    fi
   fi
 
   # ---- apt packages ----
@@ -301,7 +346,16 @@ rm -rf "$DOTFILES_DIR"
 log_step "Uninstall Complete."
 echo "Stowed configs removed; default login shell restored."
 if [ "$PURGE" -eq 1 ]; then
-  echo "Packages purged (mise tools, mise itself, apt packages, global pnpm)."
+  echo "Packages purged (mise tools, mise + fish formulas, apt packages, global pnpm)."
+  # fish is the login shell and the purge refuses to remove it while
+  # /etc/passwd still points at it, so say so plainly instead of leaving the
+  # user to wonder why one formula survived.
+  if command -v brew >/dev/null 2>&1 && brew list --formula fish >/dev/null 2>&1 \
+     && case "$(getent passwd "$USER" | cut -d: -f7)" in *linuxbrew*/bin/fish) true ;; *) false ;; esac
+  then
+    echo "The fish formula was kept: it is still your login shell."
+    echo "To finish:  chsh -s /bin/bash && brew uninstall fish"
+  fi
   echo "Agent data left intact (~/.pi, ~/.omp, ~/.opencode, ~/.agents)."
 fi
 echo "Dotfiles repo deleted."
