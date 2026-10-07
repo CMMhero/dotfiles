@@ -377,7 +377,12 @@ MISE_TOOLS=(
 #     and the failure only surfaced later as missing commands.
 # Output is left visible so mise's progress bar is not swallowed.
 log_step "Installing ${#MISE_TOOLS[@]} tools via mise..."
-if mise use -g "${MISE_TOOLS[@]}"; then
+# MISE_YES=1 accepts every prompt mise can raise -- chiefly the trust prompt for
+# a newly seen aqua/github backend. Without it `mise use -g` blocks on stdin
+# with no TTY of its own under `curl ... | bash`, and the whole installer hangs
+# on a question nobody can see. YES/ASSUME_YES are the same switch under other
+# names; both spellings are set so a version change cannot silently un-set it.
+if MISE_YES=1 YES=1 mise use -g "${MISE_TOOLS[@]}"; then
   log_ok "mise registered ${#MISE_TOOLS[@]} tools globally."
 else
   log_warn "mise reported failures; see above. Any tool without a version set"
