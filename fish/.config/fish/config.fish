@@ -34,6 +34,21 @@ fish_add_path /home/linuxbrew/.linuxbrew/opt/rustup/bin
 
 set -gx HOMEBREW_PREFIX /home/linuxbrew/.linuxbrew
 
+# Every brew call in this shell auto-accepts. Set here rather than only inside
+# `upd` so an interactive `brew install`/`brew upgrade` is non-interactive too:
+# a prompt with no one to answer it hangs the terminal, and the usual triggers
+# (a licence, a tap confirmation, a cleanup question) come up unpredictably.
+#
+# HOMEBREW_NO_AUTO_UPDATE=1 disables brew's implicit per-command `brew update`,
+# which otherwise runs in the background of every other brew command and can
+# interleave its own prompts. `upd brew` runs `brew update` explicitly instead,
+# where the ordering is visible and the output belongs.
+set -gx HOMEBREW_NO_AUTO_UPDATE 1
+set -gx HOMEBREW_NO_INSTALL_FROM_API 1
+set -gx HOMEBREW_NO_ANALYTICS 1
+set -gx HOMEBREW_NO_ENV_HINTS 1
+set -gx NONINTERACTIVE 1
+
 # ---------- Editor ----------
 if command -q fresh
     set -gx EDITOR fresh
@@ -171,7 +186,7 @@ function upd --description 'update everything: apt, mise, pi, omp, opencode, dot
     if set -q what[1]
         set selected $what
     else
-        set selected apt mise pi omp opencode dotfiles
+        set selected apt brew mise pi omp opencode dotfiles
     end
 
     if contains apt $selected; and command -v apt-get >/dev/null 2>&1
@@ -184,12 +199,40 @@ function upd --description 'update everything: apt, mise, pi, omp, opencode, dot
         sudo apt-get clean
     end
 
+    # brew owns fish and mise itself, plus a few formulas installed by hand.
+    # Without this step they drift while everything else updates -- the gap that
+    # let fish fall behind with nothing in `upd` touching it.
+    #
+    # `brew update` first, then `brew upgrade`. Order matters and is not
+    # interchangeable: upgrade resolves against the metadata update refreshes,
+    # so upgrading against stale metadata skips versions that were already
+    # published when it last ran.
+    #
+    # NONINTERACTIVE=1 is the switch that matters. Without it brew can stop on a
+    # prompt -- a licence, a tap confirmation, a cleanup question -- and this
+    # function has no way to answer it. HOMEBREW_NO_AUTO_UPDATE=1 stops every
+    # individual `brew upgrade` from silently re-running `brew update` itself,
+    # which would make the explicit update above redundant and slow.
+    if contains brew $selected; and type -q brew
+        step "brew"
+        # shellcheck disable=SC2034 # HOMEBREW_NO_INSTALL_FROM_API speeds up `brew update`
+        NONINTERACTIVE=1 HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_ANALYTICS=1 brew update --quiet
+        NONINTERACTIVE=1 HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_ANALYTICS=1 brew upgrade
+        # Plain cleanup, not --prune=all: it reclaims the superseded versions
+        # left behind by the upgrade above, and that is the bulk of the space.
+        # --prune=all is safe for the current formulae either way, but it also
+        # drops every cached bottle, so the next install re-downloads them all.
+        NONINTERACTIVE=1 HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_ANALYTICS=1 brew cleanup
+    end
+
     # mise covers every CLI tool plus node and pnpm. `mise upgrade` updates all
-    # of them and reinstalls whatever moved. apt stays separate: mise has no
-    # system-package backend, so the base packages are not managed here.
+    # of them and reinstalls whatever moved. apt and brew stay separate: mise has
+    # no system-package backend, so those are not managed here.
     if contains mise $selected; and type -q mise
         step "mise"
-        mise upgrade
+        # MISE_YES=1 auto-accepts mise's trust prompt for any newly seen backend;
+        # without a TTY that prompt would hang the whole run.
+        MISE_YES=1 mise upgrade
     end
 
     # The agent BINARIES come from mise (aqua:earendil-works/pi,
