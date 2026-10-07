@@ -397,7 +397,7 @@ log_ok "Homebrew is available at: $(which brew)"
 # ------------------------------------------------------------------------------
 # Homebrew CLI Packages Installation
 # ------------------------------------------------------------------------------
-# Three formulas, and the reason each is here differs.
+# Four formulas, and the reason each is here differs.
 #   fish      the login shell -- a moving path would break chsh and herdr's
 #             default_shell the first time it is upgraded.
 #   mise      installs every tool below. Sourcing its own activation from a
@@ -407,12 +407,20 @@ log_ok "Homebrew is available at: $(which brew)"
 #             backend, which pins an old release (1.18.34 against brew's 2.0.20
 #             here) with no channel for the current one. brew ships a bottle, so
 #             it tracks upstream on its own.
+#   vite-plus the GLOBAL CLI, which owns Node.js and the package managers (see
+#             the vite+ section). This is not interchangeable with the
+#             `npm:vite-plus` mise tool: that one is the project-local package
+#             and has no `vp env` subcommand at all -- "The `env` command is only
+#             available in the global `vp` CLI" -- so a mise-installed vite-plus
+#             cannot manage a runtime at all. The global CLI is also a superset
+#             of the local one, adding env/node/dlx and package management.
 #
 # Everything else comes from mise.
 BREW_PACKAGES=(
   fish
   mise
   opencode
+  vite-plus
 )
 
 # Split into missing vs present. `brew install` already skips installed
@@ -582,15 +590,84 @@ MISE_SHIMS="${MISE_DATA_DIR:-$HOME/.local/share/mise}/shims"
 mkdir -p "$MISE_SHIMS"
 export PATH="$MISE_SHIMS:$PATH"
 
-log_ok "pnpm via mise: $(pnpm --version 2>/dev/null || echo 'pending shell reload')"
+# ------------------------------------------------------------------------------
+# 5. vite+ owns Node.js and the package managers
+# ------------------------------------------------------------------------------
+# mise deliberately does NOT install node or pnpm (they are absent from
+# mise/config.toml). vite-plus' global CLI owns them, and its stowed
+# config.json sets nodeShimMode and all four packageManagerShimModes to
+# "managed" -- the only other valid value being "system_first", which is what
+# this used to be set to.
+#
+# Two steps, both needed, and neither is optional:
+#   vp env setup  creates the node/npm/pnpm/yarn/bun shims in VP_HOME/bin. Until
+#                 it runs there is no `node` or `pnpm` on PATH at all, because
+#                 mise no longer supplies them.
+#   vp env on     records managed mode. vite+'s own docs say managed mode is
+#                 "on by default" but that "fresh installers record managed mode
+#                 ... after the user enables environment management" -- so a
+#                 scripted install has to ask for it explicitly.
+#
+# VP_HOME is vite+'s own directory and is deliberately NOT stowed: it holds the
+# downloaded runtimes, the shims, and generated env files. Only the small
+# config.json in vite-plus/ is managed.
+VP_HOME_DIR="${VP_HOME:-$HOME/.local/share/vite-plus}"
+VP_BIN="$VP_HOME_DIR/bin"
+
+if command -v vp >/dev/null 2>&1; then
+  log_step "Setting up vite+ as the Node.js and package-manager owner..."
+  # --refresh so a re-run repairs shims that were deleted or replaced. Non-
+  # interactive: this must not block on a prompt under `curl ... | bash`.
+  if NONINTERACTIVE=1 vp env setup --refresh >/dev/null 2>&1; then
+    log_ok "vite+ shims ready in $VP_BIN"
+  else
+    log_warn "vp env setup failed; node/pnpm may be missing. Retry with:"
+    log_warn "  vp env setup --refresh"
+  fi
+
+  if NONINTERACTIVE=1 vp env on >/dev/null 2>&1; then
+    log_ok "vite+ managed mode enabled for node and package managers."
+  else
+    log_warn "vp env on failed; vite+ will keep preferring system tools."
+    log_warn "  Retry with: vp env on"
+  fi
+
+  # Put the shim dir first for the rest of this script. Without it `pnpm` below
+  # and in the omp section would not resolve, since mise no longer provides it.
+  [ -d "$VP_BIN" ] && export PATH="$VP_BIN:$PATH"
+
+  # Drop vite-plus from mise if an older install tracked it there.
+  #
+  # Same reason as the opencode cleanup above: brew/bin sits ahead of the mise
+  # shims, so brew's vp wins today, but the stale `vp` shim would silently take
+  # over if the formula were ever uninstalled -- resurrecting the project-local
+  # 1.0.0, which has no `vp env` at all and so cannot manage Node.
+  if command -v mise >/dev/null 2>&1 \
+     && mise ls --installed 2>/dev/null | grep -q '^npm:vite-plus'; then
+    log_info "Removing vite-plus from mise (now a Homebrew formula)..."
+    mise unuse --global npm:vite-plus >/dev/null 2>&1 || true
+    if mise uninstall npm:vite-plus >/dev/null 2>&1; then
+      log_ok "mise no longer tracks vite-plus."
+    elif mise ls --installed 2>/dev/null | grep -q '^npm:vite-plus'; then
+      log_warn "mise still holds a vite-plus install; finish with:"
+      log_warn "  mise unuse --global npm:vite-plus"
+    else
+      log_ok "mise no longer tracks vite-plus."
+    fi
+  fi
+
+  log_ok "node via vite+: $(node --version 2>/dev/null || echo 'not yet installed')"
+  log_ok "pnpm via vite+: $(pnpm --version 2>/dev/null || echo 'not yet installed')"
+else
+  log_warn "vite+ is not on PATH; node and pnpm will be missing."
+  log_warn "mise no longer installs them. Retry with: brew install vite-plus"
+fi
 
 # ------------------------------------------------------------------------------
-# 5. pnpm configuration
+# 6. pnpm configuration
 # ------------------------------------------------------------------------------
-# pnpm itself is a mise tool (core:pnpm); this only points its global package
-# output at ~/.local/bin so `omp` lands on a path fish already has. vite+ is
-# installed too but its runtime/PM modes are system_first, so it defers to
-# mise's node/pnpm instead of managing its own.
+# pnpm itself now comes from vite+; this only points its global package output
+# at ~/.local/bin so `omp` lands on a path fish already has.
 export PNPM_HOME="$HOME/.local/share/pnpm"
 mkdir -p "$HOME/.local/bin" "$PNPM_HOME"
 log_step "Configuring pnpm"
@@ -599,7 +676,7 @@ pnpm config set store-dir "$PNPM_HOME/store" 2>/dev/null || true
 log_ok "pnpm configured (global bin dir: $HOME/.local/bin)."
 
 # ------------------------------------------------------------------------------
-# 6. AI Agents
+# 7. AI Agents
 # ------------------------------------------------------------------------------
 # pi and oh-my-pi are mise tools installed in section 5; opencode is a Homebrew
 # formula from section 3. Nothing is left to do here beyond reporting what
@@ -618,7 +695,7 @@ done
 [ "$AI_AGENTS_OK" -eq 1 ] || log_info "Retry with: brew install opencode; mise use -g github:can1357/oh-my-pi aqua:earendil-works/pi"
 
 # ------------------------------------------------------------------------------
-# 7. Herdr
+# 8. Herdr
 # ------------------------------------------------------------------------------
 # herdr comes from mise (aqua:herdrdev/herdr), installed in section 5. The
 # standalone curl installer is not used: it drops a binary in ~/.local/bin,
@@ -634,7 +711,7 @@ else
   log_info "Run './install.sh' without --config-only to install packages."
 fi  # end package installation
 # ------------------------------------------------------------------------------
-# 8. GNU Stow Dotfiles Deployment
+# 9. GNU Stow Dotfiles Deployment
 # ------------------------------------------------------------------------------
 # NOTE: `wezterm` is deliberately absent. Its config targets the Windows build
 # (WSL domain, pwsh default_prog, Acrylic backdrop, win32_system_backdrop), so
@@ -792,7 +869,7 @@ for pkg in "${EXPLICIT_LINK_PACKAGES[@]}"; do
 done
 
 # ------------------------------------------------------------------------------
-# 9. Oh-My-Pi Plugins Setup
+# 10. Oh-My-Pi Plugins Setup
 # ------------------------------------------------------------------------------
 # NOTE: skills are not managed at all. ~/.agents/skills and ~/skills-lock.json
 # stay per-machine, as do the opencode/pi/omp skill directories -- each agent
@@ -811,7 +888,7 @@ if [ -d "$HOME/.omp/plugins" ] && [ -f "$HOME/.omp/plugins/package.json" ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 10. Fresh Editor Packages (plugins / themes / languages)
+# 11. Fresh Editor Packages (plugins / themes / languages)
 # ------------------------------------------------------------------------------
 # The fresh package tree is stowed from the repo, but fresh keeps a private
 # registry cache under ~/.config/fresh/plugins/packages/.index and .cache.
@@ -852,7 +929,7 @@ if command -v fresh >/dev/null 2>&1; then
 fi
 
 # ------------------------------------------------------------------------------
-# 11. Default Shell Setup (Fish)
+# 12. Default Shell Setup (Fish)
 # ------------------------------------------------------------------------------
 FISH_BIN="$(which fish 2>/dev/null || echo "/home/linuxbrew/.linuxbrew/bin/fish")"
 if [ -x "$FISH_BIN" ]; then
@@ -871,7 +948,7 @@ if [ -x "$FISH_BIN" ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 12. Post-Install: Account Logins & Cache Warmup
+# 13. Post-Install: Account Logins & Cache Warmup
 # ------------------------------------------------------------------------------
 # Everything here that can be done without a browser or a password prompt is
 # done automatically. Whatever needs interactive auth is reported at the end
@@ -966,7 +1043,7 @@ else
 fi
 
 # ------------------------------------------------------------------------------
-# 13. Completion Summary
+# 14. Completion Summary
 # ------------------------------------------------------------------------------
 # In --config-only mode this whole summary is noise: it is an inventory of
 # packages that were deliberately not touched, printed every time `upd` pulls
@@ -977,7 +1054,8 @@ echo ""
 log_step "Machine Bootstrap & Config Sync Complete!"
 echo ""
 echo "Active environment features:"
-echo "  - Package sources: apt (base system) + Homebrew (fish, mise, opencode); mise for the rest"
+echo "  - Package sources: apt (base system) + Homebrew (fish, mise, opencode, vite-plus);"
+echo "      mise for the rest; vite+ owns node and the package managers"
 echo "  - mise prefix: ${MISE_SHIMS:-$HOME/.local/share/mise/shims}"
 echo "  - Tools via mise ($MISE_TOOL_COUNT, from mise/config.toml):"
 # Read the names back out of the config rather than repeating them here. A third
@@ -995,6 +1073,8 @@ MISE_TOOL_NAMES="$(sed -n 's/^[[:space:]]*"\?\([^"=]*\)"\?[[:space:]]*=.*$/\1/p'
   | paste -sd, -)"
 # `fold -s` keeps it inside the ~78 column block the rest of this summary uses.
 printf '%s\n' "$MISE_TOOL_NAMES" | fold -s -w 76 | sed 's/^/      /'
+echo "  - Node.js + package managers: vite+ (managed) -- node $(node --version 2>/dev/null || echo '?'),"
+echo "      pnpm $(pnpm --version 2>/dev/null || echo '?'), bun/npm/yarn shims via $VP_BIN"
 echo "  - Python manager: uv (pip/venv/run/build)"
 echo "  - Terminal multiplexer: herdr (with custom keybinds & Catppuccin theme)"
 echo "  - Terminal emulator config: wezterm (.wezterm.lua, Windows-only; in repo, not stowed on Linux)"

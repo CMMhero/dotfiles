@@ -7,15 +7,18 @@ Modular dotfiles managed with **GNU Stow**, with `install.sh` / `uninstall.sh` f
 ## What's Included
 
 - **Shell (managed)**: Fish (`~/.config/fish`), installed as a **Homebrew formula**, not from apt — brew holds it at a fixed path (`/home/linuxbrew/.linuxbrew/bin/fish`) so upgrading it never breaks `chsh` or herdr's `default_shell`
-- **Package managers**: `apt` for the base system, **Homebrew / Linuxbrew** for `fish`, `mise` and `opencode`, `mise` for everything else
-- **CLI Tools (via `mise`)**: `atuin`, `bat`, `btop`, `chafa`, `delta`, `eza`, `fastfetch`, `fd`, `fzf`, `gh`, `go`, `herdr`, `hunk`, `jq`, `lazygit`, `neovim`, `node`, `pi`, `pnpm`, `ripgrep`, `rust`, `starship`, `superfile`, `tealdeer`, `uv`, `vite+`, `zoxide`
+- **Package managers**: `apt` for the base system, **Homebrew / Linuxbrew** for `fish`, `mise`, `opencode` and `vite-plus`, `mise` for the rest, and **vite+** for Node.js + npm/pnpm/yarn/bun
+- **CLI Tools (via `mise`)**: `atuin`, `bat`, `btop`, `chafa`, `delta`, `eza`, `fastfetch`, `fd`, `fzf`, `gh`, `go`, `herdr`, `hunk`, `jq`, `lazygit`, `neovim`, `pi`, `ripgrep`, `rust`, `starship`, `superfile`, `tealdeer`, `uv`, `zoxide` — plus `llmfit`, `models` and `oh-my-pi`. `node`, `pnpm` and `vite+` are **not** here; see below
 - **Python**: `uv` (via `mise`)
 - **Terminal Workspace & Emulators**:
   - `herdr` (`~/.config/herdr/config.toml`) with custom keybindings, tabs, and Catppuccin theme
   - `wezterm` — **Windows-only**. `wezterm/.wezterm.lua` is kept in the repo for reference (WSL domain, pwsh `default_prog`, Acrylic backdrop) but is **not stowed** and wezterm is **not installed** on Linux.
 - **Editor**: `fresh-editor` (`~/.config/fresh`) with the Catppuccin theme package, the `color-highlighter` plugin, a `dotfiles-fresh-language` grammar, vi mode enabled at startup, and a **"Toggle vi mode"** command in the palette (Ctrl+P)
 - **mise config (managed)**: [`mise/.config/mise/config.toml`](mise/.config/mise/config.toml) is stowed to `~/.config/mise/config.toml` and is the single source of truth for what gets installed — `install.sh` runs a bare `mise install` and declares no tool list of its own. Everything is pinned to `latest`. Add a tool by adding a line here and re-running; note that removing a line does **not** uninstall the tool (see below)
-- **Runtimes & Package Managers**: node and pnpm via `mise` (`core:node`, `core:pnpm`). `vite+` is installed as a tool too, but its config sets every runtime and package-manager mode to `system_first`, so it defers to mise instead of managing its own copies.
+- **Node.js & Package Managers**: owned by **vite+**, *not* mise. `mise/config.toml` declares neither `node` nor `pnpm`. vite+'s stowed config sets `nodeShimMode` and all four `packageManagerShimModes` (`npm`, `pnpm`, `yarn`, `bun`) to `managed` — the only other valid value is `system_first`, which is what it used to be set to. `vp env current` should report `Mode managed` for both
+  - This needs vite+'s **global CLI**, which is a Homebrew formula here. It is not interchangeable with the `npm:vite-plus` mise tool: that one is the project-local package and has no `vp env` subcommand at all, so a mise-installed vite-plus cannot manage a runtime. The global CLI is a superset, adding `env`, `node`, `dlx` and package management. install.sh also removes `npm:vite-plus` from mise so its stale `vp` shim cannot shadow brew's
+  - fish sources vite+'s own generated `~/.config/vite-plus/env.fish`, which prepends the shim dir so `node` resolves through vite+ and wraps `vp` for `vp env use`. That file is machine state, not stowed
+  - `VP_HOME` (`~/.local/share/vite-plus`, holding the downloaded runtimes, shims and generated env files) is **not** managed
 - **Theme**: Catppuccin Macchiato is the source of truth (defined once in `wezterm/.wezterm.lua`). `bat` uses it directly (`bat/.config/bat/config`), `fzf` gets an equivalent palette via `fish/.config/fish/conf.d/catppuccin.fish`, and `omp` uses its built-in `dark-catppuccin` — that one is **Mocha**-flavoured, since omp ships no Macchiato and `grep -c macchiato` over its dist returns 0.
 - **AI Coding Agents**:
   - `omp` (via `mise` as `github:can1357/oh-my-pi`) — **narrowly** stowed: only `~/.omp/agent/config.yml`, `~/.omp/plugins/package.json` and `~/.omp/agent/extensions/opencode-zen-fix.ts`. Everything else in `~/.omp` (sessions, run, logs, cache, `stats.db`, `install-id`, plugin `node_modules`) stays per-machine.
@@ -53,20 +56,22 @@ The script will, in order:
    come first.
 2. Clone the repository (or pull, if it already exists).
 3. Install **Homebrew (Linuxbrew)** if it is missing, then install any missing
-   `fish` / `mise` / `opencode` formulas. `mise` is deliberately no longer
-   bootstrapped with `curl https://mise.run | sh` — that dropped a second `mise`
-   into `~/.local/bin` that could shadow or be shadowed by brew's copy depending on
-   PATH order, and `uninstall.sh` then had to delete it by hand. One `mise`, owned
-   by brew. `opencode` is a formula rather than a `mise` tool so it tracks upstream
-   instead of sitting on a pinned old release; if `mise` still tracks it from an
-   older install, `install.sh` unregisters it so it cannot silently shadow brew
-   later.
+   `fish` / `mise` / `opencode` / `vite-plus` formulas. `mise` is deliberately no
+   longer bootstrapped with `curl https://mise.run | sh` — that dropped a second
+   `mise` into `~/.local/bin` that could shadow or be shadowed by brew's copy
+   depending on PATH order, and `uninstall.sh` then had to delete it by hand. One
+   `mise`, owned by brew. `opencode` is a formula rather than a `mise` tool so it
+   tracks upstream instead of sitting on a pinned old release.
 4. Install every tool the [mise config](mise/.config/mise/config.toml) declares, with a
    bare `mise install`. The config is the **single source of truth** — there is no tool
    list in the scripts, because a hardcoded copy had already drifted from it
    (`llmfit` and `models` had been deleted from the script while the config still
    declared them, so a fresh machine would have installed a config promising tools the
    installer never fetched).
+5. Hand Node.js and the package managers to vite+: `vp env setup --refresh` creates the
+   `node`/`npm`/`pnpm`/`yarn`/`bun` shims, and `vp env on` records managed mode. Both
+   are required — without the first there is no `node` or `pnpm` at all now that mise
+   no longer supplies them, and vite+ only records managed mode once it is asked.
 
 **Deleting a line from the config does not uninstall anything.** `mise install` only
 adds, and the old shim keeps working — after removing the `fzf` entry, `fzf --version`
