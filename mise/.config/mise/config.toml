@@ -1,6 +1,5 @@
 [tools]
 "aqua:cli/cli" = "latest"
-"aqua:neovim/neovim" = "latest"
 atuin = "latest"
 bat = "latest"
 btop = "latest"
