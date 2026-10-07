@@ -389,13 +389,49 @@ if command -q rg
     alias grep='rg --color=auto'
 end
 
-# ----- pnpm-first (npm->pnpm, npx->pnpm dlx) -----
+# ----- vp-first: npm/npx mapped onto vite+ -----
+# vite+ owns node and the package managers, so the wrappers dispatch to `vp`
+# rather than shelling out to pnpm. The mapping is not a rename -- vp splits what
+# npm treats as one command with an argument:
+#   npm install          -> vp install
+#   npm install <pkg>    -> vp add <pkg>      (vp install <pkg> also works)
+#   npm uninstall <pkg>  -> vp remove <pkg>
+#   npm update           -> vp update
+#   npm run <script>     -> vp run <script>   (also `vpr`)
+#   npx <pkg>            -> vpx <pkg>
 # Escape hatches: npm-real / npx-real call the real binaries.
-if command -q pnpm
-    function npm --description 'pnpm passthrough' --wraps pnpm
-        pnpm $argv
+if command -q vp
+    function npm --description 'npm mapped to vp: install/add/remove/update/run'
+        set -l cmd $argv[1]
+        switch $cmd
+            case install i
+                # `npm install` alone is argv[1] only, count 1. With packages the
+                # first one is argv[2] -- testing `-le 2` here silently routed
+                # `npm install left-pad` to the no-packages branch.
+                if test (count $argv) -le 1
+                    vp install
+                else
+                    vp add $argv[2..-1]
+                end
+            case uninstall un rm remove
+                vp remove $argv[2..-1]
+            case update up
+                vp update $argv[2..-1]
+            case run
+                vp run $argv[2..-1]
+            case exec
+                vpx $argv[2..-1]
+            case '*'
+                # Guessing here would be worse than failing: a silent passthrough
+                # would run `vp <npm-subcommand>`, which is not the same thing.
+                echo "npm: '$cmd' has no vp mapping." >&2
+                echo "  install|i -> vp install|vp add | remove -> vp remove | update -> vp update" >&2
+                echo "  run -> vp run | exec -> vpx        (real npm: npm-real $cmd)" >&2
+                return 1
+        end
     end
-    function npx --description 'pnpm dlx passthrough; `npx skills` uses the skills defaults' --wraps pnpm
+
+    function npx --description 'npx mapped to vpx; `npx skills` uses the skills defaults' --wraps vpx
         # Route `npx skills ...` (incl. `npx -y skills`, `skills@latest`) to
         # the skills wrapper below so it picks up the -g/--agent/--yes
         # defaults. Only the first matching token is treated as the package.
@@ -413,36 +449,39 @@ if command -q pnpm
                     return
             end
         end
-        pnpm dlx $argv
+        vpx $argv
     end
-    function npm-real --description 'real npm escape hatch' --wraps npm
+
+    function npm-real --description 'real npm escape hatch'
         command npm $argv
     end
+
     function npx-real --description 'real npx escape hatch'
         command npx $argv
     end
 end
 
-# ----- pnpm project scaffolding -----
-# Replaces the old `vp create` shortcut. pnpm comes from vite+ now.
-if command -q pnpm
-    function pncr --description 'pnpm create --editor zed --package-manager pnpm' --wraps pnpm
-        pnpm create --editor zed --package-manager pnpm $argv
+# ----- project scaffolding -----
+# vp create is vite+'s own scaffolder; it takes the same --editor and
+# --package-manager flags pnpm create did.
+if command -q vp
+    function pncr --description 'vp create --editor zed --package-manager pnpm' --wraps vp
+        vp create --editor zed --package-manager pnpm $argv
     end
 end
 
-# ----- skills (pnpm dlx; global by default) -----
+# ----- skills (vpx; global by default) -----
 # `skills` reads no config file or env vars for agent selection, so the defaults
 # are injected here. Two things matter and both were wrong before:
 #
-# 1. Invocation goes through `pnpm dlx`, not `command npx`. `command npx`
-#    deliberately bypasses fish functions, so it reached the real npx shim and
-#    skipped these defaults entirely.
+# 1. Invocation goes through `vpx`, not `command npx`. `command npx` deliberately
+#    bypasses fish functions, so it reached the real npx shim and skipped these
+#    defaults entirely.
 # 2. Scope flags go AFTER the source. skills 1.7.0's `-a/--agent` is variadic
 #    and swallows the source if it comes first, and a leading `-g` is silently
 #    ignored, which installed into ~/.agents/skills (project scope) instead of
 #    the agent dir. Flags after the source are parsed correctly.
-function skills --description 'skills (pnpm dlx; defaults to -g --agent pi claude-code --yes)'
+function skills --description 'skills (vpx; defaults to -g --agent pi claude-code --yes)'
     switch $argv[1]
         case add a
             set -l src $argv[2]
@@ -475,9 +514,9 @@ function skills --description 'skills (pnpm dlx; defaults to -g --agent pi claud
                 set yes --yes
             end
 
-            pnpm dlx skills@latest add $src $scope $agent $yes $rest
+            vpx skills@latest add $src $scope $agent $yes $rest
         case '*'
-            pnpm dlx skills@latest $argv
+            vpx skills@latest $argv
     end
 end
 

@@ -1,4 +1,8 @@
 {
+  "defaultPackageManagerVersions": {
+    "pnpm": "latest"
+  },
+  "nodeShimMode": "managed",
   "packageManagerShimModes": {
     "bun": "managed",
     "npm": "managed",
