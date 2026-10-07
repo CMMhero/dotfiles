@@ -105,6 +105,7 @@ if command -q zoxide
     zoxide init --cmd cd fish | source
     # zoxide --cmd cd already provides `cdi` (interactive); keep explicit
     # alias as well for muscle memory in case init ever changes:
+    alias cdi='cd -i'
 end
 
 # ---------- fzf keybindings (Ctrl-T / Ctrl-R / Alt-C feel) ----------
