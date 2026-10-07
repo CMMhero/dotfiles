@@ -206,7 +206,21 @@ if [ ! -d "$SCRIPT_DIR/.git" ] || [ "$SCRIPT_DIR" != "$DOTFILES_DIR" ]; then
     git clone "$DOTFILES_REPO" "$DOTFILES_DIR"
   else
     log_info "Dotfiles already cloned, pulling latest..."
-    git -C "$DOTFILES_DIR" pull --ff-only
+    # --rebase --autostash, not --ff-only. Two independent reasons, and this
+    # line used to get both wrong:
+    #
+    #   1. The stowed .gitconfig sets [pull] rebase = true, so --ff-only is a
+    #      contradiction and git refuses outright (exit 128).
+    #   2. Every config is a stow symlink, so editing one in a live session
+    #      writes straight into this repo and the tree is routinely dirty.
+    #      Measured with the repo's own gitconfig: --ff-only exits 128 with
+    #      "cannot pull with rebase: You have unstaged changes", and under
+    #      `set -euo pipefail` that aborts the whole install here -- before a
+    #      single config is deployed.
+    #
+    # --autostash is what lets the pull proceed anyway, and matches what `upd
+    # dotfiles` already does.
+    git -C "$DOTFILES_DIR" pull --rebase --autostash
   fi
   # --apt-done: the base packages are already installed above, so the
   # re-exec must not run apt a second time.
@@ -544,41 +558,54 @@ log_ok "mise ready at $(command -v mise) ($(mise --version 2>/dev/null | head -1
 # the config, removes a line, and assumes the binary went away.
 MISE_CONFIG_REL=".config/mise/config.toml"
 MISE_CONFIG_SRC="$DOTFILES_DIR/mise/$MISE_CONFIG_REL"
+# Both are read again by the completion summary, and `set -u` would turn an
+# unset one into a crash there -- after the install had otherwise succeeded.
+MISE_TOOL_COUNT=0
+MISE_CONFIG_OK=0
 
 if [ ! -f "$MISE_CONFIG_SRC" ]; then
-  log_err "Missing mise config in the repo: mise/$MISE_CONFIG_REL"
-  log_err "Cannot tell mise what to install. Restore the file and re-run."
-  exit 1
-fi
-
-# Count the entries for reporting. Matching `=` rather than tool names: a value
-# can legitimately contain one, and the count only has to be about right.
-MISE_TOOL_COUNT="$(grep -cE '^[^#[:space:]].*=' "$MISE_CONFIG_SRC" || true)"
-case "$MISE_TOOL_COUNT" in
-  ''|*[!0-9]*) MISE_TOOL_COUNT=0 ;;
-esac
-
-if [ "$MISE_TOOL_COUNT" -eq 0 ]; then
-  log_err "mise/$MISE_CONFIG_REL declares no tools."
-  log_err "Refusing to run: this would install nothing and report success."
-  exit 1
-fi
-
-log_step "Deploying mise config (~/$MISE_CONFIG_REL)"
-link_one_file mise "$MISE_CONFIG_REL"
-
-log_step "Installing $MISE_TOOL_COUNT tools declared in the mise config..."
-# MISE_YES=1 accepts mise's trust prompt for a config it has not seen before.
-# Under the documented entry point -- `curl ... | bash` -- there is no TTY, so
-# that prompt blocks on stdin with nobody to answer it and the installer hangs.
-# YES/ASSUME_YES is the same switch under other names; both spellings are set so
-# a version change cannot silently un-set it.
-if MISE_YES=1 YES=1 mise install; then
-  log_ok "mise installed the $MISE_TOOL_COUNT tools from its config."
+  # Not fatal. The usual cause is a checkout older than the mise package -- and
+  # `./install.sh` deliberately does not pull, so a stale tree hits this. Aborting
+  # here would throw away the whole run: every other config, the login shell, the
+  # fish handoff. Only the mise tools are lost, and they are one `mise install`
+  # away once the file exists.
+  log_warn "No mise config in the repo: mise/$MISE_CONFIG_REL"
+  log_warn "Skipping mise's tools. Everything else still gets set up."
+  log_info "Fix with:  git -C $DOTFILES_DIR pull"
 else
-  log_warn "mise reported failures; see above. Any tool without a version set"
-  log_warn "will error as 'No version is set for shim: <name>' until re-run."
-  log_info "Retry with: mise install   (reads the same config)"
+  # Count the entries for reporting. Matching `=` rather than tool names: a value
+  # can legitimately contain one, and the count only has to be about right.
+  MISE_TOOL_COUNT="$(grep -cE '^[^#[:space:]].*=' "$MISE_CONFIG_SRC" || true)"
+  case "$MISE_TOOL_COUNT" in
+    ''|*[!0-9]*) MISE_TOOL_COUNT=0 ;;
+  esac
+
+  if [ "$MISE_TOOL_COUNT" -eq 0 ]; then
+    # Present but empty is a different fault from absent: `mise install` would
+    # succeed having done nothing and the run would claim a complete machine.
+    log_warn "mise/$MISE_CONFIG_REL declares no tools."
+    log_warn "Skipping mise's tools rather than reporting a false success."
+  else
+    MISE_CONFIG_OK=1
+    log_step "Deploying mise config (~/$MISE_CONFIG_REL)"
+    link_one_file mise "$MISE_CONFIG_REL"
+  fi
+fi
+
+if [ "$MISE_CONFIG_OK" -eq 1 ]; then
+  log_step "Installing $MISE_TOOL_COUNT tools declared in the mise config..."
+  # MISE_YES=1 accepts mise's trust prompt for a config it has not seen before.
+  # Under the documented entry point -- `curl ... | bash` -- there is no TTY, so
+  # that prompt blocks on stdin with nobody to answer it and the installer hangs.
+  # YES/ASSUME_YES is the same switch under other names; both spellings are set so
+  # a version change cannot silently un-set it.
+  if MISE_YES=1 YES=1 mise install; then
+    log_ok "mise installed the $MISE_TOOL_COUNT tools from its config."
+  else
+    log_warn "mise reported failures; see above. Any tool without a version set"
+    log_warn "will error as 'No version is set for shim: <name>' until re-run."
+    log_info "Retry with: mise install   (reads the same config)"
+  fi
 fi
 
 
@@ -1057,6 +1084,7 @@ echo "Active environment features:"
 echo "  - Package sources: apt (base system) + Homebrew (fish, mise, opencode, vite-plus);"
 echo "      mise for the rest; vite+ owns node and the package managers"
 echo "  - mise prefix: ${MISE_SHIMS:-$HOME/.local/share/mise/shims}"
+if [ "$MISE_CONFIG_OK" -eq 1 ]; then
 echo "  - Tools via mise ($MISE_TOOL_COUNT, from mise/config.toml):"
 # Read the names back out of the config rather than repeating them here. A third
 # hardcoded copy of the tool list is exactly the drift this section exists to
@@ -1073,6 +1101,9 @@ MISE_TOOL_NAMES="$(sed -n 's/^[[:space:]]*"\?\([^"=]*\)"\?[[:space:]]*=.*$/\1/p'
   | paste -sd, -)"
 # `fold -s` keeps it inside the ~78 column block the rest of this summary uses.
 printf '%s\n' "$MISE_TOOL_NAMES" | fold -s -w 76 | sed 's/^/      /'
+else
+echo "  - Tools via mise: NONE -- mise/config.toml is missing or empty (see above)"
+fi
 echo "  - Node.js + package managers: vite+ (managed) -- node $(node --version 2>/dev/null || echo '?'),"
 echo "      pnpm $(pnpm --version 2>/dev/null || echo '?'), bun/npm/yarn shims via $VP_BIN"
 echo "  - Python manager: uv (pip/venv/run/build)"

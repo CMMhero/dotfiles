@@ -79,6 +79,12 @@ still answered `0.74.4` while `mise which fzf` reported it inactive. The entry o
 stops the tool being tracked and updated; to actually drop it use `mise uninstall
 <tool>`, or `mise prune`.
 
+**If the config is missing, the install still completes.** The usual cause is a
+checkout older than the `mise` package, and `./install.sh` deliberately does not
+pull — so a stale tree is the expected way to hit it. In that case `install.sh`
+warns, points at `git -C ~/dotfiles pull`, and skips only mise's tools. Every other
+config, the login shell and the fish handoff still happen.
+
 Steps 3 and 4 run **non-interactive and auto-accepting** — brew with
 `NONINTERACTIVE=1` and `HOMEBREW_NO_AUTO_UPDATE=1`, mise with `MISE_YES=1`. Under
 `curl … | bash` there is no TTY, so a trust or licence prompt from either is a
