@@ -77,7 +77,7 @@ end
 
 # ---------- Zoxide (cd = __zoxide_z, cdi = __zoxide_zi) ----------
 if command -q zoxide
-    zoxide init --cmd z fish | source
+    zoxide init --cmd cd fish | source
     # zoxide --cmd cd already provides `cdi` (interactive); keep explicit
     # alias as well for muscle memory in case init ever changes:
 end
