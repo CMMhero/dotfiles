@@ -210,6 +210,31 @@ handoff_to_fish() {
   [ -x "$FISH_EXEC_BIN" ] || return $rc
   FISH_HANDED_OFF=1
   trap - EXIT
+
+  # Already running under fish: do NOT exec.
+  #
+  # `exec` here replaces THIS script's process, not the shell that launched it.
+  # The exec'd fish becomes a child of the caller's fish, so the user lands in a
+  # nested shell: `exit` drops them back to the old one, still on the stale
+  # config, which looks exactly like the install did nothing. A child process
+  # cannot take over its parent's process slot -- nothing can, short of the parent
+  # doing it itself.
+  #
+  # Verified by PID: invoked from a fish at 838084, this script runs at 838146
+  # and the exec'd fish inherits 838146, still parented to 838084.
+  #
+  # So the only correct move from in here is to tell the user to run `exec fish`
+  # themselves. That is the one command that can replace the current shell, and it
+  # has to be typed in that shell.
+  if [ "$(cat "/proc/$PPID/comm" 2>/dev/null || true)" = "fish" ]; then
+    echo ""
+    echo "Run this to pick up the new config:"
+    echo ""
+    echo "    exec fish"
+    echo ""
+    return $rc
+  fi
+
   echo ""
   echo "Reloading fish with the new config..."
   # Hand the new shell the terminal, not whatever this script was reading.

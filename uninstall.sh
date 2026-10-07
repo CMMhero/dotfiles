@@ -288,6 +288,12 @@ if [ "$PURGE" -eq 1 ]; then
   # runs. Removing it then would leave the account pointing at a path that no
   # longer exists -- the classic lockout. Decline and say how to do it properly
   # rather than breaking the account on the way out.
+  #
+  # Only genuinely going away is tracked here: NEEDS_NEW_SHELL is set when the
+  # formula this script is running under is about to be deleted, so the closing
+  # message can tell the user to exec out of a binary that no longer exists.
+  NEEDS_NEW_SHELL=0
+  CALLER_SHELL="$(cat "/proc/$PPID/comm" 2>/dev/null || true)"
   if command -v brew >/dev/null 2>&1; then
     if brew list --formula fish >/dev/null 2>&1; then
       CURRENT_LOGIN_SHELL="$(getent passwd "$USER" | cut -d: -f7)"
@@ -299,6 +305,11 @@ if [ "$PURGE" -eq 1 ]; then
           ;;
         *)
           log_info "Removing the fish formula via Homebrew..."
+          # If THIS script was started from that very fish, the binary about to be
+          # deleted is the one hosting the user's terminal. Flag it so the final
+          # message says to exec out rather than just "open a new terminal" -- a
+          # new terminal would not help, since the login shell is what to change.
+          [ "$CALLER_SHELL" = "fish" ] && NEEDS_NEW_SHELL=1
           NONINTERACTIVE=1 HOMEBREW_NO_AUTO_UPDATE=1 brew uninstall fish || \
             log_warn "brew uninstall fish failed; remove it with: brew uninstall fish"
           ;;
@@ -371,6 +382,27 @@ if [ "$CWD_INSIDE_REPO" -eq 1 ]; then
   echo ""
   echo "      cd ~"
   echo ""
+else
+  # `cd` is a shell builtin, so the one call that can move the caller's cwd has
+  # to be typed in the user's shell; a script cannot do it for them. Printing it
+  # unconditionally is cheap and always correct. This is the only branch that
+  # skips it, because the warning above already says the same thing in more
+  # detail, and saying it twice reads as noise.
+  echo "In your terminal, run:"
+  echo ""
+  echo "    cd ~"
+  echo ""
 fi
-echo "Open a new terminal (or run 'exec \$SHELL') to pick up the default shell."
+
+if [ "${NEEDS_NEW_SHELL:-0}" -eq 1 ]; then
+  # The fish binary hosting this terminal is gone. `exec` is the only thing that
+  # replaces the current shell rather than nesting another inside it, so this has
+  # to be typed here too -- a script cannot do it on the user's behalf.
+  echo "The fish binary you are running was just removed, so exec out of it:"
+  echo ""
+  echo "    exec bash"
+  echo ""
+else
+  echo "Open a new terminal (or run 'exec \$SHELL') to pick up the default shell."
+fi
 echo ""

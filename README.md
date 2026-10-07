@@ -166,6 +166,23 @@ behind every other brew command; `upd brew` does it explicitly instead.
 the apt base set (`ca-certificates`, `curl`, `git`, `stow`) and global pnpm
 packages.
 
+### The two commands it asks you to run
+
+At the end, `uninstall.sh` prints `cd ~` and — if it just removed the `fish`
+binary you were running from — `exec bash`. Both are things **you** must type in
+your terminal. A script cannot do either one:
+
+- `cd` is a shell builtin, so a child process has no way to move its parent's
+  working directory.
+- `exec` replaces the *calling* process. A script's `exec` would replace the
+  script, leaving you in a nested shell — `exit` would drop you back to the old
+  one. Only `exec` typed in your own shell replaces it for real.
+
+`install.sh` has the same constraint, and for the same reason: if it is run from
+inside fish, it prints `Run this to pick up the new config: exec fish` instead of
+exec'ing on your behalf. Run it from another shell and it will exec into fish for
+you, since there is no fish to nest inside.
+
 **fish is refused, on purpose.** The shell-restore step reads the *current* shell
 out of `getent passwd`, so when that is fish the comparison matches and it
 changes nothing — `install.sh` ran `chsh` without recording the previous value.
