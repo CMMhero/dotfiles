@@ -71,8 +71,8 @@ is what `upd dotfiles` uses so it does not repeat the package work.
 From within `~/dotfiles`:
 
 ```bash
-# Stow all managed packages to $HOME (bash/pi/opencode/wezterm excluded — not managed)
-stow -v -R -t ~ fish git starship atuin bat btop fastfetch herdr hunk lazygit superfile
+# Stow all managed packages to $HOME (wezterm / omp excluded — never stowed)
+stow -v -R -t ~ fish git starship atuin bat btop fastfetch fresh herdr hunk lazygit superfile vite-plus
 
 # Stow a specific package (e.g., herdr)
 stow -v -R -t ~ herdr
