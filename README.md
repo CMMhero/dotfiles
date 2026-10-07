@@ -14,6 +14,7 @@ Modular dotfiles managed with **GNU Stow**, with `install.sh` / `uninstall.sh` f
   - `herdr` (`~/.config/herdr/config.toml`) with custom keybindings, tabs, and Catppuccin theme
   - `wezterm` — **Windows-only**. `wezterm/.wezterm.lua` is kept in the repo for reference (WSL domain, pwsh `default_prog`, Acrylic backdrop) but is **not stowed** and wezterm is **not installed** on Linux.
 - **Editor**: `fresh-editor` (`~/.config/fresh`) with the Catppuccin theme package, the `color-highlighter` plugin, a `dotfiles-fresh-language` grammar, vi mode enabled at startup, and a **"Toggle vi mode"** command in the palette (Ctrl+P)
+- **mise config (managed)**: [`mise/.config/mise/config.toml`](mise/.config/mise/config.toml) is stowed to `~/.config/mise/config.toml` and is the single source of truth for what gets installed — `install.sh` runs a bare `mise install` and declares no tool list of its own. Everything is pinned to `latest`. Add a tool by adding a line here and re-running; note that removing a line does **not** uninstall the tool (see below)
 - **Runtimes & Package Managers**: node and pnpm via `mise` (`core:node`, `core:pnpm`). `vite+` is installed as a tool too, but its config sets every runtime and package-manager mode to `system_first`, so it defers to mise instead of managing its own copies.
 - **Theme**: Catppuccin Macchiato is the source of truth (defined once in `wezterm/.wezterm.lua`). `bat` uses it directly (`bat/.config/bat/config`), `fzf` gets an equivalent palette via `fish/.config/fish/conf.d/catppuccin.fish`, and `omp` uses its built-in `dark-catppuccin` — that one is **Mocha**-flavoured, since omp ships no Macchiato and `grep -c macchiato` over its dist returns 0.
 - **AI Coding Agents**:
@@ -60,16 +61,23 @@ The script will, in order:
    instead of sitting on a pinned old release; if `mise` still tracks it from an
    older install, `install.sh` unregisters it so it cannot silently shadow brew
    later.
-4. Install the missing tools with `mise use -g`: the CLI tools plus `go`, `rust`,
-   `node`, `pnpm`, `vite+` and oh-my-pi (`github:can1357/oh-my-pi`), 29 in total.
+4. Install every tool the [mise config](mise/.config/mise/config.toml) declares, with a
+   bare `mise install`. The config is the **single source of truth** — there is no tool
+   list in the scripts, because a hardcoded copy had already drifted from it
+   (`llmfit` and `models` had been deleted from the script while the config still
+   declared them, so a fresh machine would have installed a config promising tools the
+   installer never fetched).
 
-**Every step installs only what is missing**, and reports what it skipped. apt, brew
-and mise all treat a re-install of something present as a no-op, but the resolution
-and network round trips behind it are not free — so an already-provisioned machine
-skips all three outright. A mise tool counts as present only when it is both
-*installed and registered in a config file*: installed-but-unregistered is the state
-that makes every shim error with `No version is set for shim`, so those still go
-through `mise use -g`.
+**Deleting a line from the config does not uninstall anything.** `mise install` only
+adds, and the old shim keeps working — after removing the `fzf` entry, `fzf --version`
+still answered `0.74.4` while `mise which fzf` reported it inactive. The entry only
+stops the tool being tracked and updated; to actually drop it use `mise uninstall
+<tool>`, or `mise prune`.
+
+Steps 3 and 4 run **non-interactive and auto-accepting** — brew with
+`NONINTERACTIVE=1` and `HOMEBREW_NO_AUTO_UPDATE=1`, mise with `MISE_YES=1`. Under
+`curl … | bash` there is no TTY, so a trust or licence prompt from either is a
+hang with nobody to answer it. A `sudo` password prompt is left intact on purpose.
 
 Steps 3 and 4 run **non-interactive and auto-accepting** — brew with
 `NONINTERACTIVE=1` and `HOMEBREW_NO_AUTO_UPDATE=1`, mise with `MISE_YES=1`. Under
@@ -98,7 +106,7 @@ From within `~/dotfiles`:
 
 ```bash
 # Stow all managed packages to $HOME (fresh / superfile / omp / wezterm excluded)
-stow -v -R -t ~ fish git starship atuin bat btop fastfetch herdr hunk lazygit vite-plus
+stow -v -R -t ~ fish git mise starship atuin bat btop fastfetch herdr hunk lazygit vite-plus
 
 # Stow a specific package (e.g., herdr)
 stow -v -R -t ~ herdr

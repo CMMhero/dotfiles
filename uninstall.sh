@@ -80,6 +80,7 @@ DOTFILES_DIR="$SCRIPT_DIR"
 STOW_PACKAGES=(
   fish
   git
+  mise
   starship
   atuin
   bat
@@ -91,41 +92,11 @@ STOW_PACKAGES=(
   vite-plus
 )
 
-MISE_TOOLS=(
-  # aqua backend
-  "aqua:atuinsh/atuin"           # shell history
-  "aqua:sharkdp/bat"             # cat replacement
-  "aqua:aristocratos/btop"       # process viewer
-  "aqua:eza-community/eza"       # ls replacement
-  "aqua:fastfetch-cli/fastfetch" # system info
-  "aqua:sharkdp/fd"              # find replacement
-  "aqua:junegunn/fzf"            # fuzzy finder
-  "aqua:cli/cli"                 # GitHub CLI
-  "aqua:herdrdev/herdr"          # terminal multiplexer
-  "aqua:modem-dev/hunk"          # diff viewer / git difftool
-  "aqua:jqlang/jq"               # json processor
-  "aqua:jesseduffield/lazygit"   # git TUI
-  "aqua:neovim/neovim"           # editor
-  "aqua:earendil-works/pi"       # AI coding agent
-  "aqua:BurntSushi/ripgrep"      # grep replacement
-  "aqua:dandavison/delta"        # git-delta
-  "aqua:starship/starship"       # prompt
-  "aqua:yorukot/superfile"       # file manager
-  "aqua:tealdeer-rs/tealdeer"    # tldr pages
-  "aqua:astral-sh/uv"            # python tooling
-  "aqua:ajeetdsouza/zoxide"      # cd jumper
-  # github backend
-  "github:hpjansson/chafa"       # image renderer
-  "github:sinelaw/fresh"         # fresh editor
-  "github:can1357/oh-my-pi"      # oh-my-pi (omp)
-  # npm backend
-  "npm:vite-plus"                # vite+ tool; its runtime/PM modes stay system_first
-  # core backend
-  "core:go"                      # go toolchain
-  "core:rust"                    # rust toolchain
-  "core:node"                    # node
-  "core:pnpm"                    # pnpm
-)
+# There is deliberately no tool list here. install.sh gets its tool list from
+# the stowed mise config, and `mise uninstall --all` removes every installed
+# version -- so this script never has to know what mise was asked to install.
+# A hardcoded copy could only ever drift from that config, and did once.
+
 
 # Mirrors the apt set install.sh actually installs. fish is NOT here: it comes
 # from Homebrew and is removed as a formula below. Listing it would only produce
@@ -260,10 +231,19 @@ if [ "$PURGE" -eq 1 ]; then
   # ---- mise tools ----
   if command -v mise >/dev/null 2>&1; then
     log_info "Removing mise-managed tools..."
-    for tool in "${MISE_TOOLS[@]}"; do
-      mise uninstall "$tool" >/dev/null 2>&1 || true
-    done
-    log_ok "mise tools removed."
+    # --all, and no per-tool loop. A purge wants every installed version gone,
+    # which is exactly what mise uninstall --all does, so there is nothing to
+    # enumerate and no list here that could fall behind the stowed config.
+    #
+    # -y is required, not politeness: --all asks for confirmation, and this runs
+    # inside a purge that has already been confirmed once at the top. Left to
+    # ask, it would sit at a prompt the rest of the script never returns from.
+    if mise uninstall --all -y >/dev/null 2>&1; then
+      log_ok "mise tools removed."
+    else
+      log_warn "mise uninstall --all reported an error; the data directories"
+      log_warn "below are removed regardless, so nothing is left behind."
+    fi
   else
     log_warn "mise not found; skipping tool purge."
   fi
@@ -275,8 +255,8 @@ if [ "$PURGE" -eq 1 ]; then
   fi
 
   # ---- herdr ----
-  # Now a mise tool (handled by the MISE_TOOLS loop above). Remove a leftover
-  # copy from the old https://herdr.dev/install.sh, which installed to
+  # Now a mise tool (handled by the mise uninstall --all above). Remove a
+  # leftover copy from the old https://herdr.dev/install.sh, which installed to
   # ~/.local/bin and can shadow the mise one depending on PATH order.
   if [ -x "$HOME/.local/bin/herdr" ]; then
     log_info "Removing legacy ~/.local/bin/herdr (installed by the old herdr installer)..."

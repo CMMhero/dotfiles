@@ -294,6 +294,76 @@ for fish_candidate in /home/linuxbrew/.linuxbrew/bin/fish "$HOME/.linuxbrew/bin/
 done
 FISH_EXEC_BIN="${FISH_EXEC_BIN:-/usr/bin/fish}"
 trap handoff_to_fish EXIT
+# Link one repo file to $HOME, replacing whatever is there (backing up anything
+# that is not already a link into this repo).
+#
+# Defined up here, not beside the stow step: section 4 links the mise config
+# through the same helper, so it has to exist before that runs.
+link_one_file() {
+  local pkg="$1" rel="$2"
+  local src="$DOTFILES_DIR/$pkg/$rel" target="$HOME/$rel"
+  local target_real src_real
+
+  [ -f "$src" ] || { log_warn "$pkg: missing in repo, skipped: $rel"; return 0; }
+
+  # Real parent directories, never links.
+  mkdir -p "$(dirname "$target")"
+
+  # Resolve first. Comparing resolved paths is what distinguishes "our file
+  # reached through a symlinked parent" (leave alone) from a genuine pre-existing
+  # file (back up). A test -L cannot: it is false for the first case.
+  target_real="$(readlink -f "$target" 2>/dev/null || true)"
+  src_real="$(readlink -f "$src" 2>/dev/null || true)"
+
+  if [ -n "$target_real" ] && [ "$target_real" = "$src_real" ]; then
+    # Already correctly linked.
+    log_info "$pkg: ~/$rel"
+    return 0
+  fi
+
+  if [ -L "$target" ]; then
+    rm -f "$target"          # stale link, possibly pointing at a moved repo file
+  elif [ -e "$target" ]; then
+    mkdir -p "$BACKUP_DIR/$(dirname "$rel")"
+    log_warn "Backing up existing $pkg file: ~/$rel"
+    mv "$target" "$BACKUP_DIR/$rel"
+  fi
+
+  # Link RELATIVE to the target's directory, matching what stow itself would
+  # create. An absolute link breaks two things:
+  #   - the link dies if the repo is ever moved or the tree checked out elsewhere
+  #   - stow refuses to adopt it. Given an absolute symlink where it expects to
+  #     own a link, it prints "Ignoring an absolute symlink" then "existing
+  #     target is not owned by stow", aborts every operation, and exits 1 --
+  #     even though the link points at exactly the right file. That is what made
+  #     'stow failed for package: fresh' appear on every run.
+  #
+  # realpath --relative-to is coreutils 8.16+ (2012). The absolute fallback is
+  # only for a box that somehow lacks it.
+  local relpath_target
+  if relpath_target="$(realpath --relative-to="$(dirname "$target")" "$src" 2>/dev/null)" \
+     && [ -n "$relpath_target" ]; then
+    ln -s "$relpath_target" "$target"
+  else
+    ln -s "$src" "$target"
+  fi
+  log_info "$pkg: linked ~/$rel"
+}
+
+# Walk a whole package and link each file individually.
+link_package_tree() {
+  local pkg="$1" rel
+  while IFS= read -r rel; do
+    link_one_file "$pkg" "${rel#./}"
+  done < <(cd "$DOTFILES_DIR/$pkg" 2>/dev/null && find . -type f)
+}
+
+link_omp_files() {
+  local rel
+  for rel in "${OMP_MANAGED_FILES[@]}"; do
+    link_one_file omp "$rel"
+  done
+}
 
 log_info "Dotfiles directory: $DOTFILES_DIR"
 log_step "Starting system setup..."
@@ -436,121 +506,73 @@ command -v mise >/dev/null 2>&1 || {
 log_ok "mise ready at $(command -v mise) ($(mise --version 2>/dev/null | head -1))"
 
 # ------------------------------------------------------------------------------
-# 4. Tools via mise
+# 4. Tools via mise -- driven entirely by the stowed config
 # ------------------------------------------------------------------------------
-# Backends: aqua (most CLI tools), github (repos without an aqua entry), core
-# (go, rust, node, pnpm - the built-in registry).
+# config.toml is the single source of truth for what is installed. There is no
+# tool list in this script, and that is the point: a hardcoded array here had
+# already drifted from the config (llmfit and models were deleted from the array
+# while the config still declared them, so a fresh machine would have installed
+# a config promising tools the installer never fetched).
 #
-# (pnpm comes from vite+ now; mise does not manage node/pnpm.)
-MISE_TOOLS=(
-  # aqua backend
-  "aqua:atuinsh/atuin"           # shell history
-  "aqua:sharkdp/bat"             # cat replacement
-  "aqua:aristocratos/btop"       # process viewer
-  "aqua:eza-community/eza"       # ls replacement
-  "aqua:fastfetch-cli/fastfetch" # system info
-  "aqua:sharkdp/fd"              # find replacement
-  "aqua:junegunn/fzf"            # fuzzy finder
-  "aqua:cli/cli"                 # GitHub CLI
-  "aqua:herdrdev/herdr"          # terminal multiplexer
-  "aqua:modem-dev/hunk"          # diff viewer / git difftool
-  "aqua:jqlang/jq"               # json processor
-  "aqua:jesseduffield/lazygit"   # git TUI
-  "aqua:neovim/neovim"           # editor
-  "aqua:earendil-works/pi"       # AI coding agent
-  "aqua:BurntSushi/ripgrep"      # grep replacement
-  "aqua:dandavison/delta"        # git-delta
-  "aqua:starship/starship"       # prompt
-  "aqua:yorukot/superfile"       # file manager
-  "aqua:tealdeer-rs/tealdeer"    # tldr pages
-  "aqua:astral-sh/uv"            # python tooling
-  "aqua:ajeetdsouza/zoxide"      # cd jumper
-  # github backend
-  "github:hpjansson/chafa"       # image renderer
-  "github:sinelaw/fresh"         # fresh editor
-  "github:can1357/oh-my-pi"      # oh-my-pi (omp)
-  # npm backend
-  "npm:vite-plus"                # vite+ tool; its runtime/PM modes stay system_first
-  # core backend
-  "core:go"                      # go toolchain
-  "core:rust"                    # rust toolchain
-  "core:node"                    # node
-  "core:pnpm"                    # pnpm
-)
+# `mise install` with no arguments installs everything the config asks for.
+# mise's own help is explicit that "installing alone does not add the tool to
+# your config, so a tool that is not already configured will not be on PATH" --
+# and that caveat concerns tools *missing* from the config. Every tool here IS
+# declared, so each ends up installed and registered, which is what makes the
+# shims resolve. Backends are whatever the config says: aqua for most tools,
+# github for repos with no aqua entry, npm for vite+, and the built-in registry
+# for go/node/pnpm/rust.
+#
+# The config is deployed FIRST, before mise runs. That ordering is load-bearing:
+# bare `mise install` reads ~/.config/mise/config.toml, and on a first install
+# the stow step has not run yet, so without this link mise would find no config
+# and install nothing -- silently succeeding while provisioning an empty box.
+#
+# Removing a tool from the config does NOT uninstall it. `mise install` only ever
+# adds, and the old shim keeps working: measured here, deleting the fzf entry left
+# `fzf --version` answering 0.74.4 while `mise which fzf` reported it inactive.
+# The entry stops it being tracked and updated; to actually drop it you need
+# `mise uninstall <tool>` (or `mise prune`). Worth knowing before someone edits
+# the config, removes a line, and assumes the binary went away.
+MISE_CONFIG_REL=".config/mise/config.toml"
+MISE_CONFIG_SRC="$DOTFILES_DIR/mise/$MISE_CONFIG_REL"
 
-# `mise use -g` both installs and registers the version globally, which is what
-# makes the shim work. Doing it in two steps was wrong twice over:
-#   - `mise install` alone leaves tools uninstalled-from-config, so every shim
-#     errors with "No version is set for shim: <tool>"
-#   - `mise use --global --skip-install` is not a valid flag in mise 2026.10 and
-#     exits non-zero; a trailing `|| true` hid that, so nothing was registered
-#     and the failure only surfaced later as missing commands.
-# Output is left visible so mise's progress bar is not swallowed.
-#
-# Only the tools that are missing get passed to mise. Passing all 30 every run
-# works but re-resolves each one against its backend, which is the slow part of
-# a re-run; skipping them turns a provisioned machine's tool step into a single
-# local `mise ls --installed` read.
-#
-# A tool counts as present only if it is BOTH installed AND registered in a
-# config file. Installed-but-unregistered is the broken state that makes every
-# shim error with "No version is set for shim", so that case must still go
-# through `mise use -g` to be registered -- it is exactly why the original
-# two-step attempt failed.
-#
-# `mise ls --installed` prints the full backend:owner/name, except for core
-# tools, which it prints with no prefix at all -- `core:go` comes back as `go`.
-# Matching only the exact spec therefore never matched the four runtimes, and
-# they were re-resolved on every run. Both spellings are tried.
-#
-# Matching on the full string, not a substring: `aqua:cli/cli` installs a binary
-# named `gh`, and `cli` also shows up in the output of unrelated tools, so a
-# looser test would call a missing tool present.
-MISE_INSTALLED=""
-if MISE_INSTALLED="$(mise ls --installed 2>/dev/null)"; then
-  :
-else
-  MISE_INSTALLED=""
+if [ ! -f "$MISE_CONFIG_SRC" ]; then
+  log_err "Missing mise config in the repo: mise/$MISE_CONFIG_REL"
+  log_err "Cannot tell mise what to install. Restore the file and re-run."
+  exit 1
 fi
 
-mise_is_present() {
-  local tool="$1" full bare
-  bare="${tool#core:}"
-  full="$(printf '%s\n' "$MISE_INSTALLED" | awk -v a="$tool" -v b="$bare" '$1 == a || $1 == b {print; exit}')"
-  [ -n "$full" ] || return 1
-  # Column 3 is the config file a tool is registered in. Empty means installed
-  # but not registered anywhere -- the state that needs `mise use -g` again.
-  [ -n "$(printf '%s\n' "$full" | awk '{print $3}')" ]
-}
+# Count the entries for reporting. Matching `=` rather than tool names: a value
+# can legitimately contain one, and the count only has to be about right.
+MISE_TOOL_COUNT="$(grep -cE '^[^#[:space:]].*=' "$MISE_CONFIG_SRC" || true)"
+case "$MISE_TOOL_COUNT" in
+  ''|*[!0-9]*) MISE_TOOL_COUNT=0 ;;
+esac
 
-MISE_MISSING=()
-for tool in "${MISE_TOOLS[@]}"; do
-  if mise_is_present "$tool"; then
-    log_info "already installed: ${tool##*/}"
-  else
-    MISE_MISSING+=("$tool")
-  fi
-done
-
-if [ "${#MISE_MISSING[@]}" -eq 0 ]; then
-  log_step "All ${#MISE_TOOLS[@]} mise tools already installed and registered."
-  log_ok "Nothing to do via mise."
-else
-  log_step "Installing ${#MISE_MISSING[@]} of ${#MISE_TOOLS[@]} tools via mise..."
-  # MISE_YES=1 accepts every prompt mise can raise -- chiefly the trust prompt
-  # for a newly seen aqua/github backend. Without it `mise use -g` blocks on
-  # stdin with no TTY of its own under `curl ... | bash`, and the whole installer
-  # hangs on a question nobody can see. YES/ASSUME_YES are the same switch under
-  # other names; both spellings are set so a version change cannot silently
-  # un-set it.
-  if MISE_YES=1 YES=1 mise use -g "${MISE_MISSING[@]}"; then
-    log_ok "mise registered ${#MISE_MISSING[@]} tools globally."
-  else
-    log_warn "mise reported failures; see above. Any tool without a version set"
-    log_warn "will error as 'No version is set for shim: <name>' until re-run."
-    log_info "Retry individually with: mise use -g <tool>@<version>"
-  fi
+if [ "$MISE_TOOL_COUNT" -eq 0 ]; then
+  log_err "mise/$MISE_CONFIG_REL declares no tools."
+  log_err "Refusing to run: this would install nothing and report success."
+  exit 1
 fi
+
+log_step "Deploying mise config (~/$MISE_CONFIG_REL)"
+link_one_file mise "$MISE_CONFIG_REL"
+
+log_step "Installing $MISE_TOOL_COUNT tools declared in the mise config..."
+# MISE_YES=1 accepts mise's trust prompt for a config it has not seen before.
+# Under the documented entry point -- `curl ... | bash` -- there is no TTY, so
+# that prompt blocks on stdin with nobody to answer it and the installer hangs.
+# YES/ASSUME_YES is the same switch under other names; both spellings are set so
+# a version change cannot silently un-set it.
+if MISE_YES=1 YES=1 mise install; then
+  log_ok "mise installed the $MISE_TOOL_COUNT tools from its config."
+else
+  log_warn "mise reported failures; see above. Any tool without a version set"
+  log_warn "will error as 'No version is set for shim: <name>' until re-run."
+  log_info "Retry with: mise install   (reads the same config)"
+fi
+
 
 # Put mise's shims on PATH for this script's remaining steps.
 # Do NOT use `mise where` here: with no argument it prints usage and exits
@@ -621,6 +643,7 @@ fi  # end package installation
 STOW_PACKAGES=(
   fish
   git
+  mise
   starship
   atuin
   bat
@@ -663,73 +686,6 @@ OMP_MANAGED_FILES=(
   .omp/agent/extensions/opencode-zen-fix.ts
 )
 
-# Link one repo file to $HOME, replacing whatever is there (backing up anything
-# that is not already a link into this repo).
-link_one_file() {
-  local pkg="$1" rel="$2"
-  local src="$DOTFILES_DIR/$pkg/$rel" target="$HOME/$rel"
-  local target_real src_real
-
-  [ -f "$src" ] || { log_warn "$pkg: missing in repo, skipped: $rel"; return 0; }
-
-  # Real parent directories, never links.
-  mkdir -p "$(dirname "$target")"
-
-  # Resolve first. Comparing resolved paths is what distinguishes "our file
-  # reached through a symlinked parent" (leave alone) from a genuine pre-existing
-  # file (back up). A test -L cannot: it is false for the first case.
-  target_real="$(readlink -f "$target" 2>/dev/null || true)"
-  src_real="$(readlink -f "$src" 2>/dev/null || true)"
-
-  if [ -n "$target_real" ] && [ "$target_real" = "$src_real" ]; then
-    # Already correctly linked.
-    log_info "$pkg: ~/$rel"
-    return 0
-  fi
-
-  if [ -L "$target" ]; then
-    rm -f "$target"          # stale link, possibly pointing at a moved repo file
-  elif [ -e "$target" ]; then
-    mkdir -p "$BACKUP_DIR/$(dirname "$rel")"
-    log_warn "Backing up existing $pkg file: ~/$rel"
-    mv "$target" "$BACKUP_DIR/$rel"
-  fi
-
-  # Link RELATIVE to the target's directory, matching what stow itself would
-  # create. An absolute link breaks two things:
-  #   - the link dies if the repo is ever moved or the tree checked out elsewhere
-  #   - stow refuses to adopt it. Given an absolute symlink where it expects to
-  #     own a link, it prints "Ignoring an absolute symlink" then "existing
-  #     target is not owned by stow", aborts every operation, and exits 1 --
-  #     even though the link points at exactly the right file. That is what made
-  #     'stow failed for package: fresh' appear on every run.
-  #
-  # realpath --relative-to is coreutils 8.16+ (2012). The absolute fallback is
-  # only for a box that somehow lacks it.
-  local relpath_target
-  if relpath_target="$(realpath --relative-to="$(dirname "$target")" "$src" 2>/dev/null)" \
-     && [ -n "$relpath_target" ]; then
-    ln -s "$relpath_target" "$target"
-  else
-    ln -s "$src" "$target"
-  fi
-  log_info "$pkg: linked ~/$rel"
-}
-
-# Walk a whole package and link each file individually.
-link_package_tree() {
-  local pkg="$1" rel
-  while IFS= read -r rel; do
-    link_one_file "$pkg" "${rel#./}"
-  done < <(cd "$DOTFILES_DIR/$pkg" 2>/dev/null && find . -type f)
-}
-
-link_omp_files() {
-  local rel
-  for rel in "${OMP_MANAGED_FILES[@]}"; do
-    link_one_file omp "$rel"
-  done
-}
 
 log_step "Deploying configs with GNU Stow (${#STOW_PACKAGES[@]} packages)"
 
@@ -1023,11 +979,23 @@ echo ""
 echo "Active environment features:"
 echo "  - Package sources: apt (base system) + Homebrew (fish, mise, opencode); mise for the rest"
 echo "  - mise prefix: ${MISE_SHIMS:-$HOME/.local/share/mise/shims}"
-echo "  - Tools via mise (${#MISE_TOOLS[@]}): atuin, bat, btop, chafa, delta, eza, fastfetch,"
-echo "      fd, fzf, gh, herdr, hunk, jq, lazygit, neovim, ripgrep, starship, superfile,"
-echo "      tealdeer, uv, zoxide, fresh, vite+"
+echo "  - Tools via mise ($MISE_TOOL_COUNT, from mise/config.toml):"
+# Read the names back out of the config rather than repeating them here. A third
+# hardcoded copy of the tool list is exactly the drift this section exists to
+# remove: it was already wrong once, and nothing would have caught it.
+#
+# Cut the KEY, not the value: everything after the first `=` is the version, and
+# an earlier attempt printed "latest,latest,..." because it captured that side.
+# Keys are optionally quoted, and a bare key (`go = "latest"`) leaves a trailing
+# space in the capture, so trim it. `.*/ ` reduces `aqua:sharkdp/bat` to `bat`
+# and a leading backend prefix is dropped so `npm:vite-plus` reads `vite-plus` --
+# both are the names a user would actually type.
+MISE_TOOL_NAMES="$(sed -n 's/^[[:space:]]*"\?\([^"=]*\)"\?[[:space:]]*=.*$/\1/p' \
+  "$MISE_CONFIG_SRC" | sed 's|.*/||; s|^[a-z][a-z]*:||; s|[[:space:]]*$||' \
+  | paste -sd, -)"
+# `fold -s` keeps it inside the ~78 column block the rest of this summary uses.
+printf '%s\n' "$MISE_TOOL_NAMES" | fold -s -w 76 | sed 's/^/      /'
 echo "  - Python manager: uv (pip/venv/run/build)"
-echo "  - Runtimes via mise: go, rust, node, pnpm"
 echo "  - Terminal multiplexer: herdr (with custom keybinds & Catppuccin theme)"
 echo "  - Terminal emulator config: wezterm (.wezterm.lua, Windows-only; in repo, not stowed on Linux)"
 echo "  - Editor: fresh (fresh-editor) with catppuccin theme, color-highlighter plugin, vi-mode + toggle"
