@@ -45,21 +45,35 @@ cd "$HOME/dotfiles" || exit 1
 ```
 
 The script will, in order:
-1. Install the apt base essentials: `ca-certificates`, `curl`, `fish`, `git`, `stow`.
+1. Install the apt base essentials: `ca-certificates`, `curl`, `git`, `stow`.
    This runs **before** the clone, because the `curl | bash` entry point may run
    on a machine where nothing is installed yet -- which is why the clone cannot
    come first.
 2. Clone the repository (or pull, if it already exists).
-3. Install `mise` via `curl https://mise.run`.
-4. Install every other tool through mise: the CLI tools plus `go`, `rust`,
-   `node`, `pnpm`, `vite+` and oh-my-pi (`github:can1357/oh-my-pi`).
-5. Point pnpm's global bin dir at `~/.local/bin`.
-6. Back up conflicting files to `~/.dotfiles_backup/<timestamp>/`.
-7. Link the stow packages, and link `fresh` / `superfile` / `omp` file-by-file
-   (stow would link those app directories whole).
-8. Install omp's plugins with `pnpm`.
-9. Set fish as the default login shell.
-10. Hand off to a fresh fish so the new config is live.
+3. Install **Homebrew (Linuxbrew)** if it is missing, then install `fish` and
+   `mise` as formulas. `mise` is deliberately no longer bootstrapped with
+   `curl https://mise.run | sh` — that dropped a second `mise` into
+   `~/.local/bin` that could shadow or be shadowed by brew's copy depending on
+   PATH order, and `uninstall.sh` then had to delete it by hand. One `mise`, owned
+   by brew.
+4. Install all 30 tools in a single `mise use -g` call: the CLI tools plus `go`,
+   `rust`, `node`, `pnpm`, `vite+` and oh-my-pi (`github:can1357/oh-my-pi`).
+
+Steps 3 and 4 run **non-interactive and auto-accepting** — brew with
+`NONINTERACTIVE=1` and `HOMEBREW_NO_AUTO_UPDATE=1`, mise with `MISE_YES=1`. Under
+`curl … | bash` there is no TTY, so a trust or licence prompt from either is a
+hang with nobody to answer it. A `sudo` password prompt is left intact on purpose.
+6. Point pnpm's global bin dir at `~/.local/bin`.
+7. Back up conflicting files to `~/.dotfiles_backup/<timestamp>/`.
+8. Stow the 13 config packages, then link `fresh` / `superfile` by walking them
+   and `omp` from a fixed three-file list — stow would link those app
+   directories whole, and anything the tools write there would land in the repo.
+9. Install omp's plugins with `pnpm`, refresh fresh's package registry, and
+   regenerate its API types.
+10. Set fish as the default login shell.
+11. Syntax-check every deployed `*.fish` file, then hand off to a fresh fish so
+    the new config is live. The handoff is an EXIT trap, so it still runs if an
+    earlier step aborts under `set -e`.
 
 Re-running is safe. `./install.sh --config-only` deploys only the configs, which
 is what `upd dotfiles` uses so it does not repeat the package work.
