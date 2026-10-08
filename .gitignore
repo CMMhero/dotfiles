@@ -44,6 +44,12 @@ fresh/.config/fresh/types/
 fresh/.config/fresh/logs/
 fresh/.config/fresh/.staging/
 
+# Python bytecode. scripts/patch-tv-channels.py is run directly by install.sh
+# rather than imported, but a stray import from anywhere in the repo would
+# leave a __pycache__ here.
+__pycache__/
+*.py[cod]
+
 # Backups
 *.bak
 *.bak-*
