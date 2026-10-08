@@ -92,6 +92,9 @@ STOW_PACKAGES=(
   herdr
   hunk
   lazygit
+  navi
+  tealdeer
+  television
   vite-plus
 )
 

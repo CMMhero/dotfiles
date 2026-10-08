@@ -756,6 +756,9 @@ STOW_PACKAGES=(
   herdr
   hunk
   lazygit
+  navi
+  tealdeer
+  television
   vite-plus
 )
 
@@ -894,6 +897,76 @@ for pkg in "${EXPLICIT_LINK_PACKAGES[@]}"; do
   log_info "$pkg"
   link_package_tree "$pkg"
 done
+
+# ------------------------------------------------------------------------------
+# 9b. Cheatsheets: navi repos and television channels
+# ------------------------------------------------------------------------------
+# Both tools ship the same shape of setup -- a set of upstream sources fetched
+# into a local directory -- and both of those directories are MACHINE STATE that
+# their tool rewrites, so they are not stowed. Only the small config that points
+# at them is (navi/.config/navi/config.yaml, television's channel trigger).
+#
+# navi's own `navi repo add` is broken in 2.24.0 and cannot be used here. It
+# clones into a temp dir fine, then fails the copy step with:
+#
+#   Failed to copy `.../cheats/tmp/` to `.../cheats/denisidoro__cheats/`
+#   the source path is neither a regular file nor a symlink to a regular file
+#
+# which is std::fs::copy refusing a directory. It fails identically on a clean
+# run and on a retry with the clone already in place, so this is not a transient
+# or a permissions problem. Cloning into the layout navi expects -- verified via
+# `navi info cheats-path` (=> ~/.local/share/navi/cheats) with the
+# owner__repo directory naming -- sidesteps it and gets the same result.
+#
+# Shallow by design: these are read-only lookups, and --depth 1 keeps a full
+# multi-hundred-MB history out of the machine.
+NAVI_CHEATS_DIR="$HOME/.local/share/navi/cheats"
+NAVI_REPOS=(
+  "denisidoro/cheats"
+)
+
+if command -v navi >/dev/null 2>&1; then
+  log_step "Fetching navi cheatsheets..."
+  mkdir -p "$NAVI_CHEATS_DIR"
+  NAVI_FETCHED=0
+  for repo in "${NAVI_REPOS[@]}"; do
+    # "denisidoro/cheats" -> "denisidoro__cheats": navi's own naming, where the
+    # single slash becomes a double underscore.
+    dest="$NAVI_CHEATS_DIR/$(printf '%s' "$repo" | sed 's|/|__|')"
+    if [ -d "$dest/.git" ]; then
+      log_info "already present: $repo"
+      continue
+    fi
+    rm -rf "$dest"
+    if git clone --depth 1 -q "https://github.com/$repo.git" "$dest" 2>/dev/null; then
+      count="$(find "$dest" -name '*.cheat' 2>/dev/null | wc -l | tr -d ' ')"
+      log_ok "$repo ($count cheatsheets)"
+      NAVI_FETCHED=$((NAVI_FETCHED + 1))
+    else
+      log_warn "could not fetch $repo; retry with:"
+      log_warn "  git clone --depth 1 https://github.com/$repo.git $dest"
+    fi
+  done
+  [ "$NAVI_FETCHED" -eq 0 ] && log_ok "navi cheatsheets already present."
+  log_info "tldr pages are available too: navi --tldr <query>"
+else
+  log_warn "navi not found; skipping cheatsheets."
+fi
+
+# television's `cable` directory holds channel definitions. `update-channels`
+# fetches the upstream set; our tldr channel is stowed alongside them.
+#
+# update-channels without --force leaves existing files alone (its own help:
+# "--force Force update on unsupported and already existing channels"), so the
+# stowed tldr channel survives. Run it before the stow-adoption check below.
+if command -v tv >/dev/null 2>&1; then
+  log_step "Updating television channels..."
+  if tv update-channels >/dev/null 2>&1; then
+    log_ok "television channels up to date ($(tv list-channels 2>/dev/null | wc -l | tr -d ' ') available)."
+  else
+    log_warn "tv update-channels failed; the stowed tldr channel still works."
+  fi
+fi
 
 # ------------------------------------------------------------------------------
 # 10. Oh-My-Pi Plugins Setup
