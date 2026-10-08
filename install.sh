@@ -1023,18 +1023,47 @@ else
   log_warn "navi not found; skipping cheatsheets."
 fi
 
-# television's `cable` directory holds channel definitions. `update-channels`
-# fetches the upstream set; our tldr channel is stowed alongside them.
+# television's `cable` directory holds channel definitions. `cable/` is machine
+# state -- `tv update-channels` rewrites it -- so nothing in it is stowed and
+# `tv update-channels` is what populates it. This repo ships no channel files of
+# its own; the tldr channel that used to be stowed here was removed once
+# upstream turned out to ship one (see below), and television's own channel
+# triggers live in the stowed config.toml instead.
 #
-# update-channels without --force leaves existing files alone (its own help:
-# "--force Force update on unsupported and already existing channels"), so the
-# stowed tldr channel survives. Run it before the stow-adoption check below.
+# No --force: its own help says it updates "unsupported and already existing
+# channels", so omitting it leaves existing local edits alone.
+#
+# Stale symlinks must be cleared first. television treats every entry in
+# cable/ as a channel file and reads it, so a symlink left behind by a removed
+# tracked file makes the whole command fail -- measured, with one dangling
+# cable/tldr.toml in place:
+#
+#     tv update-channels   -> exit 1, "Error: No such file or directory"
+#
+# `stow` does not clean this up: it only manages links it can see in the
+# package, and with the target file gone from the repo there is nothing for it
+# to match. Verified that both `stow -R` and `stow -D` leave the dangling link
+# in place, so this has to be done explicitly or every machine that pulls the
+# removal gets a permanently failing `tv update-channels`.
 if command -v tv >/dev/null 2>&1; then
+  TV_CABLE_DIR="$HOME/.config/television/cable"
+  if [ -d "$TV_CABLE_DIR" ]; then
+    # -type l, not -e: a symlink to a deleted file fails -e, which is the case
+    # that needs removing. A broken link into cable/ can only have come from a
+    # stowed channel file, and the next update-channels recreates a real one if
+    # upstream still ships it.
+    while IFS= read -r stale; do
+      rm -f "$stale"
+      log_info "removed stale channel symlink: ${stale#$TV_CABLE_DIR/}"
+    done < <(find "$TV_CABLE_DIR" -maxdepth 1 -type l ! -exec test -e {} \; -print 2>/dev/null)
+  fi
+
   log_step "Updating television channels..."
   if tv update-channels >/dev/null 2>&1; then
     log_ok "television channels up to date ($(tv list-channels 2>/dev/null | wc -l | tr -d ' ') available)."
   else
-    log_warn "tv update-channels failed; the stowed tldr channel still works."
+    log_warn "tv update-channels failed; existing channels are left as they are."
+    log_warn "  Retry with: tv update-channels"
   fi
 fi
 

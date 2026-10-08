@@ -6,14 +6,16 @@
 # documentation of every available key, it is version-specific, and stowing it
 # would mean a television upgrade rewrites a tracked file.
 #
-# The one thing worth setting is the tldr channel trigger. `tv update-channels`
-# ships no tldr channel; ours is cable/tldr.toml, stowed next to this file, and it
-# reads the tealdeer page cache. Registering the trigger means pressing
-# television's trigger key while running `tldr` opens the page picker rather than
-# the default channel.
+# The one thing worth setting is the tldr channel trigger: pressing television's
+# trigger key while running `tldr` opens the page picker rather than the default
+# channel. The channel it opens is upstream's own tldr channel, which
+# `tv update-channels` fetches and which tealdeer's `tldr` satisfies -- it calls
+# `tldr --list` and previews with `tldr <page> --color always`, both of which
+# tealdeer 1.9.0 supports.
 #
-# The cable/ directory itself is machine state -- television rewrites it on every
-# `tv update-channels` -- so only our own channel file is managed.
+# Nothing in cable/ is tracked. That directory is machine state -- television
+# rewrites it on every `tv update-channels` -- and upstream now ships a tldr
+# channel of its own, so a hand-written one here would only shadow it.
 
 [shell_integration.channel_triggers]
 "tldr" = ["tldr"]
