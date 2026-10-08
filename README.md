@@ -24,6 +24,11 @@ Modular dotfiles managed with **GNU Stow**, with `install.sh` / `uninstall.sh` f
   - `omp` (via `mise` as `github:can1357/oh-my-pi`) — **narrowly** stowed: only `~/.omp/agent/config.yml`, `~/.omp/plugins/package.json` and `~/.omp/agent/extensions/opencode-zen-fix.ts`. Everything else in `~/.omp` (sessions, run, logs, cache, `stats.db`, `install-id`, plugin `node_modules`) stays per-machine.
   - `opencode` — installed as a **Homebrew formula**, not a `mise` tool. `mise` tracked it behind the `aqua` backend, which pins an old release with no channel for the current one; brew ships a bottle and tracks upstream itself. Config **not** managed
   - `pi` (`aqua:earendil-works/pi`) — installed via `mise`, config **not** managed
+- **Cheatsheets**: three tools, wired to different sources
+  - **`tealdeer`** (`tldr`) — config stowed. Its page cache (`~/.cache/tealdeer/tldr-pages`, ~7400 pages) is machine state and is not managed
+  - **`navi`** — [config](navi/.config/navi/config.yaml) stowed, and it sets `client.tealdeer: true`, which is load-bearing. Without it `navi --tldr <q>` shells out to `tldr <q> --markdown` and dies, because the installed `tldr` is tealdeer, which has no `--markdown` (`error: unexpected argument '--markdown' found`). tealdeer's equivalent is `-r/--raw`, and the flag makes navi call tealdeer correctly. Cheatsheet repos are cloned into `~/.local/share/navi/cheats/<owner>__<repo>` — **`navi repo add` is broken in 2.24.0** and is not used (it clones fine, then fails its copy step with `the source path is neither a regular file nor a symlink to a regular file`, because `std::fs::copy` cannot copy a directory). That directory is machine state, not stowed
+  - **`television`** (`tv`) — config stowed, plus [a `tldr` channel](television/.config/television/cable/tldr.toml) that reads the tealdeer cache. `tv update-channels` ships no tldr channel, so this one is ours; it lists page names from the cache and previews the selected page. `install.sh` runs `tv update-channels`, which leaves existing channel files alone without `--force`. Upstream's `cable/` files are machine state and are not managed
+- **`du` → `dust`, `df` → `duf`**: `abbr`, with `du-real` / `df-real` escape hatches. Overriding `df` is the riskier of the two, since `df`-output-parsing scripts will break on `duf`
 - **Skills**: not managed. `~/.agents/skills` and `~/skills-lock.json` stay per-machine, as do the `opencode/` / `pi/` / `omp/` skill dirs. Install with the `skills` wrapper (`pnpm dlx`, global by default): `skills add <pkg>`.
 
 ---
@@ -117,7 +122,7 @@ From within `~/dotfiles`:
 
 ```bash
 # Stow all managed packages to $HOME (fresh / superfile / omp / wezterm excluded)
-stow -v -R -t ~ fish git mise starship atuin bat btop fastfetch herdr hunk lazygit vite-plus
+stow -v -R -t ~ fish git mise starship atuin bat btop fastfetch herdr hunk lazygit navi tealdeer television vite-plus
 
 # Stow a specific package (e.g., herdr)
 stow -v -R -t ~ herdr
