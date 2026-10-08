@@ -1,0 +1,19 @@
+# television reads this file and only the keys it knows. Only what this dotfiles
+# repo actually wants is set; everything else stays on television's own defaults.
+#
+# This is deliberately a short file rather than a copy of the 7.5KB config
+# television generates on first run. That file is almost entirely commented-out
+# documentation of every available key, it is version-specific, and stowing it
+# would mean a television upgrade rewrites a tracked file.
+#
+# The one thing worth setting is the tldr channel trigger. `tv update-channels`
+# ships no tldr channel; ours is cable/tldr.toml, stowed next to this file, and it
+# reads the tealdeer page cache. Registering the trigger means pressing
+# television's trigger key while running `tldr` opens the page picker rather than
+# the default channel.
+#
+# The cable/ directory itself is machine state -- television rewrites it on every
+# `tv update-channels` -- so only our own channel file is managed.
+
+[shell_integration.channel_triggers]
+"tldr" = ["tldr"]
