@@ -1,0 +1,19 @@
+# navi reads this file (and only the keys it knows). Only what this dotfiles
+# repo actually wants is set; everything else stays on navi's own defaults,
+# which is why this is a short file rather than a copy of the 7.5KB config navi
+# generates on first run (mostly version-specific comments that would churn).
+#
+# tealdeer: true is load-bearing, not a preference.
+#
+# Without it, `navi --tldr <query>` shells out to `tldr <query> --markdown` and
+# dies, because the installed `tldr` is tealdeer 1.9.0, which has no --markdown:
+#
+#   error: unexpected argument '--markdown' found
+#
+# tealdeer's equivalent is `-r, --raw`, which emits the same markdown (verified:
+# `tldr tar --raw` prints the page navi wants to parse). Setting this makes navi
+# invoke tealdeer with flags it understands, and `navi --tldr tar` then opens its
+# picker as normal. This was found by reading `navi info config-example`, which
+# documents the key -- not by guessing a wrapper script.
+client:
+  tealdeer: true
