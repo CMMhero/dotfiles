@@ -28,10 +28,16 @@
 # Deploy order: apt, then clone, then brew, then mise, then configs.
 #
 # Every package step is non-interactive and auto-accepting: brew runs with
-# NONINTERACTIVE=1 and HOMEBREW_NO_AUTO_UPDATE=1, mise with MISE_YES=1. Under
-# `curl ... | bash` there is no TTY, so a prompt from either one is a hang with
-# nobody to answer it. (sudo may still ask for a password; that one is left
-# alone on purpose.)
+# NONINTERACTIVE=1, HOMEBREW_NO_AUTO_UPDATE=1 and HOMEBREW_NO_ASK=1, mise with
+# MISE_YES=1. Two of those are for different reasons and both are needed.
+#
+# Under `curl ... | bash` there is no TTY, so mise's trust prompt would hang
+# with nobody to answer it -- that is what MISE_YES=1 is for. Homebrew's
+# confirmation is the opposite case: Ask.confirm? returns early when there is no
+# TTY, so it never hangs headless but does block whenever a terminal is
+# attached, which is the normal case. HOMEBREW_NO_ASK=1 covers that; note it is
+# not implied by NONINTERACTIVE=1, which that code path never reads. (sudo may
+# still ask for a password; that one is left alone on purpose.)
 #
 # Each step installs only what is missing. apt, brew and mise all treat a
 # re-install of something present as a no-op, but the resolution and the network
@@ -102,12 +108,20 @@ log_err()   { printf "   \033[1;31m[err]\033[0m  %s\n" "$*"; }
 # ---------------------------------------------------------------------------
 # Flags -- parsed before anything runs, so apt can honour --config-only.
 # ---------------------------------------------------------------------------
-# --config-only deploys the configs and skips every package install.
+# --config-only deploys the configs and skips the package downloads: apt, the
+# brew formulas, and the one-time mise cleanup migrations.
 #
-# `upd` already updates apt, mise and the AI agents before it pulls the
+# `upd` already updates apt, brew, mise and the AI agents before it pulls the
 # dotfiles and runs install.sh. Without this flag install.sh would redo all of
-# it -- apt upgrade, mise installs, omp add -- so one `upd` ran the whole
+# it -- apt upgrade, brew upgrade, omp add -- so one `upd` ran the whole
 # package cycle twice. Used by `upd dotfiles`.
+#
+# It deliberately does NOT skip `mise install`. That is the distinction the
+# flag is easy to get wrong: `mise upgrade` (what `upd` runs) only moves
+# versions that already exist, so a tool newly added to config.toml needs
+# `mise install` and nothing else will fetch it. Skipping it here meant
+# `upd dotfiles` pulled a config declaring a tool and never installed it. See
+# the boundary comment above section 3.
 #
 # --apt-done is internal: the clone re-execs the repo's copy of this script, and
 # the base packages were already installed before that clone, so the re-exec must
@@ -454,7 +468,12 @@ if [ "${#BREW_MISSING[@]}" -eq 0 ]; then
   log_ok "Homebrew formulas already present; skipping brew install."
 else
   log_step "Installing via Homebrew: ${BREW_MISSING[*]}"
-  if HOMEBREW_NO_AUTO_UPDATE=1 NONINTERACTIVE=1 brew install "${BREW_MISSING[@]}"; then
+  # HOMEBREW_NO_ASK=1 is not redundant with NONINTERACTIVE=1. Homebrew 7.x added
+  # a confirmation to `brew install`/`brew upgrade`, and it is gated on the TTY
+  # alone -- see the longer note in fish/.config/fish/config.fish. Without this
+  # var an install with a terminal attached stops at
+  # "==> Do you want to proceed with the installation? [y/n]" and waits.
+  if HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_ASK=1 NONINTERACTIVE=1 brew install "${BREW_MISSING[@]}"; then
     log_ok "Homebrew formulas installed."
   else
     log_err "brew install failed for: ${BREW_MISSING[*]}"
@@ -498,6 +517,33 @@ if command -v mise >/dev/null 2>&1 \
   fi
 fi
 
+fi  # end package downloading -- everything above fetches or upgrades packages,
+    # which is exactly what `upd` has already done by the time it calls
+    # `install.sh --config-only`. That is the whole reason the flag exists.
+    #
+    # mise's own tools deliberately sit *below* this boundary. `mise install`
+    # reads like an upgrade but is not one: it is the only thing that installs a
+    # tool newly *added* to config.toml, and `mise upgrade` -- which is what
+    # `upd mise` runs -- cannot do that, it only moves versions that already
+    # exist. Skipping it under --config-only therefore broke config-driven
+    # provisioning, and it broke it in a way that looked like success: measured
+    # here, `sd` added to the stowed config, then `install.sh --config-only`:
+    #
+    #     -> --config-only: skipped apt, mise tools, pi, omp, opencode and herdr.
+    #     -> linked ~/.config/mise/config.toml        (section 9, much later)
+    #     sd: not installed
+    #
+    # The config was deployed by the stow step regardless, so the tool was
+    # declared but absent, and the run reported no error. `upd dotfiles` --
+    # which is `git pull` then `install.sh --config-only` -- could never install
+    # a tool that upstream had just added, and `upd` runs its mise step before
+    # the pull, so nothing else picked it up either.
+
+if [ "$SKIP_PACKAGES" -eq 1 ]; then
+  log_info "--config-only: skipped apt, the brew formulas, and the opencode/vite-plus mise cleanup."
+  log_info "mise's tools still install from the config, and every config is still deployed."
+fi
+
 # ------------------------------------------------------------------------------
 # 3. mise on PATH
 # ------------------------------------------------------------------------------
@@ -520,12 +566,40 @@ else
     eval "$("$HOME/.linuxbrew/bin/brew" shellenv)"
   fi
 fi
-command -v mise >/dev/null 2>&1 || {
+
+# Last resort, and now reachable under --config-only too: put brew's bin on PATH
+# directly. The `brew shellenv` above only runs on a full install, and a caller
+# is not obliged to have brew on PATH -- `bash install.sh --config-only` from a
+# bare shell does not. Without this the only outcome was the error below, which
+# used to be a hard exit, so on such a shell --config-only would abort before
+# deploying a single config.
+if ! command -v mise >/dev/null 2>&1; then
+  for brew_bin in "/home/linuxbrew/.linuxbrew/bin" "$HOME/.linuxbrew/bin"; do
+    if [ -x "$brew_bin/mise" ]; then
+      export PATH="$brew_bin:$PATH"
+      log_info "Added $brew_bin to PATH to find mise."
+      break
+    fi
+  done
+fi
+
+MISE_AVAILABLE=0
+if command -v mise >/dev/null 2>&1; then
+  MISE_AVAILABLE=1
+  log_ok "mise ready at $(command -v mise) ($(mise --version 2>/dev/null | head -1))"
+elif [ "$SKIP_PACKAGES" -eq 0 ]; then
+  # A full install has just installed the formula, so this is fatal.
   log_err "mise is not on PATH after installing the Homebrew formula."
   log_err "Check: brew --prefix, and that /home/linuxbrew/.linuxbrew/bin is in PATH."
   exit 1
-}
-log_ok "mise ready at $(command -v mise) ($(mise --version 2>/dev/null | head -1))"
+else
+  # --config-only on a shell without mise. Warn and continue rather than exit:
+  # the rest of this run is configuration and does not need mise, and aborting
+  # would reproduce the bug just fixed in a new shape -- no tools *and* no
+  # configs, with the tool list still the only place the gap was visible.
+  log_warn "mise is not on PATH; skipping the mise tools."
+  log_warn "Everything else still gets deployed. Install the tools with: mise install"
+fi
 
 # ------------------------------------------------------------------------------
 # 4. Tools via mise -- driven entirely by the stowed config
@@ -592,7 +666,7 @@ else
   fi
 fi
 
-if [ "$MISE_CONFIG_OK" -eq 1 ]; then
+if [ "$MISE_CONFIG_OK" -eq 1 ] && [ "$MISE_AVAILABLE" -eq 1 ]; then
   log_step "Installing $MISE_TOOL_COUNT tools declared in the mise config..."
   # MISE_YES=1 accepts mise's trust prompt for a config it has not seen before.
   # Under the documented entry point -- `curl ... | bash` -- there is no TTY, so
@@ -733,10 +807,6 @@ else
   log_warn "herdr not found; retry with: mise install aqua:herdrdev/herdr"
 fi
 
-else
-  log_info "--config-only: skipped apt, mise tools, pi, omp, opencode and herdr."
-  log_info "Run './install.sh' without --config-only to install packages."
-fi  # end package installation
 # ------------------------------------------------------------------------------
 # 9. GNU Stow Dotfiles Deployment
 # ------------------------------------------------------------------------------
