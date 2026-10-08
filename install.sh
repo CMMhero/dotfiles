@@ -1060,11 +1060,55 @@ if command -v tv >/dev/null 2>&1; then
   fi
 
   log_step "Updating television channels..."
+  TV_UPDATE_OK=0
   if tv update-channels >/dev/null 2>&1; then
+    TV_UPDATE_OK=1
     log_ok "television channels up to date ($(tv list-channels 2>/dev/null | wc -l | tr -d ' ') available)."
   else
     log_warn "tv update-channels failed; existing channels are left as they are."
     log_warn "  Retry with: tv update-channels"
+  fi
+
+  # Swap tv's default tools for ours: eza for ls, bat for cat, duf for df, and
+  # glow for markdown. Runs after update-channels because it patches what
+  # update-channels just downloaded.
+  #
+  # Patching rather than stowing the channel files is deliberate.
+  # `tv update-channels` skips any channel already on disk, so a tracked
+  # channel file would be frozen at whatever upstream shipped on the day it was
+  # committed -- upstream fixes and new keys would never arrive, and nothing
+  # would say so. cable/ stays machine state; this reapplies the substitutions
+  # to the current upstream file on every install.
+  #
+  # python3 rather than sed: the mounts.toml replacement is a jq program with
+  # nested quotes living inside a TOML string, and hand-escaping that reliably
+  # produces a file that parses but fails at run time. The script compares the
+  # PARSED values (tomllib) and writes json.dumps output, which is
+  # TOML-basic-string compatible.
+  #
+  # python3 is NOT added to the apt set for this. Every current Ubuntu has it
+  # (24.04 ships 3.12, 26.04 ships 3.14), but tomllib needs 3.11+, and Ubuntu
+  # 22.04's 3.10 lacks it. Adding python3 to the apt list would install a
+  # version that still cannot run the script, so instead the script checks and
+  # says exactly what to install. A missing or too-old python3 downgrades this
+  # one nicety; it must not fail the install.
+  TV_PATCH_SCRIPT="$DOTFILES_DIR/scripts/patch-tv-channels.py"
+  if [ "$TV_UPDATE_OK" -eq 1 ]; then
+    if ! command -v python3 >/dev/null 2>&1; then
+      log_warn "python3 not found; tv channels keep upstream's tools."
+    elif [ ! -f "$TV_PATCH_SCRIPT" ]; then
+      log_warn "Missing scripts/patch-tv-channels.py; tv channels keep upstream's tools."
+    else
+      # stdout is shown (which channels changed), stderr carries the
+      # unapplied-substitution report, which is the part that matters: a silent
+      # miss means a channel quietly kept upstream's ls/df/cat.
+      if TV_CABLE_DIR="$TV_CABLE_DIR" python3 "$TV_PATCH_SCRIPT"; then
+        log_ok "television channels use eza, bat, duf and glow."
+      else
+        log_warn "tv channel patching reported problems; see above."
+        log_warn "  tv channels fall back to upstream's ls/df/cat."
+      fi
+    fi
   fi
 fi
 
