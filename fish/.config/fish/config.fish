@@ -375,6 +375,34 @@ if command -q lazygit
     abbr -a -- lg lazygit
 end
 
+# ----- du -> dust, df -> duf -----
+# dust and duf are drop-in-ish replacements for du and df with better output
+# (colour, human-readable sizes by default, and for duf a bar chart).
+#
+# abbr rather than alias, matching the rest of this file: it expands before the
+# command is resolved and cannot recurse into itself, so `du -sh .` becomes
+# `dust -sh .` and there is no way for dust to call du back.
+#
+# Both flags are near-compatible for the common cases but not identical, which is
+# why `du-real` / `df-real` exist. The ones worth knowing:
+#   du    -h is on by default in dust; -b/-c/-s/-d all still work.
+#   df    dust... duf: -h is default; --tree adds a breakdown; df-only flags like
+#         -i (inodes) are NOT supported and will error.
+# Overriding `df` is the riskier of the two -- scripts that parse df output will
+# break -- so `df-real` is the documented way out.
+if command -q dust
+    abbr -a -- du dust
+    function du-real --description 'real du' --wraps du
+        command du $argv
+    end
+end
+if command -q duf
+    abbr -a -- df duf
+    function df-real --description 'real df' --wraps df
+        command df $argv
+    end
+end
+
 
 # Create a private GH repo from the current dir, push, and open the browser.
 # No --remote=origin: push.autoSetupRemote=true in ~/.gitconfig already wires
