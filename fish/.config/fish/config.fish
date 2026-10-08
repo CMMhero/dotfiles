@@ -416,7 +416,7 @@ abbr -a -- pls sudo
 abbr -a -- reload 'exec fish'
 abbr -a -- ff fastfetch
 abbr -a -- cls clear
-abbr -a -- add 'mise use --global'
+abbr -a -- add 'mise use -g'
 
 # ----- modern CLI replacements -----
 abbr -a -- htop btop
