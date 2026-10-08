@@ -823,6 +823,7 @@ STOW_PACKAGES=(
   bat
   btop
   fastfetch
+  glow
   herdr
   hunk
   lazygit

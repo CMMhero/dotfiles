@@ -24,6 +24,7 @@ Modular dotfiles managed with **GNU Stow**, with `install.sh` / `uninstall.sh` f
   - `omp` (via `mise` as `github:can1357/oh-my-pi`) — **narrowly** stowed: only `~/.omp/agent/config.yml`, `~/.omp/plugins/package.json` and `~/.omp/agent/extensions/opencode-zen-fix.ts`. Everything else in `~/.omp` (sessions, run, logs, cache, `stats.db`, `install-id`, plugin `node_modules`) stays per-machine.
   - `opencode` — installed as a **Homebrew formula**, not a `mise` tool. `mise` tracked it behind the `aqua` backend, which pins an old release with no channel for the current one; brew ships a bottle and tracks upstream itself. Config **not** managed
   - `pi` (`aqua:earendil-works/pi`) — installed via `mise`, config **not** managed
+- **Terminal Markdown**: `glow` — [config](glow/.config/glow/glow.yml) stowed, no env var needed since `~/.config/glow/glow.yml` is glow's own default path. Every value in it is glow's default, tracked so the file is not machine state: glow creates it on demand, and without it a fresh machine silently gets whatever the installed version defaults to. `style` is left at `"auto"`, which is what the live config said — worth revisiting, since it does not always resolve to a background colour and the rest of this setup uses Catppuccin Macchiato
 - **Cheatsheets**: three tools, wired to different sources
   - **`tealdeer`** (`tldr`) — config stowed. Its page cache (`~/.cache/tealdeer/tldr-pages`, ~7400 pages) is machine state and is not managed
   - **`navi`** — [config](navi/.config/navi/config.yaml) stowed, and it sets `client.tealdeer: true`, which is load-bearing. Without it `navi --tldr <q>` shells out to `tldr <q> --markdown` and dies, because the installed `tldr` is tealdeer, which has no `--markdown` (`error: unexpected argument '--markdown' found`). tealdeer's equivalent is `-r/--raw`, and the flag makes navi call tealdeer correctly. Cheatsheet repos are cloned into `~/.local/share/navi/cheats/<owner>__<repo>` — **`navi repo add` is broken in 2.24.0** and is not used (it clones fine, then fails its copy step with `the source path is neither a regular file nor a symlink to a regular file`, because `std::fs::copy` cannot copy a directory). That directory is machine state, not stowed
@@ -119,7 +120,7 @@ interactive `brew upgrade` is covered too, not just the calls `install.sh` makes
 
 6. Point pnpm's global bin dir at `~/.local/bin`.
 7. Back up conflicting files to `~/.dotfiles_backup/<timestamp>/`.
-8. Stow the 13 config packages, then link `fresh` / `superfile` by walking them
+8. Stow the config packages listed in `STOW_PACKAGES`, then link `fresh` / `superfile` by walking them
    and `omp` from a fixed three-file list — stow would link those app
    directories whole, and anything the tools write there would land in the repo.
 9. Install omp's plugins with `pnpm`, refresh fresh's package registry, and
@@ -140,7 +141,7 @@ From within `~/dotfiles`:
 
 ```bash
 # Stow all managed packages to $HOME (fresh / superfile / omp / wezterm excluded)
-stow -v -R -t ~ fish git mise starship atuin bat btop fastfetch herdr hunk lazygit navi tealdeer television vite-plus
+stow -v -R -t ~ fish git mise starship atuin bat btop fastfetch glow herdr hunk lazygit navi tealdeer television vite-plus
 
 # Stow a specific package (e.g., herdr)
 stow -v -R -t ~ herdr

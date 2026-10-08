@@ -1,0 +1,23 @@
+# Every value below is glow's own default -- `glow config` writes this file, and
+# the machine this was captured from had not changed any of them. It is tracked
+# anyway so the file is not machine state: glow creates it on demand, and
+# without it a fresh machine gets whatever the installed version defaults to,
+# silently.
+#
+# The one thing worth changing is `style`. glow's "auto" picks a light or dark
+# theme by asking the terminal for its background colour, which does not always
+# answer, and the fallback is not the palette used everywhere else in this setup
+# (Catppuccin Macchiato, per wezterm/.wezterm.lua and bat's config). Left at
+# "auto" because that is what the live config says -- changing it here would
+# change behaviour, not just add tracking.
+
+# style name or JSON path (default "auto")
+style: "auto"
+# mouse support (TUI-mode only)
+mouse: false
+# use pager to display markdown
+pager: true
+# word-wrap at width
+width: 80
+# show all files, including hidden and ignored.
+all: false
