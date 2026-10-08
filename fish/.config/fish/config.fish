@@ -49,6 +49,27 @@ set -gx HOMEBREW_NO_ANALYTICS 1
 set -gx HOMEBREW_NO_ENV_HINTS 1
 set -gx NONINTERACTIVE 1
 
+# NONINTERACTIVE=1 above is NOT enough to stop brew asking. Homebrew 7.x
+# added an explicit confirmation to `brew upgrade` and `brew install`, and
+# Ask.confirm? checks one thing only -- whether stdin and stdout are a TTY:
+#
+#     def self.confirm?(action:)
+#       return false if !$stdin.tty? || !$stdout.tty?
+#       ohai "Do you want to proceed with the #{action}? [y/n]"
+#
+# No HOMEBREW_* variable and not NONINTERACTIVE is consulted, so from a real
+# terminal it prompts unconditionally. `upd brew` is run from a real terminal,
+# which is exactly where it showed up:
+#
+#     ==> Would upgrade 2 outdated packages
+#     ==> Do you want to proceed with the upgrade? [y/n]
+#
+# HOMEBREW_NO_ASK is the switch for it (brew's own words: "Ask mode is the
+# default unless $HOMEBREW_NO_ASK is set"). Deliberately left to one variable
+# rather than passing `-y` on each command: the prompt is interactive-only, so
+# it appears exactly where there is no flag to add.
+set -gx HOMEBREW_NO_ASK 1
+
 # ---------- Editor ----------
 if command -q fresh
     set -gx EDITOR fresh
