@@ -72,7 +72,14 @@ The script will, in order:
    list in the scripts, because a hardcoded copy had already drifted from it
    (`llmfit` and `models` had been deleted from the script while the config still
    declared them, so a fresh machine would have installed a config promising tools the
-   installer never fetched).
+   installer never fetched). The config is linked *before* `mise install` runs, not by
+   the later stow step, so the install never reads an absent config.
+
+   This step runs under `--config-only` too, unlike the package downloads around it.
+   `upd dotfiles` is `git pull` then `install.sh --config-only`, and since `upd` runs
+   its own mise step *before* the pull, `mise install` is the only thing that can pick
+   up a tool upstream had just added — `mise upgrade` only moves versions that already
+   exist.
 5. Hand Node.js and the package managers to vite+: `vp env setup --refresh` creates the
    `node`/`npm`/`pnpm`/`yarn`/`bun` shims, and `vp env on` records managed mode. Both
    are required — without the first there is no `node` or `pnpm` at all now that mise
@@ -91,14 +98,25 @@ warns, points at `git -C ~/dotfiles pull`, and skips only mise's tools. Every ot
 config, the login shell and the fish handoff still happen.
 
 Steps 3 and 4 run **non-interactive and auto-accepting** — brew with
-`NONINTERACTIVE=1` and `HOMEBREW_NO_AUTO_UPDATE=1`, mise with `MISE_YES=1`. Under
-`curl … | bash` there is no TTY, so a trust or licence prompt from either is a
-hang with nobody to answer it. A `sudo` password prompt is left intact on purpose.
+`NONINTERACTIVE=1`, `HOMEBREW_NO_AUTO_UPDATE=1` and `HOMEBREW_NO_ASK=1`, mise with
+`MISE_YES=1`. A `sudo` password prompt is left intact on purpose.
 
-Steps 3 and 4 run **non-interactive and auto-accepting** — brew with
-`NONINTERACTIVE=1` and `HOMEBREW_NO_AUTO_UPDATE=1`, mise with `MISE_YES=1`. Under
-`curl … | bash` there is no TTY, so a trust or licence prompt from either is a
-hang with nobody to answer it. A `sudo` password prompt is left intact on purpose.
+The three brew variables are not interchangeable, and one of them is not optional.
+Under `curl … | bash` there is no TTY, so mise's trust prompt would hang with nobody
+to answer it — that is what `MISE_YES=1` is for. Homebrew's confirmation is the
+opposite case: it checks only whether stdin and stdout are a TTY and consults no
+environment variable, so it never hangs headless but blocks whenever a terminal *is*
+attached. Measured, from a real terminal with `NONINTERACTIVE=1` set:
+
+```
+==> Would upgrade 2 outdated packages
+==> Do you want to proceed with the upgrade? [y/n]
+```
+
+`HOMEBREW_NO_ASK=1` is the switch for it ("Ask mode is the default unless
+`$HOMEBREW_NO_ASK` is set") and is set in `fish/.config/fish/config.fish`, so a bare
+interactive `brew upgrade` is covered too, not just the calls `install.sh` makes.
+
 6. Point pnpm's global bin dir at `~/.local/bin`.
 7. Back up conflicting files to `~/.dotfiles_backup/<timestamp>/`.
 8. Stow the 13 config packages, then link `fresh` / `superfile` by walking them
@@ -168,6 +186,11 @@ covers it.
 Order is apt → brew → mise → agents → dotfiles. apt and brew go first because
 they are the slow system-package steps and the likeliest to fail, so a failure
 there does not mask the rest; dotfiles is last because it re-runs `install.sh`.
+
+Note the mise step runs *before* the pull, so `upd` itself cannot install a tool
+that upstream has just added to the config — `mise upgrade` only moves versions
+that already exist. That gap is covered by `install.sh`'s own `mise install`,
+which is why that step deliberately still runs under `--config-only`.
 
 The **brew** step is `brew update`, then `brew upgrade`, then `brew cleanup`. The
 order of the first two is not interchangeable: `upgrade` resolves against the
