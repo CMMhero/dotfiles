@@ -1,5 +1,8 @@
 [tools]
 "aqua:cli/cli" = "latest"
+"aqua:dalance/procs" = "latest"
+"aqua:dlvhdr/gh-dash" = "latest"
+"aqua:printfn/fend" = "latest"
 atuin = "latest"
 bat = "latest"
 btop = "latest"
@@ -25,6 +28,7 @@ llmfit = "latest"
 navi = "latest"
 neovim = "latest"
 oh-my-pi = { version = "latest", rename_exe = "omp" }
+pastel = "latest"
 pi = "latest"
 ripgrep = "latest"
 rust = "latest"
