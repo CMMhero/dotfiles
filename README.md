@@ -6,7 +6,7 @@ Modular dotfiles managed with **GNU Stow**, with `install.sh` / `uninstall.sh` f
 
 ## What's Included
 
-- **Shell (managed)**: Fish (`~/.config/fish`), installed as a **Homebrew formula**, not from apt — brew holds it at a fixed path (`/home/linuxbrew/.linuxbrew/bin/fish`) so upgrading it never breaks `chsh` or herdr's `default_shell`
+- **Shell (managed)**: Fish (`~/.config/fish`), installed as a **Homebrew formula**, not from apt — brew holds it at a fixed path (`/home/linuxbrew/.linuxbrew/bin/fish`) so upgrading it never breaks `chsh` or herdr's `default_shell`. Split the standard way: **`profile.fish`** runs for every fish process (login or not) and holds PATH, tool activation and exported vars — mise, brew, vite+, pnpm, `$EDITOR`, the `FZF_*` defaults, `ATUIN_NOBIND`, `TEALDEER_CONFIG_DIR`; **`config.fish`** opens with `if not status is-interactive; exit 0` and holds everything that only matters at a prompt — starship, the zoxide/fzf/atuin bindings, abbreviations, aliases and the helper functions. Load order is `conf.d/` → `profile.fish` → `config.fish`, which is why `conf.d/catppuccin.fish` has already set `$FZF_CATPPUCCIN_OPTS` by the time `profile.fish` reads it. The split exists because the single-file version exited early for non-interactive shells, so `fish -c` had no mise, no brew and no vite+ on its PATH
 - **Package managers**: `apt` for the base system, **Homebrew / Linuxbrew** for `fish`, `mise`, `opencode` and `vite-plus`, `mise` for the rest, and **vite+** for Node.js + npm/pnpm/yarn/bun
 - **CLI Tools (via `mise`)**: `atuin`, `bat`, `btop`, `chafa`, `delta`, `eza`, `fastfetch`, `fd`, `fzf`, `gh`, `go`, `herdr`, `hunk`, `jq`, `lazygit`, `neovim`, `pi`, `ripgrep`, `rust`, `starship`, `superfile`, `tealdeer`, `uv`, `zoxide` — plus `llmfit`, `models` and `oh-my-pi`. `node`, `pnpm` and `vite+` are **not** here; see below
 - **Python**: `uv` (via `mise`)
@@ -23,7 +23,9 @@ Modular dotfiles managed with **GNU Stow**, with `install.sh` / `uninstall.sh` f
 - **AI Coding Agents**:
   - `omp` (via `mise` as `github:can1357/oh-my-pi`) — **narrowly** stowed: only `~/.omp/agent/config.yml`, `~/.omp/plugins/package.json` and `~/.omp/agent/extensions/opencode-zen-fix.ts`. Everything else in `~/.omp` (sessions, run, logs, cache, `stats.db`, `install-id`, plugin `node_modules`) stays per-machine.
   - `opencode` — installed as a **Homebrew formula**, not a `mise` tool. `mise` tracked it behind the `aqua` backend, which pins an old release with no channel for the current one; brew ships a bottle and tracks upstream itself. Config **not** managed
-  - `pi` (`aqua:earendil-works/pi`) — installed via `mise`, config **not** managed
+  - `pi` (`aqua:earendil-works/pi`) — installed via `mise`. **Narrowly** linked: only `~/.pi/agent/settings.json` (which is what declares its `packages` — `pi-commandcode-provider`, `opencode-pi`, `pi-web-access`) and `~/.pi/agent/mcp.json`. It is **not** stowed: `stow pi` would link `~/.pi` as one directory on a machine that has never run pi, and every session, credential and cache pi writes there would land in this repo. Everything else under `~/.pi` stays per-machine — `auth.json`, `trust.json`, `AGENTS.md`, the regenerated `commandcode-models.json`, `npm/`, `sessions/`, and `agent/extensions/`
+    - **Extensions are installed, not just declared.** `settings.json` naming three packages does not fetch them: pi installs the npm packages into `~/.pi/agent/npm/node_modules`, and nothing in the config does that. `install.sh` section 10 runs `pi update --extensions --approve` after linking the config, which is why a fresh machine ends up with the packages rather than a config promising them. `upd pi` runs the same command as the update half
+    - **`agent/extensions/*.ts` is deliberately not tracked.** `herdr-agent-state.ts` says in its own first line that herdr installs and overwrites it, and the three `orca-*.ts` files are tagged `@orca-managed-pi-extension`. Both tools rewrite those files on install, so tracking them is how this repo's tree gets clobbered — the same reason herdr's opencode and omp integration files were dropped from stow. Custom extensions belong beside them
 - **Terminal Markdown**: `glow` — [config](glow/.config/glow/glow.yml) stowed, no env var needed since `~/.config/glow/glow.yml` is glow's own default path. Every value in it is glow's default, tracked so the file is not machine state: glow creates it on demand, and without it a fresh machine silently gets whatever the installed version defaults to. `style` is left at `"auto"`, which is what the live config said — worth revisiting, since it does not always resolve to a background colour and the rest of this setup uses Catppuccin Macchiato
 - **Cheatsheets**: three tools, wired to different sources
   - **`tealdeer`** (`tldr`) — config stowed. Its page cache (`~/.cache/tealdeer/tldr-pages`, ~7400 pages) is machine state and is not managed
@@ -118,15 +120,16 @@ attached. Measured, from a real terminal with `NONINTERACTIVE=1` set:
 ```
 
 `HOMEBREW_NO_ASK=1` is the switch for it ("Ask mode is the default unless
-`$HOMEBREW_NO_ASK` is set") and is set in `fish/.config/fish/config.fish`, so a bare
+`$HOMEBREW_NO_ASK` is set") and is set in `fish/.config/fish/profile.fish`, so a bare
 interactive `brew upgrade` is covered too, not just the calls `install.sh` makes.
 
 6. Point pnpm's global bin dir at `~/.local/bin`.
 7. Back up conflicting files to `~/.dotfiles_backup/<timestamp>/`.
 8. Stow the config packages listed in `STOW_PACKAGES`, then link `fresh` / `superfile` by walking them
-   and `omp` from a fixed three-file list — stow would link those app
+   and `omp` / `pi` from a fixed file list — stow would link those app
    directories whole, and anything the tools write there would land in the repo.
-9. Install omp's plugins with `pnpm`, refresh fresh's package registry, and
+9. Install pi's extension packages (`pi update --extensions`) and omp's plugins with `pnpm`, refresh
+   fresh's package registry, and
    regenerate its API types.
 10. Set fish as the default login shell.
 11. Syntax-check every deployed `*.fish` file, then hand off to a fresh fish so
@@ -181,20 +184,29 @@ in a live session writes straight into this repo and the tree is routinely dirty
 ```fish
 upd                        # everything
 upd apt                    # or any one of:
-upd brew mise pi omp dotfiles
+upd brew dotfiles mise pi omp
 ```
 
 `opencode` has no target of its own — it is a Homebrew formula, so `upd brew`
 covers it.
 
-Order is apt → brew → mise → agents → dotfiles. apt and brew go first because
+Order is apt → brew → **dotfiles** → mise → agents. apt and brew go first because
 they are the slow system-package steps and the likeliest to fail, so a failure
-there does not mask the rest; dotfiles is last because it re-runs `install.sh`.
+there does not mask the rest. **dotfiles is no longer last**, and that is the fix
+worth knowing about: `~/.config/mise/config.toml` is a symlink into this repo, so
+it only reflects upstream once the pull has happened. With mise running first,
+`mise upgrade` read the *old* config and the tools in the pulled one were then
+left to `install.sh`'s `mise install` — every run updated mise's world from a
+config one pull out of date and paid for a second pass to catch up. Pulling first
+means one mise pass over the config the user actually just fetched.
 
-Note the mise step runs *before* the pull, so `upd` itself cannot install a tool
-that upstream has just added to the config — `mise upgrade` only moves versions
-that already exist. That gap is covered by `install.sh`'s own `mise install`,
-which is why that step deliberately still runs under `--config-only`.
+That is also why the mise step is now `mise install` **and** `mise upgrade`, not
+just `upgrade`: `upgrade` only moves versions that are already installed, so a
+tool newly added to `config.toml` is invisible to it. `install.sh --config-only`
+runs `mise install` immediately above against the freshly pulled config, so the
+new tools are on disk by the time `mise upgrade` runs. `upd mise` on its own
+still needs the install half — otherwise adding a tool to the config and running
+`upd mise` would do nothing.
 
 The **brew** step is `brew update`, then `brew upgrade`, then `brew cleanup`. The
 order of the first two is not interchangeable: `upgrade` resolves against the
@@ -206,7 +218,7 @@ and a prompt with nobody to answer it just hangs: `apt` gets `-y`, brew runs wit
 `NONINTERACTIVE=1 HOMEBREW_NO_AUTO_UPDATE=1`, mise with `MISE_YES=1`, and pi/omp
 get their approve flags. `sudo` may still ask for a password the first time.
 
-The same brew environment is exported globally in `config.fish`, so an
+The same brew environment is exported globally in `profile.fish`, so an
 interactive `brew install` is non-interactive too — a licence or tap prompt in a
 terminal you are watching is tolerable; the same prompt inside `upd` is not.
 `HOMEBREW_NO_AUTO_UPDATE=1` is what stops brew silently re-running `brew update`
