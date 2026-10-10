@@ -44,7 +44,7 @@
 # round trips behind it are not free -- so an already-provisioned machine skips
 # all three outright instead of paying for no-ops.
 #
-# Configs go out through GNU Stow. superfile and omp are additionally linked
+# Configs go out through GNU Stow. superfile, omp and pi are additionally linked
 # file-by-file (fresh is linked both ways), because stow would link those app
 # directories whole and anything the tools write there would land in the repo.
 # fish -- from Homebrew -- becomes the default login shell.
@@ -111,10 +111,10 @@ log_err()   { printf "   \033[1;31m[err]\033[0m  %s\n" "$*"; }
 # --config-only deploys the configs and skips the package downloads: apt, the
 # brew formulas, and the one-time mise cleanup migrations.
 #
-# `upd` already updates apt, brew, mise and the AI agents before it pulls the
-# dotfiles and runs install.sh. Without this flag install.sh would redo all of
-# it -- apt upgrade, brew upgrade, omp add -- so one `upd` ran the whole
-# package cycle twice. Used by `upd dotfiles`.
+# `upd` already updates apt and brew before it pulls the dotfiles and runs
+# install.sh. Without this flag install.sh would redo all of it -- apt upgrade,
+# brew upgrade -- so one `upd` ran the whole package cycle twice. Used by
+# `upd dotfiles`.
 #
 # It deliberately does NOT skip `mise install`. That is the distinction the
 # flag is easy to get wrong: `mise upgrade` (what `upd` runs) only moves
@@ -390,6 +390,16 @@ link_omp_files() {
   local rel
   for rel in "${OMP_MANAGED_FILES[@]}"; do
     link_one_file omp "$rel"
+  done
+}
+
+# pi is linked the same way as omp, for the same reason: `stow pi` would link
+# ~/.pi as one whole directory on a machine that has never run pi, and every
+# session, credential and cache pi writes there would land in this repo.
+link_pi_files() {
+  local rel
+  for rel in "${PI_MANAGED_FILES[@]}"; do
+    link_one_file pi "$rel"
   done
 }
 
@@ -783,6 +793,9 @@ log_ok "pnpm configured (global bin dir: $HOME/.local/bin)."
 # formula from section 3. Nothing is left to do here beyond reporting what
 # actually resolved, since a failed install should be visible here rather than
 # surfacing later as a missing command.
+#
+# This checks the BINARIES only. pi's config is linked in section 9 and its
+# extension packages are installed in section 10, both of which run after this.
 log_step "Verifying AI agents (pi, opencode, omp)"
 AI_AGENTS_OK=1
 for agent in pi opencode omp; do
@@ -862,6 +875,37 @@ OMP_MANAGED_FILES=(
   .omp/agent/config.yml
   .omp/plugins/package.json
   .omp/agent/extensions/opencode-zen-fix.ts
+)
+
+# pi has the same shape of problem, and one extra reason to be careful.
+#
+# ~/.pi/agent/settings.json is the config that declares pi's extension packages
+# (`packages`), so linking it is what makes section 10 able to install them at
+# all -- it was the missing half of that step, which is why a fresh machine
+# declared three packages in its own config and installed none of them.
+#
+# Everything else under ~/.pi stays per-machine and is NOT listed here:
+#   auth.json            credentials, never linked
+#   trust.json           per-directory trust decisions
+#   AGENTS.md            global instructions; the live copy points at a Windows
+#                        path that does not exist here
+#   commandcode-models.json
+#                        a model catalog pi regenerates at runtime
+#   npm/                 the installed extension packages themselves
+#   sessions/, crashes.json, install/, web-search-cache/, bin/
+#                        runtime state
+#   agent/extensions/*.ts
+#                        NOT ours. herdr-agent-state.ts says so in its own first
+#                        line ("installed by herdr ... reinstalling or updating
+#                        the integration overwrites this file") and the three
+#                        orca-*.ts files are tagged @orca-managed-pi-extension.
+#                        Both tools write them on install, so tracking them here
+#                        is how the repo's own tree gets clobbered -- the same
+#                        reason herdr's opencode and omp integration files were
+#                        dropped from stow. Custom extensions belong beside them.
+PI_MANAGED_FILES=(
+  .pi/agent/settings.json
+  .pi/agent/mcp.json
 )
 
 
@@ -962,6 +1006,9 @@ log_ok "Stow packages deployed."
 
 log_step "Linking omp files (not stowed - see note above)"
 link_omp_files
+
+log_step "Linking pi files (not stowed - see note above)"
+link_pi_files
 
 log_step "Linking file-by-file: ${EXPLICIT_LINK_PACKAGES[*]}"
 for pkg in "${EXPLICIT_LINK_PACKAGES[@]}"; do
@@ -1113,16 +1160,70 @@ if command -v tv >/dev/null 2>&1; then
 fi
 
 # ------------------------------------------------------------------------------
-# 10. Oh-My-Pi Plugins Setup
+# 10. Agent Extensions (pi, omp)
 # ------------------------------------------------------------------------------
+# Both agents keep the list of their extensions in a config file that comes from
+# this repo, and both need a second step to turn that list into something on
+# disk. That second step is what was missing for pi.
+#
 # NOTE: skills are not managed at all. ~/.agents/skills and ~/skills-lock.json
 # stay per-machine, as do the opencode/pi/omp skill directories -- each agent
 # manages its own installs via the `skills` wrapper (pnpm dlx, global by default).
 #
-# The `omp` config is linked file-by-file, not stowed: only agent/config.yml,
-# plugins/package.json and agent/extensions/opencode-zen-fix.ts come from the
-# repo. Everything else under ~/.omp is per-machine state (sessions/, run/,
-# logs/, cache/, stats.db, install-id, plugins/node_modules).
+# pi: `packages` in ~/.pi/agent/settings.json (linked in section 9) names the
+# extension packages -- pi-commandcode-provider, opencode-pi, pi-web-access.
+# Declaring them is not the same as having them. pi fetches the npm packages into
+# ~/.pi/agent/npm/node_modules as a separate action, and a config file cannot do
+# that: linked alone, the machine ends up with three packages declared in its
+# settings and none of them on disk. `pi update --extensions` installs what
+# settings declares and refreshes what is already there; `--approve` skips the
+# trust prompt, which under `curl ... | bash` would otherwise block on stdin with
+# nobody to answer.
+#
+# omp: the `omp` config is linked file-by-file, not stowed: only
+# agent/config.yml, plugins/package.json and agent/extensions/opencode-zen-fix.ts
+# come from the repo. Everything else under ~/.omp is per-machine state
+# (sessions/, run/, logs/, cache/, stats.db, install-id, plugins/node_modules).
+
+# pi's own extension .ts files (herdr-agent-state, orca-*) are NOT handled here:
+# herdr and orca each write their own, and reinstalling either tool overwrites
+# the file. See the note on PI_MANAGED_FILES.
+if command -v pi >/dev/null 2>&1; then
+  log_step "Installing pi extensions declared in ~/.pi/agent/settings.json..."
+  # Count what `pi list` reports rather than trusting the exit status alone. The
+  # failure this replaces was silent: pi exits 0 whether or not the declared
+  # packages are actually on disk, so "no error" and "extensions installed" are
+  # not the same claim.
+  #
+  # `|| true` on both counts is not decoration. `grep -c` exits 1 when it counts
+  # zero, and this script runs under `set -euo pipefail`, so a machine whose pi
+  # has no packages yet would abort the whole install at the assignment -- the
+  # exact case this step exists to handle.
+  pi_ext_count() {
+    pi list --approve 2>/dev/null | sed 's/^[[:space:]]*//' \
+      | grep -c '^\(npm\|git\|https\|ssh\|file\):' || true
+  }
+  PI_EXT_BEFORE="$(pi_ext_count)"
+  case "$PI_EXT_BEFORE" in ''|*[!0-9]*) PI_EXT_BEFORE=0 ;; esac
+  if [ "$PI_EXT_BEFORE" -eq 0 ]; then
+    log_info "settings.json declares no extension packages; nothing to install."
+  elif pi update --extensions --approve >/dev/null 2>&1; then
+    PI_EXT_AFTER="$(pi_ext_count)"
+    case "$PI_EXT_AFTER" in ''|*[!0-9]*) PI_EXT_AFTER=0 ;; esac
+    if [ "$PI_EXT_AFTER" -ge "$PI_EXT_BEFORE" ]; then
+      log_ok "pi extensions present ($PI_EXT_AFTER packages)."
+    else
+      log_warn "pi went from $PI_EXT_BEFORE to $PI_EXT_AFTER packages; see above."
+      log_info "Retry with: pi update --extensions --approve"
+    fi
+  else
+    log_warn "pi extension install failed; see above."
+    log_info "Retry with: pi update --extensions --approve"
+  fi
+else
+  log_warn "pi not found; skipping its extensions."
+fi
+
 if [ -d "$HOME/.omp/plugins" ] && [ -f "$HOME/.omp/plugins/package.json" ]; then
   log_step "Installing omp plugins via pnpm..."
   # Same build-script gate as above; `2>/dev/null` would otherwise hide the
@@ -1328,6 +1429,7 @@ echo "  - Terminal multiplexer: herdr (with custom keybinds & Catppuccin theme)"
 echo "  - Terminal emulator config: wezterm (.wezterm.lua, Windows-only; in repo, not stowed on Linux)"
 echo "  - Editor: fresh (fresh-editor) with catppuccin theme, color-highlighter plugin, vi-mode + toggle"
 echo "  - AI Agents: opencode (Homebrew), pi + oh-my-pi (omp) via mise"
+echo "  - Agent extensions: pi packages from ~/.pi/agent/settings.json, omp plugins from ~/.omp/plugins/package.json"
 echo "  - Skills: not managed; install with 'skills add <pkg>' (pnpm dlx, global)"
 echo "  - Shell: fish (Homebrew formula) with custom aliases, abbreviations, and starship prompt"
 echo "  - Configs: ${#STOW_PACKAGES[@]} stow packages, plus fresh/superfile walked and omp linked file-by-file"

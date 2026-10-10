@@ -264,8 +264,10 @@ function upd --description 'update everything: apt, brew, dotfiles, mise, pi, om
     # --self-style self-update, which would move the binary behind mise's back and
     # desync the version it pins.
     #
-    # pi: --extensions updates the packages from its settings
-    # (pi-commandcode-provider, opencode-pi); --approve skips the trust prompt.
+    # pi: --extensions installs and updates the packages named in
+    # ~/.pi/agent/settings.json (pi-commandcode-provider, opencode-pi,
+    # pi-web-access); --approve skips the trust prompt. install.sh runs the same
+    # command, so this is the update half rather than the first chance to install.
     if contains pi $selected; and command -q pi >/dev/null 2>&1
         step "pi extensions"
         pi update --extensions --approve

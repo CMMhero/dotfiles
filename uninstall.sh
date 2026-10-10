@@ -243,6 +243,23 @@ done
 # Drop directories left empty by the unlink, never the ones holding real files.
 find "$HOME/.omp" -depth -type d -empty -delete 2>/dev/null || true
 
+# pi is linked file-by-file for the same reason, so it is unlinked the same way.
+# Only settings.json and mcp.json are removed. auth.json, trust.json, sessions/,
+# npm/ (the installed extension packages), the tool-written extensions/ and
+# everything else under ~/.pi are machine state and stay exactly where they are.
+PI_MANAGED_FILES=(
+  .pi/agent/settings.json
+  .pi/agent/mcp.json
+)
+log_step "Unlinking managed pi files..."
+for rel in "${PI_MANAGED_FILES[@]}"; do
+  target="$HOME/$rel"
+  if [ -L "$target" ]; then
+    rm -f "$target"
+    log_ok "Unlinked pi: $rel"
+  fi
+done
+
 # Remove now-empty config dirs left behind by stow (e.g. ~/.config/superfile)
 log_step "Cleaning up empty config directories..."
 find "$HOME/.config" -maxdepth 1 -mindepth 1 -type d -empty -delete 2>/dev/null || true
