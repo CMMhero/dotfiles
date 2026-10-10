@@ -6,7 +6,10 @@ Modular dotfiles managed with **GNU Stow**, with `install.sh` / `uninstall.sh` f
 
 ## What's Included
 
-- **Shell (managed)**: Fish (`~/.config/fish`), installed as a **Homebrew formula**, not from apt — brew holds it at a fixed path (`/home/linuxbrew/.linuxbrew/bin/fish`) so upgrading it never breaks `chsh` or herdr's `default_shell`. Split the standard way: **`profile.fish`** runs for every fish process (login or not) and holds PATH, tool activation and exported vars — mise, brew, vite+, pnpm, `$EDITOR`, the `FZF_*` defaults, `ATUIN_NOBIND`, `TEALDEER_CONFIG_DIR`; **`config.fish`** opens with `if not status is-interactive; exit 0` and holds everything that only matters at a prompt — starship, the zoxide/fzf/atuin bindings, abbreviations, aliases and the helper functions. Load order is `conf.d/` → `profile.fish` → `config.fish`, which is why `conf.d/catppuccin.fish` has already set `$FZF_CATPPUCCIN_OPTS` by the time `profile.fish` reads it. The split exists because the single-file version exited early for non-interactive shells, so `fish -c` had no mise, no brew and no vite+ on its PATH
+- **Shell (managed)**: Fish (`~/.config/fish`), installed as a **Homebrew formula**, not from apt — brew holds it at a fixed path (`/home/linuxbrew/.linuxbrew/bin/fish`) so upgrading it never breaks `chsh` or herdr's `default_shell`. Split in two: **`conf.d/env.fish`** runs on the startup of every fish process and holds PATH, tool activation and exported vars — mise, brew, vite+, pnpm, `$EDITOR`, the `FZF_*` defaults, `ATUIN_NOBIND`, `TEALDEER_CONFIG_DIR`; **`config.fish`** opens with `if not status is-interactive; exit 0` and holds everything that only matters at a prompt — starship, the zoxide/fzf/atuin bindings, abbreviations, aliases and the helper functions
+  - **There is no `profile.fish`. fish 4 does not read one.** It existed in fish 3.x, and every other shell still has such a file, so writing one looks right and silently does nothing. Measured on the fish 4.9.3 this machine runs: `fish -c`, `fish -l -c` and `fish -l -i` under a pty all run `config.fish` only, and `__fish_config_files` does not list `profile.fish`. The 4.9 docs agree — the configuration-files section documents conf.d snippets and `config.fish` and points at `status is-login` instead
+  - The failure mode is not subtle. With the environment in a `profile.fish` that nothing reads, every fish lost mise, brew and vite+ from its PATH, so `brew` and even `fish` itself stopped resolving. WSL's interop re-imports a PATH that already contains the mise directories, which hides the breakage for mise-managed tools; brew's own `/home/linuxbrew/.linuxbrew/bin` is not in the Windows PATH, so brew was reachable *only* via the `brew shellenv` eval that had stopped running
+  - `env.fish` is named so that conf.d's filename ordering puts it after `catppuccin.fish` (which sets `$FZF_CATPPUCCIN_OPTS` that it reads) and before `key-bindings.fish`. A numeric prefix would move it first and silently empty `FZF_DEFAULT_OPTS`
 - **Package managers**: `apt` for the base system, **Homebrew / Linuxbrew** for `fish`, `mise`, `opencode` and `vite-plus`, `mise` for the rest, and **vite+** for Node.js + npm/pnpm/yarn/bun
 - **CLI Tools (via `mise`)**: `atuin`, `bat`, `btop`, `chafa`, `delta`, `eza`, `fastfetch`, `fd`, `fzf`, `gh`, `go`, `herdr`, `hunk`, `jq`, `lazygit`, `neovim`, `pi`, `ripgrep`, `rust`, `starship`, `superfile`, `tealdeer`, `uv`, `zoxide` — plus `llmfit`, `models` and `oh-my-pi`. `node`, `pnpm` and `vite+` are **not** here; see below
 - **Python**: `uv` (via `mise`)
@@ -120,7 +123,7 @@ attached. Measured, from a real terminal with `NONINTERACTIVE=1` set:
 ```
 
 `HOMEBREW_NO_ASK=1` is the switch for it ("Ask mode is the default unless
-`$HOMEBREW_NO_ASK` is set") and is set in `fish/.config/fish/profile.fish`, so a bare
+`$HOMEBREW_NO_ASK` is set") and is set in `fish/.config/fish/conf.d/env.fish`, so a bare
 interactive `brew upgrade` is covered too, not just the calls `install.sh` makes.
 
 6. Point pnpm's global bin dir at `~/.local/bin`.
@@ -218,7 +221,7 @@ and a prompt with nobody to answer it just hangs: `apt` gets `-y`, brew runs wit
 `NONINTERACTIVE=1 HOMEBREW_NO_AUTO_UPDATE=1`, mise with `MISE_YES=1`, and pi/omp
 get their approve flags. `sudo` may still ask for a password the first time.
 
-The same brew environment is exported globally in `profile.fish`, so an
+The same brew environment is exported globally in `conf.d/env.fish`, so an
 interactive `brew install` is non-interactive too — a licence or tap prompt in a
 terminal you are watching is tolerable; the same prompt inside `upd` is not.
 `HOMEBREW_NO_AUTO_UPDATE=1` is what stops brew silently re-running `brew update`

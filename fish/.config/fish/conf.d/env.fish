@@ -1,21 +1,40 @@
 # ============================================================
-# fish profile -- login environment
+# fish environment
 # WSL Ubuntu @ /home/cmmhero
 #
-# Runs once per login shell, interactive or not: `fish -c`, `fish script.fish`,
-# an editor's shell integration, a herdr pane. Everything here is PATH, exported
-# variables and tool activation -- the things a non-interactive fish still needs
-# in order to find a command. Everything interactive (prompt, key bindings,
-# abbreviations, aliases) lives in config.fish, which exits early when the shell
-# is not interactive.
+# The "profile" half of the config: PATH, tool activation and the exported
+# variables. config.fish holds everything that only matters at a prompt (prompt,
+# key bindings, abbreviations, aliases) and opens with
+# `if not status is-interactive; exit 0`.
 #
-# Load order is conf.d/ -> profile.fish -> config.fish, so conf.d/catppuccin.fish
-# has already set $FZF_CATPPUCCIN_OPTS by the time the fzf block below reads it.
+# This lives in conf.d/ rather than in a profile.fish because **fish 4 does not
+# read profile.fish**. It did in fish 3.x, which is where the idea comes from,
+# and every other shell still has such a file -- so writing one here looks
+# correct and silently does nothing. Measured on the fish this machine runs,
+# 4.9.3:
 #
-# Split from a single config.fish because that file opened with
-# `if not status is-interactive; exit 0`. Everything above was therefore
-# invisible to `fish -c`, which is not the same as not being needed: a script
-# running under fish had no mise, no brew and no vite+ on its PATH.
+#     fish -c 'true'         -> config.fish only
+#     fish -l -c 'true'      -> config.fish only, even though `status is-login`
+#                               is true
+#     fish -l -i -c 'true'   -> config.fish only, under a pty as well
+#
+# and `__fish_config_files` lists config.fish and no profile.fish. The 4.9 docs
+# agree: the configuration-files section documents conf.d snippets and
+# config.fish and does not mention profile.fish at all, pointing at
+# `status is-login` as the way to condition on a login shell instead.
+#
+# The consequence of getting this wrong is not subtle: with the environment in
+# a profile.fish that nothing reads, every fish lost mise, brew and vite+ from
+# its PATH -- so `brew` and even `fish` itself stopped resolving.
+#
+# conf.d/ is the fish-native equivalent: snippets run on the startup of EVERY
+# shell, interactive or not, which is what this file needs anyway.
+#
+# Filename ordering matters here. Snippets run in filename order, and this one
+# is named `env.fish` so it lands after `catppuccin.fish` (c < e), which is what
+# sets $FZF_CATPPUCCIN_OPTS that the fzf block below reads, and before
+# `key-bindings.fish` (e < k). Renaming it to something starting with a digit
+# would move it ahead of catppuccin.fish and silently empty FZF_DEFAULT_OPTS.
 # ============================================================
 
 # ---------- mise first ----------
@@ -140,8 +159,9 @@ fish_add_path "$HOME/.local/bin"
 # fzf; Ctrl-R is owned by atuin, which binds the same muscle memory.
 # Styled popup + previews for Ctrl-T (files) / Alt-C (dirs). Ctrl-R is owned
 # by atuin, so FZF_DEFAULT_COMMAND only feeds the file pickers.
-# Colours come from conf.d/catppuccin.fish (Catppuccin Macchiato, matching
-# wezterm/.wezterm.lua); only the layout flags are set here.
+# Colours come from catppuccin.fish (Catppuccin Macchiato, matching
+# wezterm/.wezterm.lua), which runs before this file; only the layout flags
+# are set here.
 set -gx FZF_DEFAULT_COMMAND 'fd --type f --hidden --follow --exclude .git'
 set -gx FZF_DEFAULT_OPTS "$FZF_CATPPUCCIN_OPTS"
 set -gx FZF_CTRL_T_COMMAND $FZF_DEFAULT_COMMAND

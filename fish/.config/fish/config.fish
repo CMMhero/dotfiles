@@ -2,10 +2,10 @@
 # fish config -- interactive only
 # WSL Ubuntu @ /home/cmmhero
 #
-# PATH, tool activation and the exported variables live in profile.fish, which
-# runs for every fish process. This file is everything that only matters at a
-# prompt: the starship prompt, key bindings, abbreviations, aliases and the
-# helper functions. It exits immediately for a non-interactive shell, so
+# PATH, tool activation and the exported variables live in conf.d/env.fish,
+# which runs for every fish process. This file is everything that only matters
+# at a prompt: the starship prompt, key bindings, abbreviations, aliases and
+# the helper functions. It exits immediately for a non-interactive shell, so
 # `fish -c 'some command'` pays for none of it.
 # ============================================================
 
@@ -32,25 +32,26 @@ if command -q zoxide
 end
 
 # ---------- fzf keybindings (Ctrl-T / Ctrl-R / Alt-C feel) ----------
-# The FZF_* variables are set in profile.fish, next to the rest of the
+# The FZF_* variables are set in conf.d/env.fish, next to the rest of the
 # environment. Only the bindings belong to an interactive shell.
 #
 # fzf's shell/key-bindings.fish is vendored in conf.d/: the aqua fzf package
 # ships only the binary and no shell integrations, so without this file
 # Ctrl-T / Alt-C would silently stop working.
 #
-# Called HERE, not just in conf.d/, because fish loads conf.d/ before this file:
-# the call in conf.d/ ran before mise was activated (profile.fish, same story)
-# and so never found fzf. This is the pass that actually installs the bindings,
-# and the pass whose "fzf was not found in path." message means something real.
-# Re-calling is safe -- it rebinds, it does not append.
+# Called HERE as well, not just from conf.d/key-bindings.fish. That file runs
+# before env.fish (k sorts after e, but it defines and does not install the
+# bindings), and the pass that actually installs them has to come after mise is
+# live -- which is what env.fish provides. This is the pass whose "fzf was not
+# found in path." message means something real. Re-calling is safe -- it
+# rebinds, it does not append.
 if functions -q fzf_key_bindings
     fzf_key_bindings
 end
 
 # ---------- atuin ----------
-# ATUIN_NOBIND is already exported by profile.fish; init has to come after it.
-# Load only if present.
+# ATUIN_NOBIND is already exported by conf.d/env.fish; init has to come after
+# it. Load only if present.
 if command -q atuin
     atuin init fish | source
 end
