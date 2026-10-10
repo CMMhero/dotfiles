@@ -9,11 +9,18 @@
 # you do not have.
 #
 # What this does, and nothing more:
-#   1. makes sure winget exists
+#   1. makes sure winget exists -- installing it if the machine has none
 #   2. installs git and the GitHub CLI
 #   3. clones dotfiles-win
 #   4. hands over to dotfiles-win/install.ps1, which does everything else
 #
+# Step 1 is not the usual case, but it is not hypothetical either: Windows
+# Sandbox has no App Installer and no Microsoft Store, so winget simply is not
+# there. The bootstrap fetches the App Installer MSIX straight from the
+# winget-cli GitHub release rather than via https://aka.ms/getwinget, because
+# that shortcut routes through the Store -- which is exactly what Sandbox lacks.
+# Everywhere else winget is already present and this is a single `ok` line.
+
 # Step 4 is the whole install. This script deliberately stops at "you can now
 # clone a git repo", because that is the point at which the real installer
 # becomes reachable. Duplicating any of its logic here would be two copies to
@@ -96,26 +103,144 @@ function Test-WingetInstalled {
     return ($LASTEXITCODE -eq 0) -and ($out -match [regex]::Escape($Id))
 }
 
+# Put winget on PATH if the App Installer is installed but its alias directory is
+# not reachable. This is a real case on a fresh Windows profile, and downloading
+# a 200MB MSIX to fix a PATH problem would be absurd.
+function Add-WingetToPath {
+    $aliasDir = Join-Path $env:LOCALAPPDATA 'Microsoft\WindowsApps'
+    if (Test-Path (Join-Path $aliasDir 'winget.exe')) {
+        $env:Path = "$aliasDir;$env:Path"
+        if (Test-Command 'winget') {
+            ok "winget found at $aliasDir (added to PATH)"
+            return $true
+        }
+    }
+    return $false
+}
+
+# Install winget itself, for machines that do not have it at all.
+#
+# This is the Windows Sandbox case, and it is why https://aka.ms/getwinget is
+# NOT used: that link routes through the Microsoft Store, and Sandbox has no
+# Store and no Store account. So the App Installer is fetched straight from the
+# winget-cli GitHub release instead -- the same artifact, minus the Store.
+#
+# Add-AppxPackage is used rather than winget itself, because winget is what is
+# missing.
+function Install-Winget {
+    if (Add-WingetToPath) { return }
+
+    if (-not (Get-Command Add-AppxPackage -ErrorAction Ignore)) {
+        err 'winget is not available, and Add-AppxPackage is missing too.'
+        err 'This is not a Windows image that can self-provision.'
+        err 'Install "App Installer" by hand, then re-run.'
+        exit 1
+    }
+
+    info 'winget is not installed; fetching the App Installer from GitHub'
+    info '  (the aka.ms/getwinget shortcut needs the Store, which Windows'
+    info '   Sandbox does not have)'
+
+    if ($DryRun) {
+        info 'would download Microsoft.DesktopAppInstaller msixbundle and Add-AppxPackage it'
+        return
+    }
+
+    # Resolve "latest" through the releases API rather than hardcoding a version,
+    # so this keeps working without edits. The asset name embeds the publisher
+    # hash, which is stable for a given release, so match on the pattern instead.
+    $release = 'https://api.github.com/repos/microsoft/winget-cli/releases/latest'
+    $tmp = Join-Path $env:TEMP 'winget-msixbundle.msixbundle'
+
+    try {
+        info "querying $release"
+        $rel = Invoke-RestMethod -Uri $release -Headers @{ 'User-Agent' = 'dotfiles-bootstrap' }
+        $asset = $rel.assets | Where-Object { $_.name -like 'Microsoft.DesktopAppInstaller_*.msixbundle' } |
+            Select-Object -First 1
+        if (-not $asset) {
+            throw 'no msixbundle asset in the latest winget-cli release'
+        }
+        info "$($rel.tag_name) -> $($asset.name) ($([math]::Round($asset.size / 1MB)) MB)"
+
+        info 'downloading (this is the big step; a minute or two on a slow link)'
+        Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $tmp -UseBasicParsing
+        ok "downloaded $([math]::Round((Get-Item $tmp).Length / 1MB)) MB"
+    } catch {
+        err "could not download the App Installer: $($_.Exception.Message)"
+        Remove-Item $tmp -Force -ErrorAction Ignore
+        exit 1
+    }
+
+    # The bundle declares a dependency on the Microsoft.VCLibs / UI.Xaml
+    # frameworks. On a normal Windows build they are already present; on a
+    # stripped image they may not be, and Add-AppxPackage then fails with a
+    # dependency error rather than anything actionable. Say so explicitly.
+    info 'installing (Add-AppxPackage)'
+    try {
+        Add-AppxPackage -Path $tmp -ErrorAction Stop
+        ok 'App Installer installed'
+    } catch {
+        err "Add-AppxPackage failed: $($_.Exception.Message)"
+        if ($_.Exception.Message -match '0x80073CF|dependency|framework') {
+            err ''
+            err 'That usually means the Microsoft.VCLibs / UI.Xaml frameworks are'
+            err 'missing. Install them, then re-run:'
+            err '  https://learn.microsoft.com/windows/apps/desktop/modernize/framework-packages'
+        }
+        err "The download is kept at $tmp in case you want to install it by hand."
+        exit 1
+    } finally {
+        Remove-Item $tmp -Force -ErrorAction Ignore
+    }
+
+    # The winget.exe alias is created at install time, but the alias directory is
+    # commonly absent from PATH on a fresh profile. Re-add it here rather than
+    # telling the user to open a new terminal and re-run the whole bootstrap --
+    # the install has already succeeded and there is nothing left to fix.
+    if (Add-WingetToPath) {
+        ok "winget $(winget --version)"
+        return
+    }
+
+    # The alias may be a reparse point that PowerShell's Get-Command does not
+    # resolve until the session PATH is rebuilt. That is the common case right
+    # after an AppX install, so try the known absolute path before giving up.
+    $aliasExe = Join-Path $env:LOCALAPPDATA 'Microsoft\WindowsApps\winget.exe'
+    if (Test-Path $aliasExe) {
+        $env:Path = "$(Join-Path $env:LOCALAPPDATA 'Microsoft\WindowsApps');$env:Path"
+        # clear the negative cache Get-Command keeps for a path that did not exist
+        # a moment ago
+        & $aliasExe --version *>$null
+        if ($LASTEXITCODE -eq 0 -or (Test-Command 'winget')) {
+            ok "winget present at $aliasExe (added to PATH)"
+            return
+        }
+    }
+
+    err 'App Installer installed, but winget.exe does not resolve from this session.'
+    err "It is at $aliasExe."
+    err 'Open a NEW terminal and re-run this script -- AppX shims only appear in'
+    err 'a session started after the install.'
+}
+
 # ==============================================================================
 # 1. winget
 # ==============================================================================
 step 'winget'
 
+# winget is a hard dependency: every other step in this script, and every step
+# in dotfiles-win/install.ps1, goes through it.
+#
+# Three ways it can be missing, in the order they are tried:
+#   1. On PATH already.
+#   2. The App Installer MSIX is installed but its alias directory is not on
+#      PATH -- a real case on a fresh profile. Checked before downloading
+#      anything.
+#   3. Not installed at all -- Windows Sandbox, LTSC, a stripped image.
 if (Test-Command 'winget') {
     ok "winget present ($(winget --version))"
 } else {
-    # Windows 11 ships App Installer, which provides winget. Windows 10 does too,
-    # but on plenty of LTSC and stripped images it is absent or too old to have
-    # `install`. There is nothing to fall back to -- this is the one hard
-    # dependency, so say exactly what to do rather than failing obscurely.
-    err 'winget is not available on this machine.'
-    err ''
-    err '  Windows 11:  Microsoft Store -> search "App Installer" -> Update'
-    err '  Windows 10:  Microsoft Store -> search "App Installer" -> Update,'
-    err '                or install it from https://aka.ms/getwinget'
-    err ''
-    err 'Then re-run this script. Everything below needs it.'
-    exit 1
+    Install-Winget
 }
 
 # ==============================================================================
