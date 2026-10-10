@@ -109,17 +109,28 @@ end
 
 # ----- update -----
 # One entry point for everything this machine keeps current:
-#   upd                    apt + brew + mise + pi + omp + dotfiles
-#   upd apt|brew|mise|pi|omp|dotfiles    just that one
+#   upd                    apt + brew + dotfiles + mise + pi + omp
+#   upd apt|brew|dotfiles|mise|pi|omp    just that one
 #
 # opencode has no target of its own: it is a Homebrew formula now, so `upd brew`
 # covers it. It used to be listed here and matched no branch, which made
 # `upd opencode` silently do nothing.
 #
-# Order is deliberate: apt first because it is slowest (sudo, possible password)
-# and most likely to fail, so a failure there does not mask the rest. brew next,
-# because it is the other system package manager and also needs a refresh before
-# anything reads its metadata. dotfiles is last because it re-runs install.sh.
+# Order is deliberate, and dotfiles is no longer last:
+#   apt      slowest (sudo, possible password) and most likely to fail, so a
+#            failure there does not mask the rest
+#   brew     the other system package manager; needs its metadata refreshed
+#            before anything reads it
+#   dotfiles MUST come before mise. ~/.config/mise/config.toml is a symlink into
+#            this repo, so it only reflects upstream once the pull has happened.
+#            With mise first, `mise upgrade` read the OLD config, and the new
+#            tools in the pulled one were then left to install.sh's `mise install`
+#            -- so every run updated mise's world from a config that was one
+#            pull out of date, and paid for a second pass to catch up. Pulling
+#            first means the single mise pass below sees the config the user
+#            actually just fetched.
+#   mise     installs what the fresh config declares, then upgrades it
+#   pi/omp   extensions and plugins -- not binaries; mise owns those
 #
 # Everything is non-interactive and auto-accepting: apt gets -y, brew runs with
 # NONINTERACTIVE=1 and HOMEBREW_NO_AUTO_UPDATE=1, mise gets MISE_YES=1, and
@@ -127,7 +138,7 @@ end
 # prompt that, from a script or a non-interactive run, has nobody to answer it.
 # sudo may still ask for a password the first time; that one cannot be bypassed
 # and should not be.
-function upd --description 'update everything: apt, brew, mise, pi, omp, dotfiles'
+function upd --description 'update everything: apt, brew, dotfiles, mise, pi, omp'
     set -l what $argv
 
     # `selected` is declared up front and only assigned inside the if/else.
@@ -138,7 +149,7 @@ function upd --description 'update everything: apt, brew, mise, pi, omp, dotfile
     if set -q what[1]
         set selected $what
     else
-        set selected apt brew mise pi omp dotfiles
+        set selected apt brew dotfiles mise pi omp
     end
 
     if contains apt $selected; and command -v apt-get >/dev/null 2>&1
@@ -177,36 +188,10 @@ function upd --description 'update everything: apt, brew, mise, pi, omp, dotfile
         NONINTERACTIVE=1 HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_ANALYTICS=1 brew cleanup
     end
 
-    # mise covers every CLI tool plus node and pnpm. `mise upgrade` updates all
-    # of them and reinstalls whatever moved. apt and brew stay separate: mise has
-    # no system-package backend, so those are not managed here.
-    if contains mise $selected; and type -q mise
-        step "mise"
-        # MISE_YES=1 auto-accepts mise's trust prompt for any newly seen backend;
-        # without a TTY that prompt would hang the whole run.
-        MISE_YES=1 mise upgrade
-    end
-
-    # The agent BINARIES come from mise (aqua:earendil-works/pi,
-    # github:can1357/oh-my-pi), already updated by the mise step above. opencode
-    # is a brew formula and is updated by the brew step. What mise does not touch
-    # is the extensions and plugins, so these branches handle only those -- no
-    # --self-style self-update, which would move the binary behind mise's back and
-    # desync the version it pins.
-    #
-    # pi: --extensions updates the packages from its settings
-    # (pi-commandcode-provider, opencode-pi); --approve skips the trust prompt.
-    if contains pi $selected; and command -q pi >/dev/null 2>&1
-        step "pi extensions"
-        pi update --extensions --approve
-    end
-
-    # omp: -l updates installed plugins only.
-    if contains omp $selected; and command -q omp >/dev/null 2>&1
-        step "omp plugins"
-        omp update -l
-    end
-
+    # The dotfiles pull comes before mise on purpose -- see the order note above
+    # the function. It has to run install.sh too, because the stow symlinks and
+    # ~/.config/mise/config.toml only pick up the pulled changes when something
+    # re-deploys them.
     if contains dotfiles $selected; or contains dotfiles $what
         step "dotfiles"
         # Run from the repo without leaving the caller's cwd behind.
@@ -247,9 +232,49 @@ function upd --description 'update everything: apt, brew, mise, pi, omp, dotfile
         end
 
         # Re-run so the stow symlinks pick up the pulled changes. --config-only
-        # matters: this function has already updated apt, mise and the agents
-        # above, and a plain ./install.sh would repeat that whole cycle.
+        # matters: apt and brew are updated above, and a plain ./install.sh would
+        # repeat that whole cycle. mise is NOT one of the reasons -- see below.
         cd $HOME/dotfiles; and ./install.sh --config-only
+    end
+
+    # mise covers every CLI tool plus node and pnpm.
+    #
+    # Split in two, because `upgrade` alone cannot do the whole job: it only
+    # moves versions that are already installed, so a tool newly added to
+    # config.toml is invisible to it. install.sh --config-only runs `mise install`
+    # immediately above against the config this pull just fetched, so the new
+    # tools are on disk by now and `mise upgrade` only has to move versions.
+    # Together that is one pass over the current config instead of an upgrade
+    # against a stale one followed by a catch-up install.
+    #
+    # `upd mise` on its own (no dotfiles target) still needs the install half,
+    # otherwise adding a tool to config.toml and running `upd mise` does nothing.
+    if contains mise $selected; and type -q mise
+        step "mise"
+        # MISE_YES=1 auto-accepts mise's trust prompt for any newly seen backend;
+        # without a TTY that prompt would hang the whole run.
+        MISE_YES=1 mise install
+        MISE_YES=1 mise upgrade
+    end
+
+    # The agent BINARIES come from mise (aqua:earendil-works/pi,
+    # github:can1357/oh-my-pi), already updated by the mise step above. opencode
+    # is a brew formula and is updated by the brew step. What mise does not touch
+    # is the extensions and plugins, so these branches handle only those -- no
+    # --self-style self-update, which would move the binary behind mise's back and
+    # desync the version it pins.
+    #
+    # pi: --extensions updates the packages from its settings
+    # (pi-commandcode-provider, opencode-pi); --approve skips the trust prompt.
+    if contains pi $selected; and command -q pi >/dev/null 2>&1
+        step "pi extensions"
+        pi update --extensions --approve
+    end
+
+    # omp: -l updates installed plugins only.
+    if contains omp $selected; and command -q omp >/dev/null 2>&1
+        step "omp plugins"
+        omp update -l
     end
 end
 
