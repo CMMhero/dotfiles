@@ -16,16 +16,10 @@
         "#ed8796"  // 8 red
     ],
     "logo": {
-        "type": "chafa",
-        "source": "~/.config/fastfetch/logo.png",
+        "type": "file",
+        "source": "~/.config/fastfetch/cmmhero_plain.txt",
         "width": 32,
-        "height": 18,
-        "chafa": {
-            "symbols": "braille",
-            "ditherMode": "DIFFUSION",
-            "colorSpace": "DIN99D",
-            "fgOnly": true
-        }
+        "height": 18
     },
     "display": {
           "separator": " ➜  "

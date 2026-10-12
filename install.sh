@@ -494,6 +494,56 @@ else
     log_err "Already-installed formulas are fine; re-run to retry the rest."
   fi
 fi
+
+# ------------------------------------------------------------------------------
+# Homebrew bottles vs this distro's glibc
+# ------------------------------------------------------------------------------
+# Linuxbrew ships prebuilt bottles linked against a NEWER glibc than a stock
+# Ubuntu carries. On a fresh 22.04 (glibc 2.35) a current bottle wanting
+# GLIBC_2.38/2.39 will not run, and the failure is a bare loader message:
+#
+#   /home/linuxbrew/.linuxbrew/bin/fish: /lib/x86_64-linux-gnu/libc.so.6:
+#   version `GLIBC_2.38' not found
+#
+# with nothing in the output naming the install step that produced the binary.
+# That is what makes it so hard to place.
+#
+# So: actually RUN each brew-supplied binary. One that cannot load fails here,
+# where the cause is still known, rather than at the prompt much later.
+if [ "${#BREW_FORMULAE[@]}" -gt 0 ]; then
+  _glibc_ver="$(ldd --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+$')"
+  log_step "Checking Homebrew binaries against this glibc (${_glibc_ver:-unknown})"
+
+  GLIBC_BAD=0
+  GLIBC_ERR="$(mktemp)"
+  for _formula in "${BREW_FORMULAE[@]}"; do
+    _bin="$(brew --prefix 2>/dev/null)/bin/$_formula"
+    [ -x "$_bin" ] || continue
+    # `--version`, never bare: a shell or a TUI that waits for input would hang
+    # the installer instead of failing.
+    if ! "$_bin" --version </dev/null >/dev/null 2>"$GLIBC_ERR"; then
+      if grep -q 'GLIBC_' "$GLIBC_ERR" 2>/dev/null; then
+        log_err "$_formula cannot run on this distro:"
+        sed 's/^/    /' "$GLIBC_ERR" | head -3
+        GLIBC_BAD=1
+      fi
+    fi
+  done
+  rm -f "$GLIBC_ERR"
+
+  if [ "$GLIBC_BAD" -eq 1 ]; then
+    echo ""
+    log_err "These Homebrew bottles need a newer glibc than this distro has."
+    log_err "Two ways out, in order of preference:"
+    log_err "  1. upgrade the distro -- the bottles follow whatever Ubuntu is current"
+    log_err "  2. drop Homebrew and install those tools through mise's aqua/github"
+    log_err "     backends, which ship self-contained binaries with no such"
+    log_err "     dependency, and are what install.sh already uses for everything else"
+    echo ""
+  else
+    log_ok "Homebrew binaries run on this glibc."
+  fi
+fi
 # Not fatal either way. The formulas may already be present (mise especially, on
 # a machine that installed it by hand), and a failure here must not strand a box
 # that could otherwise finish its config. What actually needs mise is section 5,
@@ -1489,6 +1539,29 @@ if command -v fish >/dev/null 2>&1; then
     echo ""
   else
     log_ok "fish config syntax ok."
+  fi
+fi
+
+# ------------------------------------------------------------------------------
+# fish completions -- LAST, after every package is installed
+# ------------------------------------------------------------------------------
+# fish builds its completions from the commands, man pages and functions it can
+# see at that moment. Running it earlier means the completions are generated
+# before most of the tools exist, so it silently produces a thin set and the
+# shell looks like it has none until something else regenerates them.
+#
+# fish_update_completions is fish's own entry point for this, and is what the
+# command of that name runs anyway; calling it explicitly here is about ORDER,
+# not about doing something new.
+if command -v fish >/dev/null 2>&1; then
+  log_step "Regenerating fish completions"
+  # </dev/null for the same reason the fish syntax check below uses it: under
+  # `curl ... | bash` the script's stdin is the pipe feeding it, and fish can
+  # block reading that.
+  if fish -c 'fish_update_completions' </dev/null 2>&1 | sed 's/^/    /'; then
+    log_ok "fish completions regenerated."
+  else
+    log_warn "fish_update_completions failed; run it inside fish to retry."
   fi
 fi
 
