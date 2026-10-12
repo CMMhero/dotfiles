@@ -5,7 +5,11 @@
 #
 # Usage:
 #   # from a fresh machine (no repo yet)
-#   curl -fsSL https://raw.githubusercontent.com/CMMhero/dotfiles/main/install.sh | bash
+#   curl -fsSL https://cmmhero.top/dotfiles | bash
+#
+#   # cmmhero.top/dotfiles is a 301 to the raw install.sh on GitHub. The short
+#   # form is what the README advertises so the URL can change hosts without
+#   # every copy of the one-liner going stale.
 #
 #   # or clone first
 #   git clone https://github.com/CMMhero/dotfiles.git ~/dotfiles

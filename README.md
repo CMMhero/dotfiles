@@ -38,6 +38,8 @@ Modular dotfiles managed with **GNU Stow**, with `install.sh` / `uninstall.sh` f
     - This repo used to ship a hand-written `tldr` channel that read the tealdeer page cache; it was removed once it was confirmed upstream ships one, since a tracked file would shadow upstream's. The stowed config.toml registers `tldr` as a channel trigger, so pressing tv's trigger key while running `tldr` opens the picker.
     - `cable/` is machine state. A `cable/` symlink left dangling by removing a tracked channel makes `tv update-channels` fail outright (`Error: No such file or directory`), and `stow` does not clean it up, so `install.sh` removes broken links in `cable/` first
 - **`du` → `dust`, `df` → `duf`**: `abbr`, with `du-real` / `df-real` escape hatches. Overriding `df` is the riskier of the two, since `df`-output-parsing scripts will break on `duf`
+- **SSH**: **not managed, deliberately.** `~/.ssh/config` is a plain local file and must never be added to this repo. It carries host IPs and key filenames, which is infrastructure detail with no business in a public repository. An earlier version of this file *was* committed here and had to be purged with a force-push; because GitHub keeps an orphaned commit readable by its SHA until garbage collection, the contents stayed retrievable afterwards even though the file vanished from `main`. Treat anything host-specific as local-only and share structure, never hosts.
+  - The one piece worth copying onto a new machine is a `linux` host entry pointing at `127.0.0.1:2222`. Herdr exposes this distro as the `linux` machine, and sshd binds `0.0.0.0:2222` while `127.0.0.1` inside the distro is the distro itself — so the same entry works from Windows and from inside WSL. Without it, `ssh linux` fails here with `Could not resolve hostname linux`, because only the Windows side had one. Use `StrictHostKeyChecking accept-new` rather than `no`: it records the key on first connect and still verifies it afterwards, so a later MITM is caught.
 - **Skills**: not managed. `~/.agents/skills` and `~/skills-lock.json` stay per-machine, as do the `opencode/` / `pi/` / `omp/` skill dirs. Install with the `skills` wrapper (`pnpm dlx`, global by default): `skills add <pkg>`.
 
 ---
@@ -47,7 +49,7 @@ Modular dotfiles managed with **GNU Stow**, with `install.sh` / `uninstall.sh` f
 One-liner (clones or pulls the repo, then installs everything):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/CMMhero/dotfiles/main/install.sh | bash
+curl -fsSL https://cmmhero.top/dotfiles | bash
 ```
 
 Or manually:
