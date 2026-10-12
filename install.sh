@@ -495,55 +495,6 @@ else
   fi
 fi
 
-# ------------------------------------------------------------------------------
-# Homebrew bottles vs this distro's glibc
-# ------------------------------------------------------------------------------
-# Linuxbrew ships prebuilt bottles linked against a NEWER glibc than a stock
-# Ubuntu carries. On a fresh 22.04 (glibc 2.35) a current bottle wanting
-# GLIBC_2.38/2.39 will not run, and the failure is a bare loader message:
-#
-#   /home/linuxbrew/.linuxbrew/bin/fish: /lib/x86_64-linux-gnu/libc.so.6:
-#   version `GLIBC_2.38' not found
-#
-# with nothing in the output naming the install step that produced the binary.
-# That is what makes it so hard to place.
-#
-# So: actually RUN each brew-supplied binary. One that cannot load fails here,
-# where the cause is still known, rather than at the prompt much later.
-if [ "${#BREW_PACKAGES[@]}" -gt 0 ]; then
-  _glibc_ver="$(ldd --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+$')"
-  log_step "Checking Homebrew binaries against this glibc (${_glibc_ver:-unknown})"
-
-  GLIBC_BAD=0
-  GLIBC_ERR="$(mktemp)"
-  for _formula in "${BREW_PACKAGES[@]}"; do
-    _bin="$(brew --prefix 2>/dev/null)/bin/$_formula"
-    [ -x "$_bin" ] || continue
-    # `--version`, never bare: a shell or a TUI that waits for input would hang
-    # the installer instead of failing.
-    if ! "$_bin" --version </dev/null >/dev/null 2>"$GLIBC_ERR"; then
-      if grep -q 'GLIBC_' "$GLIBC_ERR" 2>/dev/null; then
-        log_err "$_formula cannot run on this distro:"
-        sed 's/^/    /' "$GLIBC_ERR" | head -3
-        GLIBC_BAD=1
-      fi
-    fi
-  done
-  rm -f "$GLIBC_ERR"
-
-  if [ "$GLIBC_BAD" -eq 1 ]; then
-    echo ""
-    log_err "These Homebrew bottles need a newer glibc than this distro has."
-    log_err "Two ways out, in order of preference:"
-    log_err "  1. upgrade the distro -- the bottles follow whatever Ubuntu is current"
-    log_err "  2. drop Homebrew and install those tools through mise's aqua/github"
-    log_err "     backends, which ship self-contained binaries with no such"
-    log_err "     dependency, and are what install.sh already uses for everything else"
-    echo ""
-  else
-    log_ok "Homebrew binaries run on this glibc."
-  fi
-fi
 # Not fatal either way. The formulas may already be present (mise especially, on
 # a machine that installed it by hand), and a failure here must not strand a box
 # that could otherwise finish its config. What actually needs mise is section 5,
