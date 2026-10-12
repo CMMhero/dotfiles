@@ -10,19 +10,8 @@ if wezterm.config_builder then
   config = wezterm.config_builder()
 end
 
-config.wsl_domains = {
-  {
-    name = 'WSL:Ubuntu',
-    distribution = 'Ubuntu',
-    username = 'cmmhero',
-    default_cwd = '/home/cmmhero',
-    default_prog = { 'fish' },
-  },
-}
-
 -- terminal configuration
 config.default_prog = { "pwsh.exe", "-NoLogo" }
--- config.default_prog = { "nu.exe" }
 -- config.default_domain = 'WSL:Ubuntu'
 
 --[[
