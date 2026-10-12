@@ -288,7 +288,7 @@ abbr -a -- .... 'cd ../../..'
 abbr -a -- h history
 
 # ----- open in editor / explorer  -----
-# WSL: zed is the Windows build; explorer.exe opens File Explorer.
+# WSL: zed is the Windows build; FilePilot.exe is the Windows file manager.
 if command -q zed
     abbr -a -- c. 'zed .'
     abbr -a -- c zed
@@ -296,8 +296,32 @@ else
     abbr -a -- c. '$EDITOR .'
     abbr -a -- c '$EDITOR'
 end
-abbr -a -- e. 'explorer.exe .'
-abbr -a -- e explorer.exe
+# `e` / `e.` open FilePilot, not Windows Explorer, matching the PowerShell
+# profile on the Windows side. Abbreviations rather than functions, because
+# these expand visibly on the command line -- which is what you want here: you
+# can see it became `FPilot.exe` before it runs.
+#
+# FilePilot is a Windows app reached through WSL interop, so the path has to be
+# a Windows one. `explorer.exe .` works only because Explorer resolves the WSL
+# cwd itself; FPilot.exe is given the same argument and resolves it the same
+# way, so no wslpath conversion is needed and none is done -- converting it
+# would hand FilePilot a path it cannot read back into WSL.
+#
+# Falls back to explorer.exe when FilePilot is not installed, so the
+# abbreviation is never a command that does not exist.
+set -gx FPILOT_EXE (command -q FPilot.exe; and echo FPilot.exe)
+if test -z "$FPILOT_EXE"
+    # explorer.exe, not a path to FPilot.exe. Reaching the exe without PATH needs
+    # the WINDOWS username: $USER here is the Linux one (cmmhero, not CMM), and
+    # $LOCALAPPDATA is not exported into WSL at all, so both obvious attempts
+    # build a path that does not exist. Interop already carries the Windows PATH
+    # entries into WSL, so an installed FilePilot is on PATH and the check above
+    # catches it.
+    set FPILOT_EXE explorer.exe
+end
+
+abbr -a -- e. "$FPILOT_EXE ."
+abbr -a -- e $FPILOT_EXE
 
 # ----- git -----
 abbr -a -- g git
