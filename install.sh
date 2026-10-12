@@ -510,13 +510,13 @@ fi
 #
 # So: actually RUN each brew-supplied binary. One that cannot load fails here,
 # where the cause is still known, rather than at the prompt much later.
-if [ "${#BREW_FORMULAE[@]}" -gt 0 ]; then
+if [ "${#BREW_PACKAGES[@]}" -gt 0 ]; then
   _glibc_ver="$(ldd --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+$')"
   log_step "Checking Homebrew binaries against this glibc (${_glibc_ver:-unknown})"
 
   GLIBC_BAD=0
   GLIBC_ERR="$(mktemp)"
-  for _formula in "${BREW_FORMULAE[@]}"; do
+  for _formula in "${BREW_PACKAGES[@]}"; do
     _bin="$(brew --prefix 2>/dev/null)/bin/$_formula"
     [ -x "$_bin" ] || continue
     # `--version`, never bare: a shell or a TUI that waits for input would hang
