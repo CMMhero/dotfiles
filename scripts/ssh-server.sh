@@ -143,14 +143,53 @@ else
   log_ok "ssh.socket drop-in written (binds 0.0.0.0:$PORT and [::]:$PORT)"
 fi
 
+# Run a systemctl command and REPORT it if it fails.
+#
+# The previous version appended >/dev/null 2>&1 to all of these, which is how a
+# bare "Job failed. See journalctl -xe for details." reached the terminal with no
+# indication of which command produced it. systemctl's own message is the useful
+# part; it is kept, and pointed at the right unit's journal.
+systemctl_try() {
+    _what="$1"; shift
+    _out="$("$@" 2>&1)" && return 0
+    log_warn "$_what failed: $_out"
+    case "$_what" in
+        *socket*) _unit="ssh.socket" ;;
+        *)        _unit="ssh.service" ;;
+    esac
+    log_info "  journalctl -xe -u $_unit"
+    return 1
+}
+
+# Stop the SERVICE before restarting the socket.
+#
+# With socket activation the service sits idle until a connection arrives -- but
+# once one has, sshd is running and holding the port ITSELF. Restarting the
+# socket underneath it cannot bind, and systemd says "Job failed". On a machine
+# that has never been connected to this never happens, which is why it showed up
+# on a fresh laptop and not on the machine this was developed on.
+#
+# The service is not started again afterwards: with the socket holding the port,
+# the next connection starts it. That is the whole point of the arrangement.
+if systemctl is-active --quiet ssh.service; then
+    log_info "stopping ssh.service so the socket can take the port back"
+    systemctl_try "stop ssh.service" systemctl stop ssh.service || true
+fi
+
 log_info "daemon-reload, enable, restart"
-systemctl daemon-reload >/dev/null 2>&1 || true
-systemctl enable ssh.socket >/dev/null 2>&1 || log_warn "could not enable ssh.socket"
-systemctl restart ssh.socket >/dev/null 2>&1 || log_warn "could not restart ssh.socket"
+systemctl_try "daemon-reload"  systemctl daemon-reload  || true
+systemctl_try "enable ssh.socket" systemctl enable ssh.socket || log_warn "could not enable ssh.socket (it may be enabled already)"
+systemctl_try "restart ssh.socket" systemctl restart ssh.socket || {
+    log_warn "ssh.socket did not restart; the unit may still hold the old port"
+    # One more attempt with the socket stopped first, which is the other common
+    # cause of a failed bind.
+    systemctl_try "stop ssh.socket"  systemctl stop ssh.socket  || true
+    systemctl_try "start ssh.socket" systemctl start ssh.socket || true
+}
 
 LISTEN="$(systemctl show ssh.socket -p Listen --value 2>/dev/null | tr '\n' ' ' | tr -s ' ')"
 if printf '%s' "$LISTEN" | grep -q ":$PORT"; then
-  log_ok "ssh.socket listening on:$LISTEN"
+  log_ok "ssh.socket listening on $LISTEN"
 else
   log_err "ssh.socket is NOT on $PORT (it is on:$LISTEN)"
   log_err "  something else is overriding the drop-in; check"
