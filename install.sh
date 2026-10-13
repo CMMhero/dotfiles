@@ -832,7 +832,23 @@ fi
 # (WSL domain, pwsh default_prog, Acrylic backdrop, win32_system_backdrop), so
 # it is version-controlled in this repo for reference but never linked into $HOME
 # on Linux and never installed at all.
+#
+# `agents` carries the shared global instructions: ~/AGENTS.md itself, plus the
+# per-harness pointer files (~/.claude/CLAUDE.md, ~/.codex/AGENTS.md,
+# ~/.clinerules/global.md, ~/.cursorrules). The same AGENTS.md is deployed on
+# Windows by chezmoi, from this same working copy, so the two machines read one
+# file and every path in it stays `~`-relative. The pi and omp pointers
+# (~/.pi/agent/AGENTS.md, ~/.omp/agent/AGENTS.md) are NOT here: those files live
+# in the `pi` and `omp` packages and go out through PI_MANAGED_FILES /
+# OMP_MANAGED_FILES, the same narrow linkers that carry each tool's config.
+#
+# These are pointer files and one policy file, none of which a harness rewrites
+# (unlike omp and pi, which churn their own runtime state next to their config),
+# so a whole-package stow is safe here. ensure_target_dirs still pre-creates
+# each parent, so `~/.claude` stays a real directory rather than becoming a link
+# to this repo -- Claude Code writes skills/ and its own state under it.
 STOW_PACKAGES=(
+  agents
   fish
   git
   mise
@@ -878,6 +894,7 @@ EXPLICIT_LINK_PACKAGES=(fresh superfile)
 # an explicit file list rather than a whole-tree walk.
 OMP_MANAGED_FILES=(
   .omp/agent/config.yml
+  .omp/agent/AGENTS.md
   .omp/plugins/package.json
   .omp/agent/extensions/opencode-zen-fix.ts
 )
@@ -892,8 +909,6 @@ OMP_MANAGED_FILES=(
 # Everything else under ~/.pi stays per-machine and is NOT listed here:
 #   auth.json            credentials, never linked
 #   trust.json           per-directory trust decisions
-#   AGENTS.md            global instructions; the live copy points at a Windows
-#                        path that does not exist here
 #   commandcode-models.json
 #                        a model catalog pi regenerates at runtime
 #   npm/                 the installed extension packages themselves
@@ -909,6 +924,7 @@ OMP_MANAGED_FILES=(
 #                        reason herdr's opencode and omp integration files were
 #                        dropped from stow. Custom extensions belong beside them.
 PI_MANAGED_FILES=(
+  .pi/agent/AGENTS.md
   .pi/agent/settings.json
   .pi/agent/mcp.json
 )
@@ -1186,9 +1202,10 @@ fi
 # nobody to answer.
 #
 # omp: the `omp` config is linked file-by-file, not stowed: only
-# agent/config.yml, plugins/package.json and agent/extensions/opencode-zen-fix.ts
-# come from the repo. Everything else under ~/.omp is per-machine state
-# (sessions/, run/, logs/, cache/, stats.db, install-id, plugins/node_modules).
+# agent/config.yml, agent/AGENTS.md, plugins/package.json and
+# agent/extensions/opencode-zen-fix.ts come from the repo. Everything else under
+# ~/.omp is per-machine state (sessions/, run/, logs/, cache/, stats.db,
+# install-id, plugins/node_modules).
 
 # pi's own extension .ts files (herdr-agent-state, orca-*) are NOT handled here:
 # herdr and orca each write their own, and reinstalling either tool overwrites
