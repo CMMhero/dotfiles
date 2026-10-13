@@ -2,14 +2,6 @@
 
 > Single source of truth for every AI agent/harness I use (Claude Code, Cline, Codebuff/Codex, OpenCode, Cursor, Gemini CLI, Windsurf…). Per-harness files (CLAUDE.md, GEMINI.md, .codex/AGENTS.md, .clinerules…) reference this so instructions stay in one place.
 
-## Who I am
-
-Christopher Matthew Marvelio (CMM) — Full Stack Developer.
-- Email: contact@cmmhero.top
-- Portfolio: https://cmmhero.top
-- Git identity: name `Christopher Matthew Marvelio`, email `ch.mh.marvelio@gmail.com`
-- Focus: automation systems, dashboards, multi-platform apps (web, desktop, mobile). Reliability, real-time data, reducing manual tasks — automation first.
-
 ## How to work
 
 - Precise, minimal, typed code. Clean + well-named over boilerplate.
@@ -32,8 +24,8 @@ Christopher Matthew Marvelio (CMM) — Full Stack Developer.
 - Terminal: WezTerm (WebGpu), Catppuccin Macchiato, Acrylic backdrop at 0.75 opacity, 144 FPS max/animation, GeistMono NFP fallback chain (GeistMono Nerd Font Mono, JetBrains Mono, Symbols Nerd Font Mono). Launches `pwsh -NoLogo` by default; the `WSL:Ubuntu` domain exists but is not the default.
 - Prompt/history/keys: Starship prompt; atuin history (Ctrl-R); fzf Ctrl-T file picker and Alt-C directory picker (fish vendors key-bindings.fish into conf.d; PowerShell reimplements both against PSReadLine).
 - Home is `~` on both machines; this file is shared between Windows and WSL, so every path here is `~`-relative unless the line names a platform.
-- Projects: `~/code/<project>` on WSL; the Windows box keeps them in a drive-root tree at `D:\CODE\<project>`, which WSL sees as `/mnt/d/CODE/<project>`.
-- Dotfiles live in two repos, one per platform: Windows → **chezmoi** source `D:\CODE\chezmoi`, deployed with `chezmoi apply`; Linux/WSL → **GNU stow** from `~/dotfiles` (packages per install.sh; omp/pi/fresh/superfile linked file-by-file, never stowed whole). Example (Windows): edit `readonly_documents/PowerShell/CMM.profile.ps1`, then `chezmoi apply` → `~/Documents/PowerShell/CMM.profile.ps1`. Exceptions — edit live, never track: nushell `config.nu`/`env.nu`, Raycast DB, and every T3 Code file except the two managed ones. The chezmoi rule under Tooling applies to everything else managed.
+- Projects live in `~/Code/<project>` on Windows and `~/code/<project>` on WSL.
+- Dotfiles live in two repos, one per platform: Windows → **chezmoi** source `~/dotfiles-win`, deployed with `chezmoi apply`; Linux/WSL → **GNU stow** from `~/dotfiles` (packages per install.sh; omp/pi/fresh/superfile linked file-by-file, never stowed whole). Example (Windows): edit `readonly_documents/PowerShell/CMM.profile.ps1`, then `chezmoi apply` → `~/Documents/PowerShell/CMM.profile.ps1`. Exceptions — edit live, never track: nushell `config.nu`/`env.nu`, Raycast DB, and every T3 Code file except the two managed ones. The chezmoi rule under Tooling applies to everything else managed.
 - Aliases both shells share (use plain commands in scripts; fish guards with `command -q`, PowerShell with `Get-Command`):
   - nav: cd/cdi (zoxide), .. / ... / .... to go up; h = history
   - list: eza with `--icons=auto --group-directories-first` — ls shows all (`-aF`); l/la slim (`--no-filesize --no-permissions --no-user`); ll adds `--git`; tree/dtree prune `node_modules` + `.git`
@@ -48,10 +40,10 @@ Christopher Matthew Marvelio (CMM) — Full Stack Developer.
 
 ## Tooling
 
-- **Dotfiles / config edits go through chezmoi on Windows, GNU stow on Linux/WSL.** Windows dotfiles live in the chezmoi source at `D:\CODE\chezmoi` and are applied to the live paths with `chezmoi apply`; WSL/Linux configs live in `~/dotfiles` packages and deploy via that repo's `install.sh` (stow + file-by-file linkers for omp/pi/fresh/superfile). When I ask you to change a config file (PowerShell `CMM.profile.ps1`, `.gitconfig`, `.wezterm.lua`, atuin, starship, btop, etc.):
+- **Dotfiles / config edits go through chezmoi on Windows, GNU stow on Linux/WSL.** Windows dotfiles live in the chezmoi source at `~/dotfiles-win` and are applied to the live paths with `chezmoi apply`; WSL/Linux configs live in `~/dotfiles` packages and deploy via that repo's `install.sh` (stow + file-by-file linkers for omp/pi/fresh/superfile). When I ask you to change a config file (PowerShell `CMM.profile.ps1`, `.gitconfig`, `.wezterm.lua`, atuin, starship, btop, etc.):
   1. Check if it's already managed: `chezmoi managed` / `chezmoi status` (Windows) or the `~/dotfiles` package list (WSL).
   2. If it isn't managed yet: `chezmoi add <file>` first, so it enters the source dir (Windows).
-  3. Edit the **source copy** under `D:\CODE\chezmoi/...` (that's the file you change — e.g. `D:\CODE\chezmoi\readonly_documents\PowerShell\CMM.profile.ps1` for `~\Documents\PowerShell\CMM.profile.ps1`), never the live file directly.
+  3. Edit the **source copy** in `~/dotfiles-win` (that's the file you change — e.g. `readonly_documents/PowerShell/CMM.profile.ps1` for `~/Documents/PowerShell/CMM.profile.ps1`), never the live file directly.
   4. Run `chezmoi apply` to push the change live, then verify (`chezmoi status` clean / `chezmoi diff` empty).
 - Editor: **Zed** ($EDITOR is fresh in the terminal). WezTerm + PowerShell workflow.
 - Use project's own linter/formatter (Biome, ESLint, Prettier, rustfmt, etc.) — match existing config, don't add a new one.
@@ -69,19 +61,19 @@ Christopher Matthew Marvelio (CMM) — Full Stack Developer.
 
 - CLI toolchain is **mise** (`~/.config/mise/config.toml`, chezmoi-managed, everything `latest`): atuin, bat, eza, fd, fastfetch, fzf, lazygit, ripgrep, starship, zoxide — plus the agent CLIs **pi**, **hunk**, **oh-my-pi** (binary `omp`), **herdr**. `opencode` is an npm global instead (`vp i -g @opencode/cli`; vite+ owns package managers). winget owns Git, PowerShell, chezmoi, mise, Zed, WezTerm, fresh ($EDITOR of choice), btop4win, Helium (default browser), ShareX, FilePilot, Quick Share, Spotify, Chrome Remote Desktop; Raycast is msstore-only. Deliberately absent: delta, dust, duf, glow, jq, navi, pastel, procs, superfile, tealdeer, television, uv (unused here).
 - Daily agent models: Codex `gpt-5.6-luna` (reasoning medium); T3 favorites codex/`gpt-5.6-luna` and claudeAgent/`claude-opus-5`, default provider opencode/`space-bunny-free`.
-- **T3 Code** is my agent IDE: nightly from GitHub releases (NOT winget), lives in `~/.t3`. Providers on: opencode + codex. Worktrees live in `D:\worktrees` (auto-cleanup on merge/delete), rebase merges, semantic branch names, conventional-commits style. Its `keybindings.json` and `settings.json` rewrite on exit and stay untracked; `client-settings.json` and `desktop-settings.json` are chezmoi-managed (edit the source copy, never the live file).
+- **T3 Code** is my agent IDE: nightly from GitHub releases (NOT winget), lives in `~/.t3`. Providers on: opencode + codex. Its `keybindings.json` and `settings.json` rewrite on exit and stay untracked; `client-settings.json` and `desktop-settings.json` are chezmoi-managed (edit the source copy, never the live file).
 
 ## Machines & remotes
 
 - **WSL (Ubuntu, user cmmhero, home /home/cmmhero)** is the Linux half of this box. Its shell is **fish** (set by the WSL repo's install.sh via chsh), not nushell. `.wslconfig` keeps the distro and the VM alive (`instanceIdleTimeout=-1`, `vmIdleTimeout=-1`), forwards localhost so sshd is reachable at 127.0.0.1:2222, and enables sparseVhd + autoProxy.
-- **SSH aliases** (`~/.ssh/config`, chezmoi-managed at `D:\CODE\chezmoi\dot_ssh\config`; keys committed plaintext by design): `linux` = WSL over 127.0.0.1:2222 (user cmmhero, id_ed25519), `main` = 129.225.6.168 (user ubuntu, cmmhero-main.key), `dev` = 168.110.216.90 (user ubuntu, cmmhero-dev.key — the dev VPS). The old `vps` alias is dead (domain stopped resolving).
+- **SSH aliases** (`~/.ssh/config`, chezmoi-managed from `dot_ssh/config` in the source repo; keys committed plaintext by design): `linux` = WSL over 127.0.0.1:2222 (user cmmhero, id_ed25519), `main` = 129.225.6.168 (user ubuntu, cmmhero-main.key), `dev` = 168.110.216.90 (user ubuntu, cmmhero-dev.key — the dev VPS). The old `vps` alias is dead (domain stopped resolving).
 - **Zed remote servers** (`ssh_connections` in chezmoi-managed Zed settings): `wsl` (host linux), `main`, `dev vps` (host dev) — user/port/key all inherit from the SSH aliases above. Host-only entries on purpose: they prompt for a folder in the Remote Projects dialog.
 - **Herdr remote** (`manage_ssh_config = true`) drives the `linux` machine over that same 127.0.0.1:2222 forward; the HERDR_ENV=1 and no-focus/background rules apply there exactly as locally.
 
 ## Code style (general)
 
 - TypeScript/JS: typed, concise, no needless abstraction; composition + explicit variants over boolean props / renderX props.
-- React: compound components + composition; lift state into providers for shared siblings (see D:\CODE\cmmhero-autobot\AGENTS.md for detailed composition rules).
+- React: compound components + composition; lift state into providers for shared siblings.
 - Backend: small APIs; use project framework (Express, Laravel, Next+nginx, etc.).
 - Databases in use: PostgreSQL, MySQL, MongoDB, Firebase.
 
@@ -109,14 +101,6 @@ Christopher Matthew Marvelio (CMM) — Full Stack Developer.
   - Every change/feature → **update** the PRD and README in the same pass, so context and implementation notes never drift out of date.
   - Treat PRD + README as part of "done"; don't leave a task complete without them reflecting the current state.
 - Prefer **scripts** for tasks that are repetitive or fit automation (build, seed, sync, formatting, etc.).
-
-## My projects (context)
-
-- CMMhero Automation — automation platform w/ real-time data, event automation, dashboard. Next.js + MongoDB + WebSocket.
-- Discord Bot (H320) — utilities, music, activities, anime search. Node.js + Discord.js + MongoDB.
-- ZenType — minimalist typing-speed tester with customization/stats. React + TypeScript + Tailwind.
-- Lachisean Library — library management (reviews/categories/admin). Laravel + PHP + MySQL.
-- Many more on the Windows box under `D:\CODE` (portfolio-v2, cmmhero-api, autobot, license-watcher, TUI games, laundry app, etc.), plus `ns-api` under `~/Documents` and the ns bot under `~/source/repos`. On WSL they live in `~/code` (`/mnt/d/CODE` is the same Windows tree).
 
 ## Committing
 
