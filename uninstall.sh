@@ -80,7 +80,11 @@ DOTFILES_DIR="$SCRIPT_DIR"
 # install.sh links them file-by-file rather than stowing them (being in both
 # lists is what made 'stow fresh' abort on every run). omp is absent for the
 # same reason, with its own unlink step below. wezterm is never deployed at all.
+# `agents` is stowed, so it is in this list: ~/AGENTS.md and the harness pointers
+# are links and are removed; nothing else in ~/.claude, ~/.codex, ~/.omp or ~/.pi
+# is touched.
 STOW_PACKAGES=(
+  agents
   fish
   git
   mise
@@ -229,6 +233,7 @@ done
 # directory under ~/.omp, and all per-machine state inside it, is left alone.
 OMP_MANAGED_FILES=(
   .omp/agent/config.yml
+  .omp/agent/AGENTS.md
   .omp/plugins/package.json
   .omp/agent/extensions/opencode-zen-fix.ts
 )
@@ -248,6 +253,7 @@ find "$HOME/.omp" -depth -type d -empty -delete 2>/dev/null || true
 # npm/ (the installed extension packages), the tool-written extensions/ and
 # everything else under ~/.pi are machine state and stay exactly where they are.
 PI_MANAGED_FILES=(
+  .pi/agent/AGENTS.md
   .pi/agent/settings.json
   .pi/agent/mcp.json
 )
