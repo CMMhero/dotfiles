@@ -1425,6 +1425,26 @@ if [ -x "$FISH_BIN" ]; then
   log_ok "Default login shell configured: $FISH_BIN"
 fi
 
+# WSL's first-run Ubuntu Insights script does `su "$user" -c '... "$0" -s="$1"'`.
+# su -c runs that string in the *login shell*, and fish has no $0/$1, so the
+# consent state becomes "=" and /usr/lib/wsl/wsl-setup aborts the OOBE
+# ("parsing "=": invalid syntax"). Force bash for those su calls, and reapply
+# after apt upgrades because the wsl package ships the file.
+if [ -f /usr/lib/wsl/ubuntu-insights.sh ]; then
+  sudo tee /usr/local/sbin/wsl-insights-bash-fix >/dev/null <<'FIX'
+#!/bin/sh
+f=/usr/lib/wsl/ubuntu-insights.sh
+[ -f "$f" ] && sed -i 's#\bsu "\$user" -c#su -s /bin/bash "$user" -c#g' "$f"
+exit 0
+FIX
+  sudo chmod 755 /usr/local/sbin/wsl-insights-bash-fix
+  echo 'DPkg::Post-Invoke { "/usr/local/sbin/wsl-insights-bash-fix"; };' \
+    | sudo tee /etc/apt/apt.conf.d/99-wsl-insights-bash >/dev/null
+  sudo /usr/local/sbin/wsl-insights-bash-fix \
+    && log_ok "ubuntu-insights.sh pinned to bash (fish-safe)." \
+    || log_warn "Could not patch /usr/lib/wsl/ubuntu-insights.sh."
+fi
+
 # ------------------------------------------------------------------------------
 # 13. Post-Install: Account Logins & Cache Warmup
 # ------------------------------------------------------------------------------
