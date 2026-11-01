@@ -67,6 +67,7 @@
 ## set filter_mode to "workspace" or leave it unspecified and
 ## set search.filters to include "workspace" before other filter modes.
 # workspaces = false
+workspaces = true
 
 ## which display style to use
 ## possible values: auto, full, compact
@@ -173,7 +174,7 @@ enter_accept = true
 search_mode = "daemon-fuzzy"
 
 ## Defaults to false. If enabled, when triggered after &&, || or |, Atuin will complete commands to chain rather than replace the current line.
-# command_chaining = false
+command_chaining = true
 
 ## This specifies the keymap on the startup of `atuin search`. If this is set
 ## to "auto", the startup keymap mode in the Atuin search is automatically
@@ -243,6 +244,9 @@ keymap_mode = "vim-insert"
 #   "ls",
 #   "vi"
 # ]
+
+ignored_commands = ["cd", "ls", "clear", "exit", "ll", "la", "h"]
+common_subcommands = ["git", "docker", "herdr", "atuin", "mise", "chezmoi", "omp", "pi", "brew", "ssh"]
 
 [keys]
 # Defaults to true. If disabled, using the up/down key won't exit the TUI when scrolled past the first/last entry.
@@ -343,6 +347,7 @@ autostart = true
 ## - array of strings: show commands run by any shell in the array; "" includes
 ##   commands that have no recorded shell
 # shells = "auto"
+shells = "all"
 
 [tmux]
 ## Enable using atuin with tmux popup (requires tmux >= 3.2)
@@ -401,6 +406,17 @@ autostart = true
 ## Make directory expand instead of command:
 # columns = ["duration", "time", { type = "directory", expand = true }, { type = "command", expand = false }]
 
+columns = ["duration", { type = "directory", width = 32 }, "host", "command"]
+
 ## Syntax highlight commands in the search results, using the theme's colors.
 ## Not available on all platforms (e.g. Windows).
 # syntax_highlight = true
+
+[threads]
+capture = true
+
+[pty_proxy]
+enabled = true
+
+[output]
+enabled = true
