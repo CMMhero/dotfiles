@@ -3,7 +3,7 @@
 # into ~/.agents/skills. Safe to run any time.
 set -euo pipefail
 
-REPO_URL="https://github.com/CMMhero/skills.git"
+REPO_URL="git@github.com:CMMhero/skills.git"
 REPO_DIR="$HOME/skills"
 TARGET="$HOME/.agents/skills"
 
