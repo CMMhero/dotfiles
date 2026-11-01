@@ -301,20 +301,28 @@ for target in "${TARGETS[@]}"; do
         else warn "link failed: $link -> $dest"; FAILURES+=("link $name"); fi
     done
 
-    # Prune: a link into the store whose skill is gone from it, or whose target
-    # no longer exists. Anything not pointing into the store is left alone --
-    # another tool's install is not ours to remove.
+    # Prune: a link into the store whose skill is gone from it, or any link whose
+    # target no longer exists. A dangling link is dead by definition, so it goes
+    # even when it points elsewhere -- an old `skills` version wrote RELATIVE
+    # symlinks (../../../.agents/skills/x), which never matched a store-prefix
+    # test on the raw target and so survived every sync.
     for entry in "$target"/*; do
         [ -L "$entry" ] || continue
+        # readlink -f resolves relative targets and returns empty for a dangling
+        # one, which is exactly the two cases to distinguish.
         current=$(readlink -f "$entry" 2>/dev/null || true)
-        raw=$(readlink "$entry" 2>/dev/null || true)
-        case "$raw" in
-            "$STORE"/*) ;;
-            *) continue ;;
-        esac
         name=$(basename "$entry")
-        [ -d "$current" ] && [ -n "${STORE_PATH[$name]:-}" ] && continue
-        if [ "$DRY" = 1 ]; then plan "prune $entry (target gone from store)"; PRUNED+=("$entry"); continue; fi
+        if [ -n "$current" ] && [ -d "$current" ]; then
+            case "$current" in
+                "$STORE"/*) ;;
+                *) continue ;;                       # another tool's install
+            esac
+            [ -n "${STORE_PATH[$name]:-}" ] && continue
+            why='target gone from store'
+        else
+            why='dangling link'
+        fi
+        if [ "$DRY" = 1 ]; then plan "prune $entry ($why)"; PRUNED+=("$entry"); continue; fi
         rm -f "$entry" && PRUNED+=("$entry")
     done
 done
@@ -360,6 +368,27 @@ fi
 # ------------------------------------------------------------------------------
 TOTAL=${#STORE_PATH[@]}
 
+# Health of every target, measured after linking and pruning. The closing line
+# uses this rather than only this run's counters: a run that changed nothing can
+# still be leaving a target broken, and calling that "in sync" is the one lie
+# this report must not tell.
+declare -A HEALTH_OK=() HEALTH_NOTE=()
+for t in "${TARGETS[@]}"; do
+    linked=0; real=0; broken=0
+    for e in "$t"/*; do
+        [ -e "$e" ] || [ -L "$e" ] || continue
+        if [ -L "$e" ]; then
+            if [ -e "$e" ]; then linked=$((linked+1)); else broken=$((broken+1)); fi
+        elif is_skill "$e"; then real=$((real+1)); fi
+    done
+    if [ "$linked" = "$TOTAL" ] && [ "$real" = 0 ] && [ "$broken" = 0 ]; then
+        HEALTH_OK["$t"]=1
+    else
+        HEALTH_OK["$t"]=0
+    fi
+    HEALTH_NOTE["$t"]="linked=$linked real=$real broken=$broken"
+done
+
 if [ "$STATUS" = 1 ]; then
     CUSTOM=0
     for n in "${!STORE_PATH[@]}"; do
@@ -368,15 +397,7 @@ if [ "$STATUS" = 1 ]; then
     printf '\n  store   %s\n' "$STORE"
     printf '  skills  %s (%s custom, %s external)\n' "$TOTAL" "$CUSTOM" "$((TOTAL-CUSTOM))"
     for t in "${TARGETS[@]}"; do
-        linked=0; real=0; broken=0
-        for e in "$t"/*; do
-            [ -e "$e" ] || [ -L "$e" ] || continue
-            if [ -L "$e" ]; then
-                if [ -e "$e" ]; then linked=$((linked+1)); else broken=$((broken+1)); fi
-            elif is_skill "$e"; then real=$((real+1)); fi
-        done
-        if [ "$linked" = "$TOTAL" ] && [ "$real" = 0 ] && [ "$broken" = 0 ]; then state='in sync'
-        else state="linked=$linked real=$real broken=$broken"; fi
+        if [ "${HEALTH_OK[$t]}" = 1 ]; then state='in sync'; else state="${HEALTH_NOTE[$t]}"; fi
         printf '  %-34s %s\n' "${t/$HOME/\~}" "$state"
     done
     printf '\n'
@@ -385,14 +406,24 @@ fi
 for c in "${CONFLICTS[@]:-}"; do [ -n "$c" ] && warn "$c"; done
 for f in "${FAILURES[@]:-}"; do [ -n "$f" ] && warn "$f"; done
 
-CHANGED=$(( ${#ADOPTED[@]} + LINKED + ${#PRUNED[@]} ))
-if [ "$CHANGED" -eq 0 ]; then
-    note "$TOTAL skills, ${#TARGETS[@]} targets, already in sync"
+[ ${#ADOPTED[@]} -gt 0 ] && ok "adopted ${#ADOPTED[@]}: $(printf '%s\n' "${ADOPTED[@]}" | sort -u | paste -sd, -)"
+[ "$LINKED" -gt 0 ] && ok "linked $LINKED entries across ${#TARGETS[@]} targets"
+[ ${#PRUNED[@]} -gt 0 ] && ok "pruned ${#PRUNED[@]}: $(printf '%s\n' "${PRUNED[@]}" | xargs -n1 basename | sort -u | paste -sd, -)"
+
+# The verdict comes from a fresh measurement of every target, not from whether
+# this run happened to touch anything. "Already in sync" over a broken link is
+# precisely the failure that let one survive, so a target still unhealthy after
+# linking and pruning is a failure, not a quiet no-op.
+UNHEALTHY=0
+for t in "${TARGETS[@]}"; do
+    [ "${HEALTH_OK[$t]}" = 1 ] && continue
+    UNHEALTHY=$((UNHEALTHY+1))
+    warn "${t/$HOME/\~}: ${HEALTH_NOTE[$t]} (expected $TOTAL links)"
+done
+if [ "$UNHEALTHY" -eq 0 ]; then
+    note "$TOTAL skills, ${#TARGETS[@]} targets, in sync"
 else
-    [ ${#ADOPTED[@]} -gt 0 ] && ok "adopted ${#ADOPTED[@]}: $(printf '%s\n' "${ADOPTED[@]}" | sort -u | paste -sd, -)"
-    [ "$LINKED" -gt 0 ] && ok "linked $LINKED entries across ${#TARGETS[@]} targets"
-    [ ${#PRUNED[@]} -gt 0 ] && ok "pruned ${#PRUNED[@]}: $(printf '%s\n' "${PRUNED[@]}" | xargs -n1 basename | paste -sd, -)"
-    note "$TOTAL skills -> ${#TARGETS[@]} targets"
+    FAILURES+=('targets not in sync')
 fi
 
 [ ${#FAILURES[@]} -gt 0 ] && [ -n "${FAILURES[0]:-}" ] && exit 1
