@@ -1511,6 +1511,19 @@ if command -v fish >/dev/null 2>&1; then
 fi
 
 # ------------------------------------------------------------------------------
+# Agent skills -- clone/pull the skills repo and link every skill into
+# ~/.agents/skills. Safe to run any time; idempotent.
+# ------------------------------------------------------------------------------
+if [ -f "$HOME/dotfiles/sync-skills.sh" ]; then
+  log_step "Syncing agent skills"
+  if bash "$HOME/dotfiles/sync-skills.sh"; then
+    log_ok "agent skills synced."
+  else
+    log_warn "sync-skills.sh failed; run it manually to retry."
+  fi
+fi
+
+# ------------------------------------------------------------------------------
 # fish completions -- LAST, after every package is installed
 # ------------------------------------------------------------------------------
 # fish builds its completions from the commands, man pages and functions it can
