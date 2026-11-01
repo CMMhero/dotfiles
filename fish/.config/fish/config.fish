@@ -145,7 +145,7 @@ end
 # prompt that, from a script or a non-interactive run, has nobody to answer it.
 # sudo may still ask for a password the first time; that one cannot be bypassed
 # and should not be.
-function upd --description 'update everything: apt, brew, dotfiles, mise, pi, omp, atuin'
+function upd --description 'update everything: apt, brew, dotfiles, mise, pi, omp, skills, atuin'
     set -l what $argv
 
     # `selected` is declared up front and only assigned inside the if/else.
@@ -156,7 +156,7 @@ function upd --description 'update everything: apt, brew, dotfiles, mise, pi, om
     if set -q what[1]
         set selected $what
     else
-        set selected apt brew dotfiles mise pi omp atuin
+        set selected apt brew dotfiles mise pi omp skills atuin
     end
 
     if contains apt $selected; and command -v apt-get >/dev/null 2>&1
@@ -284,6 +284,20 @@ function upd --description 'update everything: apt, brew, dotfiles, mise, pi, om
     if contains omp $selected; and command -q omp >/dev/null 2>&1
         step "omp plugins"
         omp update -l
+    end
+
+    # skills: the store is a git repo (~/skills), and each harness dir is a set
+    # of symlinks into it. `git pull` alone is not enough -- a skill added on
+    # the other machine arrives as a new directory that has to be linked before
+    # any agent sees it. This is also the repair path when an install wrote a
+    # real directory instead of a link.
+    if contains skills $selected
+        step "skills"
+        if test -x $HOME/dotfiles/scripts/sync-skills.sh
+            $HOME/dotfiles/scripts/sync-skills.sh
+        else
+            echo "  scripts/sync-skills.sh missing; skills not linked" >&2
+        end
     end
 
     # atuin: config.toml is a stow symlink and deploys with the dotfiles pull,
@@ -519,6 +533,20 @@ end
 #    and swallows the source if it comes first, and a leading `-g` is silently
 #    ignored, which installed into ~/.agents/skills (project scope) instead of
 #    the agent dir. Flags after the source are parsed correctly.
+#
+# Every mutating subcommand ends with `dotfiles-skills-sync`, which is what
+# makes an install need no follow-up: the CLI drops a real directory into
+# ~/.agents/skills, and scripts/sync-skills.sh moves it into the store, links it
+# into every harness, and pushes it so the Windows machine gets it too.
+#
+# Silently: the install already printed what it did. Only a real failure speaks.
+function dotfiles-skills-sync --description 'reconcile ~/skills into every agent dir'
+    set -l script $HOME/dotfiles/scripts/sync-skills.sh
+    test -x $script; or return 0
+    $script --after-install
+    or echo "skills: sync failed; run 'upd skills' after fixing" >&2
+end
+
 function skills --description 'skills (vpx; defaults to -g --agent pi claude-code --yes)'
     switch $argv[1]
         case add a
@@ -553,7 +581,14 @@ function skills --description 'skills (vpx; defaults to -g --agent pi claude-cod
             end
 
             vpx skills@latest add $src $scope $agent $yes $rest
+            dotfiles-skills-sync
         case '*'
             vpx skills@latest $argv
+            # add/remove/update change what is on disk; everything else (list,
+            # find, use) is read-only and must not pay for a re-link.
+            switch $argv[1]
+                case remove rm update upgrade
+                    dotfiles-skills-sync
+            end
     end
 end
