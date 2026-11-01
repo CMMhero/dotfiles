@@ -132,6 +132,12 @@ end
 #            actually just fetched.
 #   mise     installs what the fresh config declares, then upgrades it
 #   pi/omp   extensions and plugins -- not binaries; mise owns those
+#   atuin    the sync, plus re-pointing every agent's hook/MCP entry at the
+#            current atuin binary and importing new agent threads. It MUST
+#            follow mise: `mise upgrade atuin` installs a new version
+#            directory, which is exactly what leaves those absolute paths
+#            dangling. scripts/sync-atuin.sh is the same file install.sh
+#            runs, so a plain `./install.sh` repairs them too.
 #
 # Everything is non-interactive and auto-accepting: apt gets -y, brew runs with
 # NONINTERACTIVE=1 and HOMEBREW_NO_AUTO_UPDATE=1, mise gets MISE_YES=1, and
@@ -139,7 +145,7 @@ end
 # prompt that, from a script or a non-interactive run, has nobody to answer it.
 # sudo may still ask for a password the first time; that one cannot be bypassed
 # and should not be.
-function upd --description 'update everything: apt, brew, dotfiles, mise, pi, omp'
+function upd --description 'update everything: apt, brew, dotfiles, mise, pi, omp, atuin'
     set -l what $argv
 
     # `selected` is declared up front and only assigned inside the if/else.
@@ -150,7 +156,7 @@ function upd --description 'update everything: apt, brew, dotfiles, mise, pi, om
     if set -q what[1]
         set selected $what
     else
-        set selected apt brew dotfiles mise pi omp
+        set selected apt brew dotfiles mise pi omp atuin
     end
 
     if contains apt $selected; and command -v apt-get >/dev/null 2>&1
@@ -278,6 +284,31 @@ function upd --description 'update everything: apt, brew, dotfiles, mise, pi, om
     if contains omp $selected; and command -q omp >/dev/null 2>&1
         step "omp plugins"
         omp update -l
+    end
+
+    # atuin: config.toml is a stow symlink and deploys with the dotfiles pull,
+    # but three things do not:
+    #
+    #   - the sync;
+    #   - the per-agent hook and MCP entries. `atuin hook install` and
+    #     `atuin mcp install` write the ABSOLUTE path of the running atuin
+    #     binary into each agent's own config, and the mise step above may have
+    #     just replaced that binary with one in a new version directory. Every
+    #     entry then points at a file that no longer exists, and a hook that
+    #     cannot spawn records nothing -- so the breakage is silent until you
+    #     notice history has no agent entries;
+    #   - the thread import: capture only records from the moment it is enabled.
+    #
+    # --no-import because this runs on every `upd`, and re-reading every agent
+    # transcript on disk is ~12s that finds nothing new after the first run.
+    # Run it by hand with the flag omitted when you want a full import.
+    if contains atuin $selected; and command -q atuin >/dev/null 2>&1
+        step "atuin"
+        if test -x $HOME/dotfiles/scripts/sync-atuin.sh
+            $HOME/dotfiles/scripts/sync-atuin.sh --no-import
+        else
+            echo "  scripts/sync-atuin.sh missing; atuin hooks not re-pointed" >&2
+        end
     end
 end
 

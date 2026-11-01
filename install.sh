@@ -1400,13 +1400,40 @@ if command -v omp >/dev/null 2>&1; then
   fi
 fi
 
-# --- atuin sync is enabled in the shell config -------------------------------
-# ~/.config/atuin/config.toml ships with [daemon] autostart = true and
-# auto_sync commented out; verify the shell actually sources atuin.
+# --- atuin ------------------------------------------------------------------
+# Verify the shell sources atuin, then do the half stow cannot deploy.
 if grep -q "atuin init" "$HOME/.config/fish/config.fish" 2>/dev/null; then
   log_ok "atuin is wired into fish (atuin init fish)."
 else
   log_warn "atuin is not initialised in ~/.config/fish/config.fish."
+fi
+
+# The config.toml is a stow symlink, so it deploys with everything else. What
+# does NOT deploy:
+#
+#   - the sync itself;
+#   - the per-agent hook and MCP entries. `atuin hook install` and
+#     `atuin mcp install` write the ABSOLUTE path of the running atuin binary
+#     into each AGENT's own config, and `mise upgrade atuin` installs a new
+#     version directory and drops the old one -- so every one of those entries
+#     ends up pointing at a binary that no longer exists. Silently: a hook that
+#     cannot spawn just records nothing;
+#   - the thread import, since capture only records sessions from the moment it
+#     is switched on.
+#
+# scripts/sync-atuin.sh does all three, idempotently. --no-import because `upd`
+# runs this on every pull, and re-reading every agent transcript on disk is ~12 s
+# of work that finds nothing new after the first run.
+if command -v atuin >/dev/null 2>&1; then
+  if [ -x "$DOTFILES_DIR/scripts/sync-atuin.sh" ]; then
+    if ! "$DOTFILES_DIR/scripts/sync-atuin.sh" --no-import; then
+      log_warn "atuin sync had failures; run: $DOTFILES_DIR/scripts/sync-atuin.sh"
+    fi
+  else
+    log_warn "scripts/sync-atuin.sh is missing; atuin hooks and MCP entries are not re-pointed."
+  fi
+else
+  log_info "atuin not on PATH; skipping its sync (mise installs it)."
 fi
 
 # ------------------------------------------------------------------------------
