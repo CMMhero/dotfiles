@@ -18,6 +18,25 @@
 - Expect cross-repo consistency checks ("does the dashboard need the same model/queue as the SSE side?"). When a pattern already exists in a sibling repo, mirror it unless there's a reason not to, and say why.
 - Interrogate edge cases explicitly — especially offline/ordering/duplication (queued events, double-registration, expiry-while-offline). Prove no event or log line is lost, and standardize log shape when touching logging.
 
+## Delegation: split every prompt, route each part
+
+This is standing authorization to spawn subagents without asking. Before the first tool call on any prompt, write a short plan: the parts, which parts can run in parallel, and the model and effort for each. Then dispatch.
+
+- **Do it inline when** the prompt fits in a handful of tool calls on files you already know. Skip the plan line for these too.
+- **Split when** the work has independent parts (different files, layers, or questions), or needs reading across many files. Send independent parts in one message so they run concurrently. Keep dependent steps sequential.
+- **Route by the work, not by habit:**
+
+  | Work | Claude Code `Agent` model | Effort |
+  | --- | --- | --- |
+  | Search, file sweeps, log reading, running checks and reporting | `haiku` (or the `Explore` type) | low |
+  | Implementing a well-scoped change, tests, fixing a build | `sonnet` | medium |
+  | Architecture, hard debugging, security, migrations, final review | `opus` | high |
+
+  In T3 Code: same-provider children use the native `Agent` tool (`run_in_background: false`). Work for Codex (`gpt-5.6-luna`) or opencode goes through `delegate_task`, after one `orchestrator_capabilities` call per thread, with the model and reasoning effort in `target.options`. Never switch provider unasked.
+- **Brief each child** with the goal, the exact files or commands, what is already ruled out, and the shape of the report you want back. The child sees nothing else.
+- **You own the result:** check what each child reports against the files before you build on it, merge the parts yourself, and run the project's checks once at the end. A child's "done" is a claim, not proof.
+- **Shipping:** "yeet" means the `yeet` skill. "Yeet and deploy", "rilis", or "deploy to space" in the Paradise repo means the `yeet-deploy` skill. It runs lint, checks, tests, PR, build wait, deploy, and proof in one pass, and applies migrations and the changelog itself.
+
 ## Terminal & environment
 
 - Shell: **PowerShell** on Windows, **fish** on Linux/WSL. Windows runs `CMM.profile.ps1` (chezmoi-managed, a 1:1 port of the WSL fish config; works on 5.1 and 7+). WSL/Linux runs fish as the login shell: `conf.d/env.fish` (PATH, tool activation, exported vars — every fish process) + `config.fish` (prompt, bindings, aliases — interactive only, exits early otherwise). nushell is retired from daily flow.
