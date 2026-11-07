@@ -1278,6 +1278,36 @@ else
 fi
 
 # ------------------------------------------------------------------------------
+# 10c. Tailscale + T3 Code
+# ------------------------------------------------------------------------------
+# This machine is a paired remote environment for the T3 Code desktop app on
+# Windows, so it needs the same three things every host in that fleet needs:
+# Tailscale signed in, a headless `t3` server as a user service, and Serve in
+# front of it on the tailnet.
+#
+# It is a script rather than inline because it is also the repair tool: when
+# pairing fails with "Linked environments is off", when agents die on
+# getaddrinfo, or when Serve points at a port nothing listens on,
+# scripts/tailnet-t3.sh is the one thing to run. --check reports without
+# changing anything.
+#
+# Skipped under --config-only: this installs a package, a release and a systemd
+# unit, which is what that flag exists to avoid on a routine `upd`.
+TAILNET_SCRIPT="$DOTFILES_DIR/scripts/tailnet-t3.sh"
+if [ "$SKIP_PACKAGES" -eq 1 ]; then
+  log_info "config-only run; skipping the Tailscale + T3 Code setup."
+elif [ ! -f "$TAILNET_SCRIPT" ]; then
+  log_warn "scripts/tailnet-t3.sh missing; Tailscale and the T3 server are not set up."
+else
+  log_step "Tailscale + T3 Code (tailnet remote)"
+  # Not fatal to the install: Tailscale may need a person to sign in, and the
+  # rest of this run stays useful either way. The script prints what is left.
+  if ! bash "$TAILNET_SCRIPT"; then
+    log_warn "Tailscale + T3 setup reported a problem; re-run: bash $TAILNET_SCRIPT"
+  fi
+fi
+
+# ------------------------------------------------------------------------------
 # 11. Fresh Editor Packages (plugins / themes / languages)
 # ------------------------------------------------------------------------------
 # The fresh package tree is stowed from the repo, but fresh keeps a private
