@@ -144,6 +144,9 @@ function renderOmp(agent) {
   }
   if (agent.model) lines.push(`model: ${yamlish(agent.model)}`);
   if (agent.thinkingLevel) lines.push(`thinkingLevel: ${agent.thinkingLevel}`);
+  // `blocking: true` makes the parent wait even with async tasks on. Only
+  // omp has this concept; the other renderers ignore it.
+  if (agent.blocking === true) lines.push("blocking: true");
   lines.push("---", "", agent.prompt.trim(), "");
   return lines.join("\n");
 }
