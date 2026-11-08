@@ -311,15 +311,17 @@ function upd --description 'update everything: apt, brew, dotfiles, mise, pi, om
     #     entry then points at a file that no longer exists, and a hook that
     #     cannot spawn records nothing -- so the breakage is silent until you
     #     notice history has no agent entries;
-    #   - the thread import: capture only records from the moment it is enabled.
+    #   - the thread import: capture only records from the moment it is enabled,
+    #     so the script switches it on when it is off and imports the backlog.
     #
-    # --no-import because this runs on every `upd`, and re-reading every agent
-    # transcript on disk is ~12s that finds nothing new after the first run.
-    # Run it by hand with the flag omitted when you want a full import.
+    # The import runs here, without --no-import: `upd atuin` is an explicit
+    # request to bring atuin up to date, and new agent sessions are exactly what
+    # an import is for. `upd dotfiles` is the noisy one and passes --no-import
+    # from install.sh --config-only.
     if contains atuin $selected; and command -q atuin >/dev/null 2>&1
         step "atuin"
         if test -x $HOME/dotfiles/scripts/sync-atuin.sh
-            $HOME/dotfiles/scripts/sync-atuin.sh --no-import
+            $HOME/dotfiles/scripts/sync-atuin.sh
         else
             echo "  scripts/sync-atuin.sh missing; atuin hooks not re-pointed" >&2
         end

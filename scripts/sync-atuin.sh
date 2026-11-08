@@ -19,7 +19,10 @@
 #    no longer exists. A hook that cannot spawn records nothing, so the failure
 #    is silent until you notice history has no agent entries.
 # 3. Thread capture only starts when it is switched on; `threads import` is what
-#    brings in every session the agents already had.
+#    brings in every session the agents already had. So this enables capture
+#    when it is off, and imports regardless of --no-import on that first run --
+#    the backlog only exists once, and skipping it is how a machine ends up with
+#    capture on and no history.
 #
 # Every step is idempotent, and one failure does not stop the rest.
 # ==============================================================================
@@ -188,17 +191,45 @@ fi
 # ------------------------------------------------------------------------------
 # 4. Thread import
 # ------------------------------------------------------------------------------
+# Capture has to be ON before an import means anything, and an import right
+# after switching it on is not optional: capture only records sessions from the
+# moment it is enabled, so every transcript already on disk stays invisible
+# until something reads it. That is the one case --no-import does not cover.
 step 'Thread import'
 
-if [ "$NO_IMPORT" = 1 ]; then
-    skip 'skipped (--no-import)'
-elif [ "$DRY" = 1 ]; then
-    info 'atuin threads import'
-    skip 'dry run: would import'
+capture=$(atuin config get threads.capture -r 2>&1)
+JUST_ENABLED=0
+
+if [ "$DRY" = 1 ]; then
+    if [ "$capture" = "true" ]; then
+        info 'thread capture already on'
+    else
+        info 'atuin config enable threads'
+    fi
+    if [ "$NO_IMPORT" = 1 ] && [ "$capture" = "true" ]; then
+        skip 'dry run: would not import (--no-import)'
+    else
+        info 'atuin threads import'
+        skip 'dry run: would import'
+    fi
 else
-    capture=$(atuin config get threads.capture -r 2>&1)
     if [ "$capture" != "true" ]; then
-        skip 'thread capture is off -- run `atuin config enable threads`'
+        info 'thread capture is off -- enabling it'
+        if enable_out=$(atuin config enable threads 2>&1); then
+            ok 'thread capture enabled'
+            JUST_ENABLED=1
+        else
+            warn "atuin config enable threads failed: $enable_out"
+            FAILURES+=('threads enable')
+        fi
+    else
+        skip 'thread capture already on'
+    fi
+
+    if [ "$NO_IMPORT" = 1 ] && [ "$JUST_ENABLED" -eq 0 ]; then
+        skip 'thread import skipped (--no-import)'
+    elif [ "$capture" != "true" ] && [ "$JUST_ENABLED" -eq 0 ]; then
+        skip 'thread capture is still off; nothing to import'
     else
         info 'atuin threads import'
         import_out=$(atuin threads import 2>&1); import_rc=$?

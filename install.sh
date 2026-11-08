@@ -1532,12 +1532,18 @@ fi
 #   - the thread import, since capture only records sessions from the moment it
 #     is switched on.
 #
-# scripts/sync-atuin.sh does all three, idempotently. --no-import because `upd`
-# runs this on every pull, and re-reading every agent transcript on disk is ~12 s
-# of work that finds nothing new after the first run.
+# scripts/sync-atuin.sh does all three, idempotently. --no-import only under
+# --config-only: `upd dotfiles` runs this on every pull, and re-reading every
+# agent transcript on disk is ~12 s of work that finds nothing new after the
+# first run. A real install imports, because a fresh machine is exactly where the
+# backlog exists and where capture may still need switching on.
+ATUIN_ARGS=()
+if [ "$SKIP_PACKAGES" -eq 1 ]; then
+  ATUIN_ARGS=(--no-import)
+fi
 if command -v atuin >/dev/null 2>&1; then
   if [ -x "$DOTFILES_DIR/scripts/sync-atuin.sh" ]; then
-    if ! "$DOTFILES_DIR/scripts/sync-atuin.sh" --no-import; then
+    if ! "$DOTFILES_DIR/scripts/sync-atuin.sh" "${ATUIN_ARGS[@]}"; then
       log_warn "atuin sync had failures; run: $DOTFILES_DIR/scripts/sync-atuin.sh"
     fi
   else
