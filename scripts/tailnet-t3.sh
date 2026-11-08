@@ -25,10 +25,11 @@
 #   2. A fresh host has no ~/.t3/userdata/settings.json, and linked environments
 #      default to off. Pairing from the desktop is then refused with "Linked
 #      environments is off on that machine" even though the server is healthy.
-#   3. Serve, `tailscale serve` writes to tailscaled's own store, so without the
+#   3. `tailscale serve` writes to tailscaled's own store, so without the
 #      operator set it needs root, and `t3 pair --tailscale` shells out to it
-#      without sudo and fails with TailscaleServeFailedError. Serve is
-#      configured here instead, and pairing uses plain `t3 pair`.
+#      without sudo and fails with TailscaleServeFailedError. The operator is
+#      set below, so `t3 pair --tailscale` works here; Serve is still configured
+#      up front so a plain `t3 pair` has something to pair against.
 # ==============================================================================
 set -euo pipefail
 
