@@ -816,8 +816,71 @@ done
 # which is a second copy that can shadow the mise one depending on PATH order.
 if command -v herdr >/dev/null 2>&1; then
   log_ok "herdr ready at $(command -v herdr) ($(herdr --version 2>/dev/null | head -1))"
+
+  # Agent integrations. herdr writes a per-agent hook (a pi/omp extension, a
+  # claude/codex hook, an opencode plugin) that reports idle/working/blocked
+  # into its sidebar, and it REWRITES that file on every install -- which is why
+  # those files are deliberately not stowed. Nothing else installs them, so an
+  # agent without one shows up as `unknown` forever. Only agents that are
+  # actually present get one: a hook in a harness that is not installed is a
+  # file nobody runs.
+  log_info "Installing herdr agent integrations..."
+  for target in pi omp claude codex opencode; do
+    command -v "$target" >/dev/null 2>&1 || continue
+    if herdr integration install "$target" >/dev/null 2>&1; then
+      log_ok "  herdr integration: $target"
+    else
+      log_warn "  herdr integration install $target failed (run it by hand for the reason)"
+    fi
+  done
 else
   log_warn "herdr not found; retry with: mise install aqua:herdrdev/herdr"
+fi
+
+# herdr-core (`hc`) is the desktop app's headless core, a different program from
+# the TUI above. There is no public installer for it on Linux: the Windows
+# client pushes it here with `hc machine add linux --install`, and it updates
+# itself with `hc update`. So it is reported, never installed -- a copy fetched
+# by some other route would be a second binary fighting the one the app manages.
+if command -v hc >/dev/null 2>&1; then
+  log_ok "herdr-core ready at $(command -v hc) ($(hc --version 2>/dev/null | head -1))"
+else
+  log_info "herdr-core (hc) not present; the Windows client installs it: hc machine add linux --install"
+fi
+
+# ------------------------------------------------------------------------------
+# 8b. SSH server (Herdr's `linux` machine)
+# ------------------------------------------------------------------------------
+# The Windows half of this pair reaches this distro as `ssh linux` --
+# 127.0.0.1:2222, mirrored onto the Windows localhost by `localhostforwarding`
+# in .wslconfig. That half lives in dotfiles-win: setup-wsl-herdr.ps1 provisions
+# the key and registers the machine with `herdr machine add` and `hc machine
+# add`. Neither can be done from inside the distro, so what is left here is the
+# part that has to run here: sshd installed, on 2222, socket-activated, with
+# /run/sshd guaranteed.
+#
+# scripts/ssh-server.sh is the whole thing and also the repair tool, so a broken
+# sshd is one command away instead of a re-install. The WSL gate is deliberate:
+# the 2222 port and the socket arrangement exist because of the WSL/Windows
+# boundary, and an ordinary Ubuntu box wants 22 on its own interface. Under
+# --config-only this is skipped -- it installs a package and rewrites systemd
+# units, which is what that flag exists to avoid on a routine `upd`.
+SSH_SCRIPT="$DOTFILES_DIR/scripts/ssh-server.sh"
+if [ "$SKIP_PACKAGES" -eq 1 ]; then
+  log_info "config-only run; skipping the SSH server setup."
+elif [ ! -f "$SSH_SCRIPT" ]; then
+  log_warn "scripts/ssh-server.sh missing; sshd is not provisioned."
+elif [ -z "${WSL_DISTRO_NAME:-}" ] && ! grep -qi microsoft /proc/version 2>/dev/null; then
+  log_info "not WSL; skipping the SSH server setup (scripts/ssh-server.sh targets WSL)."
+else
+  log_step "SSH server on 2222 (Herdr's linux machine)"
+  # Not fatal to the install: the rest of the run stays useful either way, and
+  # the script itself reports what failed. Idempotent, so re-running is free.
+  if sudo bash "$SSH_SCRIPT" --port 2222 --user "$USER"; then
+    log_ok "sshd is listening on 2222."
+  else
+    log_warn "SSH setup reported a problem; re-run: sudo bash $SSH_SCRIPT --port 2222 --user $USER"
+  fi
 fi
 
 # ------------------------------------------------------------------------------
