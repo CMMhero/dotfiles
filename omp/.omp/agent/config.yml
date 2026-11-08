@@ -1,6 +1,165 @@
 setupVersion: 2
+# ---------------------------------------------------------------------------
+# Model roles.
+#
+# `default` is the session model. Every other role exists so a custom agent can
+# say `model: "@build"` and keep the concrete selector out of its prompt file:
+# rerouting an agent is one edit here, and the same roster works on both
+# machines even though their `default` differs.
+#
+# Quota note (Nov 2026): commandcode carries the plan credits and they run hot,
+# so cheap/mechanical roles ride google-antigravity (separate weekly quota) and
+# `retry.fallbackChains` moves each role to another provider when a plan gate
+# or a 429 hits. Probe results that shaped this:
+#   commandcode: claude-opus-5, claude-sonnet-5, claude-opus-4-8, gpt-5.6-terra,
+#                gpt-5.4-mini -> 403 MODEL_NOT_IN_PLAN
+#   opencode-zen: free tier 429 / paid 402 -> not used here
+#   working:     commandcode/deepseek/*, commandcode/gpt-5.6-luna,
+#                commandcode/google/gemini-3.8-flash, openai-codex/gpt-5.6-*,
+#                google-antigravity/* (incl. claude-opus-4-6)
+# ---------------------------------------------------------------------------
 modelRoles:
-  default: commandcode/deepseek/deepseek-v4.1-flash
+  default: commandcode/deepseek/deepseek-v4.1-flash:high
+
+  # Fast tier: search, sweeps, log reading, prose pass, scout. Antigravity's
+  # Gemini bucket is the cheapest quota on the box.
+  fast: google-antigravity/gemini-3.5-flash-lite:medium
+  smol: google-antigravity/gemini-3.5-flash-lite:medium
+
+  # Work tier: a decided change in known files, verification runs, infra edits,
+  # dotfiles. Sonnet on the antigravity bucket — Claude writes the code, which
+  # keeps commandcode credits for what only commandcode can do.
+  build: google-antigravity/claude-sonnet-4-6:medium
+
+  # Hard tier: architecture, root-cause debugging, orchestration.
+  deep: google-antigravity/claude-opus-4-6:high
+  slow: google-antigravity/claude-opus-4-6:high
+  plan: google-antigravity/claude-opus-4-6:high
+
+  # Independent eyes: `review` is a different provider family from `build`, so
+  # Claude's blind spots do not clear themselves. Codex's plan quota is unused.
+  review: openai-codex/gpt-5.6-luna:high
+  design: google-antigravity/claude-sonnet-4-6:high
+
+  # Long-context number work: spreadsheets, PO reconciliation, PIB audits.
+  # DeepSeek at max effort on commandcode is the cheapest strong option there.
+  work: commandcode/deepseek/deepseek-v4.1-flash:max
+
+  # Passive advisor and commit-message generation stay cheap.
+  advisor: google-antigravity/gemini-3.8-flash:medium
+  commit: commandcode/deepseek/deepseek-v4.1-flash-fast:low
+
+retry:
+  fallbackChains:
+    default:
+      - commandcode/gpt-5.6-luna:high
+      - openai-codex/gpt-5.6-luna:high
+    fast:
+      - commandcode/google/gemini-3.5-flash-lite:medium
+      - commandcode/deepseek/deepseek-v4.1-flash-fast:low
+    smol:
+      - commandcode/google/gemini-3.5-flash-lite:medium
+      - commandcode/deepseek/deepseek-v4.1-flash-fast:low
+    build:
+      - openai-codex/gpt-5.6-luna:medium
+      - commandcode/deepseek/deepseek-v4.1-flash:high
+    deep:
+      - openai-codex/gpt-5.6-luna:high
+      - commandcode/deepseek/deepseek-v4.1-flash:max
+    slow:
+      - openai-codex/gpt-5.6-luna:high
+    plan:
+      - openai-codex/gpt-5.6-luna:high
+    review:
+      - commandcode/gpt-5.6-luna:high
+      - openai-codex/gpt-5.6-luna:high
+    design:
+      - commandcode/google/gemini-3.8-flash:high
+      - commandcode/gpt-5.6-luna:medium
+    work:
+      - commandcode/gpt-5.6-luna:high
+      - openai-codex/gpt-5.6-luna:high
+    advisor:
+      - commandcode/google/gemini-3.5-flash-lite:medium
+    commit:
+      - commandcode/deepseek/deepseek-v4.1-flash-fast:low
+      - google-antigravity/gemini-3.5-flash-lite:low
+
+modelPresets:
+  # `/modelpreset switch <name>` swaps the whole roster at once.
+  # `balanced` mirrors the live defaults above; the others are one-command
+  # fallbacks for quota trouble or a run that only needs one provider.
+
+  balanced:
+    defaultThinkingLevel: medium
+    modelRoles:
+      default: commandcode/deepseek/deepseek-v4.1-flash:high
+      fast: google-antigravity/gemini-3.5-flash-lite:medium
+      smol: google-antigravity/gemini-3.5-flash-lite:medium
+      build: google-antigravity/claude-sonnet-4-6:medium
+      deep: google-antigravity/claude-opus-4-6:high
+      slow: google-antigravity/claude-opus-4-6:high
+      plan: google-antigravity/claude-opus-4-6:high
+      review: openai-codex/gpt-5.6-luna:high
+      design: google-antigravity/claude-sonnet-4-6:high
+      work: commandcode/deepseek/deepseek-v4.1-flash:max
+      advisor: google-antigravity/gemini-3.8-flash:medium
+      commit: commandcode/deepseek/deepseek-v4.1-flash-fast:low
+
+  # Everything on antigravity: for a day when commandcode credits are gone and
+  # Codex's plan quota is exhausted too. Weaker at the top end, never gated.
+  antigravity:
+    defaultThinkingLevel: medium
+    modelRoles:
+      default: google-antigravity/claude-sonnet-4-6:high
+      fast: google-antigravity/gemini-3.5-flash-lite:medium
+      smol: google-antigravity/gemini-3.5-flash-lite:medium
+      build: google-antigravity/claude-sonnet-4-6:medium
+      deep: google-antigravity/claude-opus-4-6:high
+      slow: google-antigravity/claude-opus-4-6:high
+      plan: google-antigravity/claude-opus-4-6:high
+      review: google-antigravity/claude-opus-4-6:high
+      design: google-antigravity/claude-sonnet-4-6:high
+      work: google-antigravity/gemini-3.8-flash:high
+      advisor: google-antigravity/gemini-3.8-flash:medium
+      commit: google-antigravity/gemini-3.5-flash-lite:low
+
+  # Codex only: the same family CMM drives code by hand, one quota, no plan
+  # gates. Loses the cross-family review pairing deliberately.
+  codex:
+    defaultThinkingLevel: medium
+    modelRoles:
+      default: openai-codex/gpt-5.6-luna:high
+      fast: openai-codex/gpt-5.6-luna:low
+      smol: openai-codex/gpt-5.6-luna:low
+      build: openai-codex/gpt-5.6-luna:medium
+      deep: openai-codex/gpt-5.6-luna:high
+      slow: openai-codex/gpt-5.6-luna:high
+      plan: openai-codex/gpt-5.6-luna:high
+      review: openai-codex/gpt-5.6-terra:high
+      design: openai-codex/gpt-5.6-luna:medium
+      work: openai-codex/gpt-5.6-luna:high
+      advisor: openai-codex/gpt-5.6-luna:low
+      commit: openai-codex/gpt-5.6-luna:low
+
+  # Cheap sweep: 1M-context DeepSeek everywhere. For bulk reading, greps,
+  # spreadsheet passes, and anything where volume beats depth.
+  cheap:
+    defaultThinkingLevel: low
+    modelRoles:
+      default: commandcode/deepseek/deepseek-v4.1-flash-fast:low
+      fast: commandcode/deepseek/deepseek-v4.1-flash-fast:low
+      smol: commandcode/deepseek/deepseek-v4.1-flash-fast:low
+      build: commandcode/deepseek/deepseek-v4.1-flash:medium
+      deep: commandcode/deepseek/deepseek-v4.1-flash:high
+      slow: commandcode/deepseek/deepseek-v4.1-flash:high
+      plan: commandcode/deepseek/deepseek-v4.1-flash:high
+      review: commandcode/deepseek/deepseek-v4.1-flash:high
+      design: commandcode/deepseek/deepseek-v4.1-flash:medium
+      work: commandcode/deepseek/deepseek-v4.1-flash:max
+      advisor: commandcode/deepseek/deepseek-v4.1-flash-fast:low
+      commit: commandcode/deepseek/deepseek-v4.1-flash-fast:low
+
 theme:
   dark: dark-catppuccin
   light: light-catppuccin

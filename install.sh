@@ -395,6 +395,13 @@ link_omp_files() {
   for rel in "${OMP_MANAGED_FILES[@]}"; do
     link_one_file omp "$rel"
   done
+  # Custom task agents are a directory, not a list. Walking it means adding
+  # ~/.omp/agent/agents/<name>.md never needs an edit here, so the Windows and
+  # WSL halves cannot drift the first time an agent is added on one of them.
+  # Still file-by-file, matching every other omp managed file.
+  while IFS= read -r -d '' rel; do
+    link_one_file omp "${rel#./}"
+  done < <(cd "$DOTFILES_DIR/omp" 2>/dev/null && find .omp/agent/agents -type f -name '*.md' -print0)
 }
 
 # pi is linked the same way as omp, for the same reason: `stow pi` would link
