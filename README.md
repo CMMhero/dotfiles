@@ -10,7 +10,7 @@ Modular dotfiles managed with **GNU Stow**, with `install.sh` / `uninstall.sh` f
   - **There is no `profile.fish`. fish 4 does not read one.** It existed in fish 3.x, and every other shell still has such a file, so writing one looks right and silently does nothing. Measured on the fish 4.9.3 this machine runs: `fish -c`, `fish -l -c` and `fish -l -i` under a pty all run `config.fish` only, and `__fish_config_files` does not list `profile.fish`. The 4.9 docs agree — the configuration-files section documents conf.d snippets and `config.fish` and points at `status is-login` instead
   - The failure mode is not subtle. With the environment in a `profile.fish` that nothing reads, every fish lost mise, brew and vite+ from its PATH, so `brew` and even `fish` itself stopped resolving. WSL's interop re-imports a PATH that already contains the mise directories, which hides the breakage for mise-managed tools; brew's own `/home/linuxbrew/.linuxbrew/bin` is not in the Windows PATH, so brew was reachable *only* via the `brew shellenv` eval that had stopped running
   - `env.fish` is named so that conf.d's filename ordering puts it after `catppuccin.fish` (which sets `$FZF_CATPPUCCIN_OPTS` that it reads) and before `key-bindings.fish`. A numeric prefix would move it first and silently empty `FZF_DEFAULT_OPTS`
-- **Package managers**: `apt` for the base system, **Homebrew / Linuxbrew** for `fish`, `mise`, `opencode` and `vite-plus`, `mise` for the rest, and **vite+** for Node.js + npm/pnpm/yarn/bun
+- **Package managers**: `apt` for the base system, **Homebrew / Linuxbrew** for `fish`, `mise` and `vite-plus`, `mise` for the rest, and **vite+** for Node.js + npm/pnpm/yarn/bun
 - **CLI Tools (via `mise`)**: `atuin`, `bat`, `btop`, `chafa`, `delta`, `eza`, `fastfetch`, `fd`, `fzf`, `gh`, `go`, `herdr`, `hunk`, `jq`, `lazygit`, `neovim`, `pi`, `ripgrep`, `rust`, `starship`, `superfile`, `tealdeer`, `uv`, `zoxide` — plus `llmfit`, `models` and `oh-my-pi`. `node`, `pnpm` and `vite+` are **not** here; see below
 - **Python**: `uv` (via `mise`)
 - **Terminal Workspace & Emulators**:
@@ -25,7 +25,8 @@ Modular dotfiles managed with **GNU Stow**, with `install.sh` / `uninstall.sh` f
 - **Theme**: Catppuccin Macchiato is the source of truth (defined once in `wezterm/.wezterm.lua`). `bat` uses it directly (`bat/.config/bat/config`), `fzf` gets an equivalent palette via `fish/.config/fish/conf.d/catppuccin.fish`, and `omp` uses its built-in `dark-catppuccin` — that one is **Mocha**-flavoured, since omp ships no Macchiato and `grep -c macchiato` over its dist returns 0.
 - **AI Coding Agents**:
   - `omp` (via `mise` as `github:can1357/oh-my-pi`) — **narrowly** stowed: only `~/.omp/agent/config.yml`, `~/.omp/agent/AGENTS.md`, `~/.omp/plugins/package.json` and `~/.omp/agent/extensions/opencode-zen-fix.ts`. Everything else in `~/.omp` (sessions, run, logs, cache, `stats.db`, `install-id`, plugin `node_modules`) stays per-machine.
-  - `opencode` — installed as a **Homebrew formula**, not a `mise` tool. `mise` tracked it behind the `aqua` backend, which pins an old release with no channel for the current one; brew ships a bottle and tracks upstream itself. Config **not** managed
+  - `opencode` — a **mise** tool, on the **npm** backend (`opencode = { version = "latest", allow_builds = ["@opencode/cli"] }`). It used to be a Homebrew formula because the `aqua:anomalyco/opencode` entry pinned 1.18.34 with no channel for the current release; npm tracks upstream (2.2.6 here) without needing brew at all. `install.sh` still drops the stale aqua registration when it finds one, since a leftover aqua shim would shadow the npm one. Config **not** managed
+  - `claude-code` and `codex` — mise tools too, both on their own backends. Nothing of theirs is tracked: only `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md` are linked, out of the `agents` package
   - `pi` (`aqua:earendil-works/pi`) — installed via `mise`. **Narrowly** linked: only `~/.pi/agent/settings.json` (which is what declares its `packages` — `pi-commandcode-provider`, `opencode-pi`, `pi-web-access`), `~/.pi/agent/mcp.json` and `~/.pi/agent/AGENTS.md` (the pointer into the shared instructions). It is **not** stowed: `stow pi` would link `~/.pi` as one directory on a machine that has never run pi, and every session, credential and cache pi writes there would land in this repo. Everything else under `~/.pi` stays per-machine — `auth.json`, `trust.json`, the regenerated `commandcode-models.json`, `npm/`, `sessions/`, and `agent/extensions/`
     - **Extensions are installed, not just declared.** `settings.json` naming three packages does not fetch them: pi installs the npm packages into `~/.pi/agent/npm/node_modules`, and nothing in the config does that. `install.sh` section 10 runs `pi update --extensions --approve` after linking the config, which is why a fresh machine ends up with the packages rather than a config promising them. `upd pi` runs the same command as the update half
     - **`agent/extensions/*.ts` is deliberately not tracked.** `herdr-agent-state.ts` says in its own first line that herdr installs and overwrites it, and the three `orca-*.ts` files are tagged `@orca-managed-pi-extension`. Both tools rewrite those files on install, so tracking them is how this repo's tree gets clobbered — the same reason herdr's opencode and omp integration files were dropped from stow. Custom extensions belong beside them
@@ -83,12 +84,12 @@ The script will, in order:
    come first.
 2. Clone the repository (or pull, if it already exists).
 3. Install **Homebrew (Linuxbrew)** if it is missing, then install any missing
-   `fish` / `mise` / `opencode` / `vite-plus` formulas. `mise` is deliberately no
+   `fish` / `mise` / `vite-plus` formulas. `mise` is deliberately no
    longer bootstrapped with `curl https://mise.run | sh` — that dropped a second
    `mise` into `~/.local/bin` that could shadow or be shadowed by brew's copy
    depending on PATH order, and `uninstall.sh` then had to delete it by hand. One
-   `mise`, owned by brew. `opencode` is a formula rather than a `mise` tool so it
-   tracks upstream instead of sitting on a pinned old release.
+   `mise`, owned by brew. `opencode` is **not** here any more: it moved to mise's
+   npm backend, which tracks upstream without brew's help.
 4. Install every tool the [mise config](mise/.config/mise/config.toml) declares, with a
    bare `mise install`. The config is the **single source of truth** — there is no tool
    list in the scripts, because a hardcoded copy had already drifted from it
@@ -203,8 +204,8 @@ upd apt                    # or any one of:
 upd brew dotfiles mise pi omp
 ```
 
-`opencode` has no target of its own — it is a Homebrew formula, so `upd brew`
-covers it.
+`opencode`, `claude-code` and `codex` have no target of their own — all three are
+mise tools, so `upd mise` covers them.
 
 Order is apt → brew → **dotfiles** → mise → agents. apt and brew go first because
 they are the slow system-package steps and the likeliest to fail, so a failure
