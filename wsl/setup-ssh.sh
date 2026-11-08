@@ -82,7 +82,7 @@ else
   # Dropping a [user] default=<name> would change which account WSL launches
   # as, which is exactly the kind of silent breakage a provisioning script
   # must not cause.
-  $SUDO tee /tmp/wsl.conf.new >/dev/null <<'EOF'
+  tee /tmp/wsl.conf.new >/dev/null <<'EOF'
 # [boot] rewritten by dotfiles/wsl/setup-ssh.sh
 [boot]
 systemd=true
@@ -104,6 +104,47 @@ EOF
     ok "created /etc/wsl.conf"
   fi
   echo "    NOTE: systemd only takes effect after 'wsl --shutdown' from Windows."
+fi
+
+# ------------------------------------------------------------------------------
+# 1b. hostname must agree with the Tailscale device name
+#
+# MagicDNS serves the name the admin console gives the device, and nothing on
+# the client changes it once that name is explicit. Tailscale SSH is reached as
+# `ssh cmm-pc-wsl`, so the distro's own hostname has to match or the two names
+# describe one machine and only one of them resolves.
+#
+# `/etc/wsl.conf` is the supported place: WSL re-applies it on boot and
+# `wsl --shutdown`. Only [network] hostname and generateHosts are touched;
+# every other key in the section is preserved, because dropping one is silent
+# breakage.
+# ------------------------------------------------------------------------------
+WSL_HOSTNAME="${WSL_HOSTNAME:-cmm-pc-wsl}"
+step "hostname is $WSL_HOSTNAME in /etc/wsl.conf"
+if [ -f /etc/wsl.conf ] && grep -Eq "^[[:space:]]*hostname[[:space:]]*=[[:space:]]*$WSL_HOSTNAME[[:space:]]*$" /etc/wsl.conf; then
+  ok "already set"
+else
+  if [ -f /etc/wsl.conf ]; then
+    $SUDO cp /etc/wsl.conf /etc/wsl.conf.bak-hostname
+    # Drop only the two keys this step owns, from [network] or anywhere else,
+    # then append a fresh [network] block.
+    $SUDO awk -v h="$WSL_HOSTNAME" '
+      /^[[:space:]]*hostname[[:space:]]*=/    { next }
+      /^[[:space:]]*generateHosts[[:space:]]*=/ { next }
+      { print }
+    ' /etc/wsl.conf >/tmp/wsl.conf.hn
+    printf '\n[network]\nhostname = %s\ngenerateHosts = false\n' "$WSL_HOSTNAME" >>/tmp/wsl.conf.hn
+    $SUDO mv /tmp/wsl.conf.hn /etc/wsl.conf
+    ok "set hostname (backup at /etc/wsl.conf.bak-hostname)"
+  else
+    printf '[network]\nhostname = %s\ngenerateHosts = false\n' "$WSL_HOSTNAME" | $SUDO tee /etc/wsl.conf >/dev/null
+    ok "created /etc/wsl.conf"
+  fi
+  # Apply now; the file only decides what a future boot starts with.
+  $SUDO hostnamectl set-hostname "$WSL_HOSTNAME" 2>/dev/null || \
+    $SUDO hostname "$WSL_HOSTNAME"
+  echo "    NOTE: 'wsl --shutdown' from Windows re-reads /etc/wsl.conf; the live"
+  echo "          hostname is already $WSL_HOSTNAME, so nothing has to restart."
 fi
 
 # ------------------------------------------------------------------------------
