@@ -21,7 +21,7 @@
 // agents. Verified rather than assumed, on this machine.
 // ==============================================================================
 
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
@@ -290,12 +290,24 @@ function writeTree(dir, files) {
   for (const file of files) {
     const target = path.join(dir, file.name);
     const next = file.content;
-    const previous = existsSync(target) ? readFileSync(target, "utf8") : null;
+    // A dangling symlink reports existsSync === false but readFileSync throws,
+    // which is how a previous deploy mechanism leaves this directory: the link
+    // survives, its target does not. Treat that as "no previous content" and
+    // replace it, so switching a directory from linked to generated is safe.
+    let previous = null;
+    try {
+      previous = existsSync(target) ? readFileSync(target, "utf8") : null;
+    } catch {
+      previous = null;
+    }
     if (previous === next) continue;
     if (CHECK) {
       console.log(`  drift  ${path.relative(REPO, target)}`);
       continue;
     }
+    // writeFileSync follows a symlink and would write through to a missing
+    // target, creating it in the old repo location. Unlink first.
+    if (lstatSync(target, { throwIfNoEntry: false })) rmSync(target, { force: true });
     writeFileSync(target, next);
     written += 1;
   }
@@ -305,7 +317,12 @@ function writeTree(dir, files) {
   for (const name of readdirSync(dir)) {
     if (!name.endsWith(".md") || wanted.has(name)) continue;
     const target = path.join(dir, name);
-    const text = readFileSync(target, "utf8");
+    let text;
+    try {
+      text = readFileSync(target, "utf8");
+    } catch {
+      continue;
+    }
     if (!text.includes("Generated from agents/agents.json")) continue;
     if (CHECK) {
       console.log(`  stale  ${path.relative(REPO, target)}`);
