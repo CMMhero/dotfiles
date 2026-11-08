@@ -1092,6 +1092,27 @@ log_ok "Stow packages deployed."
 log_step "Linking omp files (not stowed - see note above)"
 link_omp_files
 
+# Custom task agents: generated, never linked.
+#
+# omp/roster/agents.json is the hand-written roster and scripts/sync-agents.mjs
+# writes ~/.omp/agent/agents/*.md from it -- the same generator the Windows side
+# runs from upd agents. Skipping this step leaves a fresh machine with no agents
+# at all, which is silent: omp still starts, the roster is just empty.
+#
+# node comes from vite+ on this box; if it is not on PATH yet the generator is
+# skipped with a warning rather than failing the whole install, because every
+# other config in this run is still worth deploying.
+log_step "Generating omp task agents from the roster"
+if command -v node >/dev/null 2>&1; then
+  if node "$DOTFILES_DIR/scripts/sync-agents.mjs" >/dev/null 2>&1; then
+    log_ok "agents: $(ls ~/.omp/agent/agents/*.md 2>/dev/null | wc -l) generated into ~/.omp/agent/agents"
+  else
+    log_warn "sync-agents.mjs failed; run: node ~/dotfiles/scripts/sync-agents.mjs"
+  fi
+else
+  log_warn "node not on PATH; skipped agent generation (run: node ~/dotfiles/scripts/sync-agents.mjs)"
+fi
+
 log_step "Linking pi files (not stowed - see note above)"
 link_pi_files
 
