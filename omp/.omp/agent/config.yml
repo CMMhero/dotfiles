@@ -37,8 +37,11 @@ modelRoles:
   plan: google-antigravity/claude-opus-4-6:high
 
   # Independent eyes: `review` is a different provider family from `build`, so
-  # Claude's blind spots do not clear themselves. Codex's plan quota is unused.
-  review: openai-codex/gpt-5.6-luna:high
+  # Claude's blind spots do not clear themselves. Ordered candidates, because
+  # Codex is authorised on this machine and not on WSL: an unavailable first
+  # selector used to leave the child on the parent's model with no error, so the
+  # role names a fallback explicitly instead of relying on that.
+  review: openai-codex/gpt-5.6-luna:high, google-antigravity/claude-opus-4-6:high
   design: google-antigravity/claude-sonnet-4-6:high
 
   # Long-context number work: spreadsheets, PO reconciliation, PIB audits.
@@ -100,7 +103,7 @@ modelPresets:
       deep: google-antigravity/claude-opus-4-6:high
       slow: google-antigravity/claude-opus-4-6:high
       plan: google-antigravity/claude-opus-4-6:high
-      review: openai-codex/gpt-5.6-luna:high
+      review: openai-codex/gpt-5.6-luna:high, google-antigravity/claude-opus-4-6:high
       design: google-antigravity/claude-sonnet-4-6:high
       work: commandcode/deepseek/deepseek-v4.1-flash:max
       advisor: google-antigravity/gemini-3.8-flash:medium
@@ -136,7 +139,7 @@ modelPresets:
       deep: openai-codex/gpt-5.6-luna:high
       slow: openai-codex/gpt-5.6-luna:high
       plan: openai-codex/gpt-5.6-luna:high
-      review: openai-codex/gpt-5.6-terra:high
+      review: openai-codex/gpt-5.6-terra:high, google-antigravity/claude-opus-4-6:high
       design: openai-codex/gpt-5.6-luna:medium
       work: openai-codex/gpt-5.6-luna:high
       advisor: openai-codex/gpt-5.6-luna:low
