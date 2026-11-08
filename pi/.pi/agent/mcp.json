@@ -19,6 +19,12 @@
     "cloudflare-observability": {
       "type": "http",
       "url": "https://observability.mcp.cloudflare.com/mcp"
+    },
+    "atuin": {
+      "command": "/home/cmmhero/.local/share/mise/installs/atuin/latest/.mise-bins/atuin",
+      "args": [
+        "mcp"
+      ]
     }
   }
 }

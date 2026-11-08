@@ -306,6 +306,15 @@ if [ "$PURGE" -eq 1 ]; then
     rm -f "$HOME/.local/bin/herdr"
   fi
 
+  # ---- ttt ----
+  # Same story as herdr: the tool is a mise entry now, and upstream's
+  # install.sh drops a copy in ~/.local/bin. It is shadowed by the mise shims
+  # while mise is active, but it is still what runs when it is not.
+  if [ -x "$HOME/.local/bin/ttt" ]; then
+    log_info "Removing legacy ~/.local/bin/ttt (installed by upstream's install.sh)..."
+    rm -f "$HOME/.local/bin/ttt"
+  fi
+
   # ---- mise itself ----
   # mise is a Homebrew formula now, so brew owns the binary. Its data
   # directories are still plain files under $HOME and are removed directly --

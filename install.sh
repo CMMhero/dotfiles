@@ -439,16 +439,12 @@ log_ok "Homebrew is available at: $(which brew)"
 # ------------------------------------------------------------------------------
 # Homebrew CLI Packages Installation
 # ------------------------------------------------------------------------------
-# Four formulas, and the reason each is here differs.
+# Three formulas, and the reason each is here differs.
 #   fish      the login shell -- a moving path would break chsh and herdr's
 #             default_shell the first time it is upgraded.
 #   mise      installs every tool below. Sourcing its own activation from a
 #             fixed prefix is more predictable than a version-managed copy that
 #             would itself need activating before it could activate anything else.
-#   opencode  deliberately NOT a mise tool. mise tracked it behind the aqua
-#             backend, which pins an old release (1.18.34 against brew's 2.0.20
-#             here) with no channel for the current one. brew ships a bottle, so
-#             it tracks upstream on its own.
 #   vite-plus the GLOBAL CLI, which owns Node.js and the package managers (see
 #             the vite+ section). This is not interchangeable with the
 #             `npm:vite-plus` mise tool: that one is the project-local package
@@ -461,7 +457,6 @@ log_ok "Homebrew is available at: $(which brew)"
 BREW_PACKAGES=(
   fish
   mise
-  opencode
   vite-plus
 )
 
@@ -500,13 +495,14 @@ fi
 # that could otherwise finish its config. What actually needs mise is section 5,
 # which fails loudly on its own if the binary is missing.
 
-# Drop opencode from mise if a previous install tracked it there.
+# Drop the obsolete aqua opencode registration from mise.
 #
-# Leaving it registered is not merely untidy. brew/bin is ahead of the mise shims
-# on PATH, so brew's binary wins today -- but any later `mise install` would
-# restore the shim, and if brew's formula were ever removed the shim would
-# silently take over again, resurrecting the old pinned version with no change on
-# the user's part.
+# opencode is a mise tool again, but through the npm backend, not
+# `aqua:anomalyco/opencode`: aqua pinned an old release (1.18.34) with no channel
+# for the current one. The stale aqua entry has to go regardless. brew/bin sits
+# ahead of the mise shims on PATH, and any later `mise install` would restore the
+# aqua shim, so the old pinned version could silently take over again with no
+# change on the user's part.
 #
 # `mise unuse --global` and not `mise uninstall`: uninstall drops the installed
 # copy but leaves the request in config.toml, so the entry survives and the next
@@ -518,7 +514,7 @@ fi
 # then uninstall unconditionally to take the install directory and shim with it.
 if command -v mise >/dev/null 2>&1 \
    && mise ls --installed 2>/dev/null | grep -q '^aqua:anomalyco/opencode'; then
-  log_info "Removing opencode from mise (now a Homebrew formula)..."
+  log_info "Removing the obsolete aqua opencode from mise (npm backend owns it now)..."
   mise unuse --global aqua:anomalyco/opencode >/dev/null 2>&1 || true
   # No --force: if anything genuinely still references the tool, leave it alone
   # and say so rather than deleting a version some other config asked for.
@@ -555,7 +551,7 @@ fi  # end package downloading -- everything above fetches or upgrades packages,
     # the pull, so nothing else picked it up either.
 
 if [ "$SKIP_PACKAGES" -eq 1 ]; then
-  log_info "--config-only: skipped apt, the brew formulas, and the opencode/vite-plus mise cleanup."
+  log_info "--config-only: skipped apt, the brew formulas, and the legacy aqua opencode / vite-plus mise cleanup."
   log_info "mise's tools still install from the config, and every config is still deployed."
 fi
 
@@ -794,10 +790,9 @@ log_ok "pnpm configured (global bin dir: $HOME/.local/bin)."
 # ------------------------------------------------------------------------------
 # 7. AI Agents
 # ------------------------------------------------------------------------------
-# pi and oh-my-pi are mise tools installed in section 5; opencode is a Homebrew
-# formula from section 3. Nothing is left to do here beyond reporting what
-# actually resolved, since a failed install should be visible here rather than
-# surfacing later as a missing command.
+# pi, oh-my-pi and opencode are mise tools installed in section 5. Nothing is
+# left to do here beyond reporting what actually resolved, since a failed install
+# should be visible here rather than surfacing later as a missing command.
 #
 # This checks the BINARIES only. pi's config is linked in section 9 and its
 # extension packages are installed in section 10, both of which run after this.
@@ -811,7 +806,7 @@ for agent in pi opencode omp; do
     AI_AGENTS_OK=0
   fi
 done
-[ "$AI_AGENTS_OK" -eq 1 ] || log_info "Retry with: brew install opencode; mise use -g github:can1357/oh-my-pi aqua:earendil-works/pi"
+[ "$AI_AGENTS_OK" -eq 1 ] || log_info "Retry with: mise install; opencode, pi and omp all come from the mise config"
 
 # ------------------------------------------------------------------------------
 # 8. Herdr
@@ -821,8 +816,71 @@ done
 # which is a second copy that can shadow the mise one depending on PATH order.
 if command -v herdr >/dev/null 2>&1; then
   log_ok "herdr ready at $(command -v herdr) ($(herdr --version 2>/dev/null | head -1))"
+
+  # Agent integrations. herdr writes a per-agent hook (a pi/omp extension, a
+  # claude/codex hook, an opencode plugin) that reports idle/working/blocked
+  # into its sidebar, and it REWRITES that file on every install -- which is why
+  # those files are deliberately not stowed. Nothing else installs them, so an
+  # agent without one shows up as `unknown` forever. Only agents that are
+  # actually present get one: a hook in a harness that is not installed is a
+  # file nobody runs.
+  log_info "Installing herdr agent integrations..."
+  for target in pi omp claude codex opencode; do
+    command -v "$target" >/dev/null 2>&1 || continue
+    if herdr integration install "$target" >/dev/null 2>&1; then
+      log_ok "  herdr integration: $target"
+    else
+      log_warn "  herdr integration install $target failed (run it by hand for the reason)"
+    fi
+  done
 else
   log_warn "herdr not found; retry with: mise install aqua:herdrdev/herdr"
+fi
+
+# herdr-core (`hc`) is the desktop app's headless core, a different program from
+# the TUI above. There is no public installer for it on Linux: the Windows
+# client pushes it here with `hc machine add linux --install`, and it updates
+# itself with `hc update`. So it is reported, never installed -- a copy fetched
+# by some other route would be a second binary fighting the one the app manages.
+if command -v hc >/dev/null 2>&1; then
+  log_ok "herdr-core ready at $(command -v hc) ($(hc --version 2>/dev/null | head -1))"
+else
+  log_info "herdr-core (hc) not present; the Windows client installs it: hc machine add linux --install"
+fi
+
+# ------------------------------------------------------------------------------
+# 8b. SSH server (Herdr's `linux` machine)
+# ------------------------------------------------------------------------------
+# The Windows half of this pair reaches this distro as `ssh linux` --
+# 127.0.0.1:2222, mirrored onto the Windows localhost by `localhostforwarding`
+# in .wslconfig. That half lives in dotfiles-win: setup-wsl-herdr.ps1 provisions
+# the key and registers the machine with `herdr machine add` and `hc machine
+# add`. Neither can be done from inside the distro, so what is left here is the
+# part that has to run here: sshd installed, on 2222, socket-activated, with
+# /run/sshd guaranteed.
+#
+# scripts/ssh-server.sh is the whole thing and also the repair tool, so a broken
+# sshd is one command away instead of a re-install. The WSL gate is deliberate:
+# the 2222 port and the socket arrangement exist because of the WSL/Windows
+# boundary, and an ordinary Ubuntu box wants 22 on its own interface. Under
+# --config-only this is skipped -- it installs a package and rewrites systemd
+# units, which is what that flag exists to avoid on a routine `upd`.
+SSH_SCRIPT="$DOTFILES_DIR/scripts/ssh-server.sh"
+if [ "$SKIP_PACKAGES" -eq 1 ]; then
+  log_info "config-only run; skipping the SSH server setup."
+elif [ ! -f "$SSH_SCRIPT" ]; then
+  log_warn "scripts/ssh-server.sh missing; sshd is not provisioned."
+elif [ -z "${WSL_DISTRO_NAME:-}" ] && ! grep -qi microsoft /proc/version 2>/dev/null; then
+  log_info "not WSL; skipping the SSH server setup (scripts/ssh-server.sh targets WSL)."
+else
+  log_step "SSH server on 2222 (Herdr's linux machine)"
+  # Not fatal to the install: the rest of the run stays useful either way, and
+  # the script itself reports what failed. Idempotent, so re-running is free.
+  if sudo bash "$SSH_SCRIPT" --port 2222 --user "$USER"; then
+    log_ok "sshd is listening on 2222."
+  else
+    log_warn "SSH setup reported a problem; re-run: sudo bash $SSH_SCRIPT --port 2222 --user $USER"
+  fi
 fi
 
 # ------------------------------------------------------------------------------
@@ -1474,12 +1532,18 @@ fi
 #   - the thread import, since capture only records sessions from the moment it
 #     is switched on.
 #
-# scripts/sync-atuin.sh does all three, idempotently. --no-import because `upd`
-# runs this on every pull, and re-reading every agent transcript on disk is ~12 s
-# of work that finds nothing new after the first run.
+# scripts/sync-atuin.sh does all three, idempotently. --no-import only under
+# --config-only: `upd dotfiles` runs this on every pull, and re-reading every
+# agent transcript on disk is ~12 s of work that finds nothing new after the
+# first run. A real install imports, because a fresh machine is exactly where the
+# backlog exists and where capture may still need switching on.
+ATUIN_ARGS=()
+if [ "$SKIP_PACKAGES" -eq 1 ]; then
+  ATUIN_ARGS=(--no-import)
+fi
 if command -v atuin >/dev/null 2>&1; then
   if [ -x "$DOTFILES_DIR/scripts/sync-atuin.sh" ]; then
-    if ! "$DOTFILES_DIR/scripts/sync-atuin.sh" --no-import; then
+    if ! "$DOTFILES_DIR/scripts/sync-atuin.sh" "${ATUIN_ARGS[@]}"; then
       log_warn "atuin sync had failures; run: $DOTFILES_DIR/scripts/sync-atuin.sh"
     fi
   else
