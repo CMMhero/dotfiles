@@ -1,0 +1,21 @@
+{
+  "$schema": "../docs/agents-schema.md",
+  "note": "Neutral source of truth for the agent roster. Edit this file, then run `node scripts/sync-agents.mjs` (or `upd agents`) to write the per-harness files. Nothing downstream is hand-edited.",
+  "harnesses": {
+    "omp": {
+      "dir": ".omp/agent/agents",
+      "format": "omp",
+      "comment": "omp reads ~/.omp/agent/agents/*.md. It supports everything here natively: autoloadSkills, spawns, model roles, thinkingLevel."
+    },
+    "claude": {
+      "dir": ".claude/agents",
+      "format": "claude",
+      "comment": "Claude Code reads ~/.claude/agents/*.md. Different tool names, different model vocabulary, `skills` instead of autoloadSkills. Generated, never edited."
+    },
+    "openbot": {
+      "dir": "",
+      "format": "openbot",
+      "comment": "OpenBot has no agent files. Its agents are runtime records, so those are created through openbot-cli by scripts/sync-agents.mjs --openbot against a running app."
+    }
+  }
+}
