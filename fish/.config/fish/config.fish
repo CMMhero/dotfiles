@@ -369,6 +369,7 @@ end
 
 abbr -a -- e. "$FPILOT_EXE ."
 abbr -a -- e $FPILOT_EXE
+abbr -a -- explorer $FPILOT_EXE
 
 # ----- git -----
 abbr -a -- g git
@@ -426,6 +427,8 @@ abbr -a -- ip 'curl http://ifconfig.me/ip'
 abbr -a -- please sudo
 abbr -a -- pls sudo
 abbr -a -- reload 'exec fish'
+# `update` is the PowerShell alias for `upd`; same spelling here so both shells match.
+abbr -a -- update upd
 abbr -a -- ff fastfetch
 abbr -a -- cls clear
 abbr -a -- add 'mise use -g'
@@ -436,7 +439,15 @@ abbr -a -- top btop
 
 # bat and fd ship under their real names, so no distro-name shims are needed.
 alias cat=bat
+alias bcat=bat
 alias find=fd
+
+# vim/nvim open `fresh`, the same as the PowerShell profile. Only when fresh is
+# installed, so a box without it keeps its real vim.
+if command -q fresh
+    alias vim=fresh
+    alias nvim=fresh
+end
 
 # ripgrep as grep replacement
 if command -q rg
@@ -521,6 +532,45 @@ end
 if command -q vp
     function pncr --description 'vp create --editor zed --package-manager pnpm' --wraps vp
         vp create --editor zed --package-manager pnpm $argv
+    end
+end
+
+# vite+ shortcuts, the same names as the PowerShell profile. vpr and vpx already
+# exist as real binaries, so they are not wrapped. Functions rather than
+# abbreviations so every flag after the name reaches vp untouched.
+if command -q vp
+    function vpi --description 'vp install' --wraps 'vp install'
+        vp install $argv
+    end
+    function vpa --description 'vp add' --wraps 'vp add'
+        vp add $argv
+    end
+    function vpad --description 'vp add -D' --wraps 'vp add'
+        vp add -D $argv
+    end
+    function vpd --description 'vp dev' --wraps 'vp dev'
+        vp dev $argv
+    end
+    function vpb --description 'vp build' --wraps 'vp build'
+        vp build $argv
+    end
+    function vpv --description 'vp preview' --wraps 'vp preview'
+        vp preview $argv
+    end
+    function vpt --description 'vp test' --wraps 'vp test'
+        vp test $argv
+    end
+    function vpc --description 'vp check' --wraps 'vp check'
+        vp check $argv
+    end
+    function vpf --description 'vp fmt' --wraps 'vp fmt'
+        vp fmt $argv
+    end
+    function vpl --description 'vp lint' --wraps 'vp lint'
+        vp lint $argv
+    end
+    function vpcr --description 'vp create --package-manager pnpm --editor zed' --wraps 'vp create'
+        vp create --package-manager pnpm --editor zed $argv
     end
 end
 
