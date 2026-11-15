@@ -92,7 +92,7 @@ function createServer(bound) {
       if (url.pathname === "/api/models") {
         const q = url.searchParams;
         const filters = Object.fromEntries(["range", "from", "to", "host", "harness", "project"].filter((k) => q.get(k)).map((k) => [k, q.get(k)]));
-        return modelsReport(filters, { offline: runOffline }).then(
+        return modelsReport(filters, { offline: runOffline, fresh: Boolean(q.get("fresh")) }).then(
           (body) => send(res, 200, "application/json", JSON.stringify(body)),
           (error) => send(res, 500, "application/json", JSON.stringify({ error: error.message })),
         );
