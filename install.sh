@@ -1338,6 +1338,23 @@ else
 fi
 
 # ------------------------------------------------------------------------------
+# 10b2. Daily usage collection
+# ------------------------------------------------------------------------------
+# One background pass a day writes this box's agent token and dollar totals into
+# ~/Usage, so `usage` and `usage web` have current numbers without anyone
+# remembering to collect. A systemd user timer (crontab when there is no user
+# session); idempotent, so a re-run keeps a single timer. The counterpart of
+# dotfiles-win's sync-usage.ps1.
+if test -x "$HOME/dotfiles/scripts/usage-timer.sh"; then
+  if "$HOME/dotfiles/scripts/usage-timer.sh" install >/dev/null 2>&1; then
+    log_ok "Daily usage collection scheduled (usage-timer.sh status)."
+  else
+    log_warn "Could not schedule the daily usage collection."
+    log_info "Retry with: ~/dotfiles/scripts/usage-timer.sh install"
+  fi
+fi
+
+# ------------------------------------------------------------------------------
 # 10c. Tailscale + T3 Code
 # ------------------------------------------------------------------------------
 # This machine is a paired remote environment for the T3 Code desktop app on
