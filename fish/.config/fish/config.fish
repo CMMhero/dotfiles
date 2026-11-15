@@ -442,9 +442,12 @@ alias cat=bat
 alias bcat=bat
 alias find=fd
 
-# vim/nvim open `fresh`, the same as the PowerShell profile. Only when fresh is
-# installed, so a box without it keeps its real vim.
-if command -q fresh
+# vim/nvim open ttt, the same as the PowerShell profile, falling back to fresh.
+# Only when one of them is installed, so a box without either keeps its real vim.
+if command -q ttt
+    alias vim=ttt
+    alias nvim=ttt
+else if command -q fresh
     alias vim=fresh
     alias nvim=fresh
 end
