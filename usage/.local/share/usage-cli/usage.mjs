@@ -488,7 +488,7 @@ function hostSnapshots() {
   if (!existsSync(dir)) return [];
   const byHost = new Map();
   for (const name of readdirSync(dir)) {
-    if (!name.endsWith(".json") || name === "prices.json") continue;
+    if (!name.endsWith(".json") || name === "prices.json" || name === "catalog.json") continue;
     // Syncthing leaves a conflicted copy beside the original when two machines
     // write the same name, e.g.
     // prices.sync-conflict-20261108-144922-726UY2V.json. A conflicted HOST file
@@ -1101,6 +1101,7 @@ async function main() {
 // a second copy of the pricing rules. Imported as a module, this file must not
 // run its CLI, hence the guard at the bottom.
 export {
+  normalizeId,
   usageDir,
   stateDir,
   hostSnapshots,
