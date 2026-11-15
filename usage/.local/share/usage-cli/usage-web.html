@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Usage</title>
+<style>
+  :root {
+    --bg: #14111b;
+    --panel: #1a1623;
+    --panel-2: #211c2c;
+    --line: #2d2739;
+    --text: #ece8f5;
+    --muted: #8d869c;
+    --faint: #5f586d;
+    --accent: #8b6cf0;
+    --accent-soft: rgba(139, 108, 240, .18);
+    --warn: #e0b341;
+    --heat-0: #231e2e;
+    --heat-1: #3a2f63;
+    --heat-2: #51409a;
+    --heat-3: #6e55d1;
+    --heat-4: #a28cff;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body {
+    font: 13px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+  .num { font-variant-numeric: tabular-nums; }
+  button, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .shell { max-width: 1120px; margin: 0 auto; padding: 24px 20px 64px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+
+  /* ---- top bar ---------------------------------------------------------- */
+  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  .crumbs { display: flex; align-items: center; gap: 8px; color: var(--muted); font-weight: 500; }
+  .crumbs b { color: var(--text); font-weight: 600; }
+  .crumbs .sep { color: var(--faint); }
+  .pick { position: relative; display: inline-flex; align-items: center; }
+  .pick select {
+    appearance: none; background: transparent; border: 0; padding: 2px 16px 2px 2px;
+    color: var(--text); font-weight: 600; cursor: pointer; border-radius: 4px;
+  }
+  .pick select option { background: var(--panel-2); color: var(--text); }
+  .pick::after { content: ""; position: absolute; right: 3px; width: 5px; height: 5px; border: solid var(--muted); border-width: 0 1.5px 1.5px 0; transform: translateY(-1px) rotate(45deg); pointer-events: none; }
+  .spacer { flex: 1; }
+  .seg { display: inline-flex; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 2px; gap: 2px; }
+  .seg button { background: transparent; border: 0; border-radius: 6px; padding: 4px 10px; color: var(--muted); font-weight: 500; }
+  .seg button:hover { color: var(--text); }
+  .seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--text); box-shadow: inset 0 0 0 1px rgba(139,108,240,.45); }
+  .icon-btn { background: transparent; border: 1px solid transparent; border-radius: 8px; width: 30px; height: 30px; color: var(--muted); display: inline-grid; place-items: center; }
+  .icon-btn:hover { color: var(--text); background: var(--panel-2); }
+  .icon-btn.spin svg { animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---- layout ------------------------------------------------------------ */
+  .body { padding: 22px 24px 28px; display: grid; gap: 30px; }
+  .hero { display: grid; grid-template-columns: minmax(250px, 300px) 1fr; gap: 32px; align-items: start; }
+  @media (max-width: 820px) { .hero { grid-template-columns: 1fr; } }
+  .big { font-size: 40px; font-weight: 600; letter-spacing: -.02em; line-height: 1.05; }
+  .sub { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  .legend { list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 14px; }
+  .legend li { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; }
+  .legend .name { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+  .legend .name small { color: var(--muted); font-weight: 400; }
+  .legend .val { font-weight: 600; text-align: right; }
+  .legend .meta { grid-column: 1 / -1; color: var(--muted); font-size: 11.5px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+
+  h2 { margin: 0 0 10px; font-size: 13px; font-weight: 600; }
+  .chart-title { font-size: 12px; font-weight: 600; margin-bottom: 8px; }
+  .chart { position: relative; }
+  .chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .axis text { fill: var(--faint); font-size: 10px; }
+  .grid line { stroke: var(--line); stroke-width: 1; }
+  .tip {
+    position: absolute; pointer-events: none; z-index: 5; min-width: 150px; max-width: 280px;
+    background: #0f0c15; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px;
+    box-shadow: 0 8px 28px rgba(0,0,0,.5); font-size: 12px; opacity: 0; transition: opacity .08s;
+  }
+  .tip.on { opacity: 1; }
+  .tip .t { color: var(--muted); margin-bottom: 4px; }
+  .tip .r { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+  .tip .r span:first-child { display: flex; align-items: center; gap: 6px; }
+
+  /* ---- totals ------------------------------------------------------------ */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 16px 24px; }
+  .stat .k { color: var(--muted); font-size: 11px; }
+  .stat .v { font-size: 15px; font-weight: 600; margin-top: 1px; }
+  .stat .v.good { color: #7fd6a2; }
+
+  .stack { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--panel-2); gap: 2px; max-width: 520px; }
+  .stack i { display: block; min-width: 2px; }
+  .keys { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 8px; color: var(--muted); font-size: 11.5px; }
+  .keys span { display: inline-flex; align-items: center; gap: 6px; }
+  .keys b { color: var(--text); font-weight: 600; }
+  .sq { width: 8px; height: 8px; border-radius: 2px; }
+
+  /* ---- heatmap ----------------------------------------------------------- */
+  .heat-wrap { overflow-x: auto; padding-bottom: 4px; }
+  .heat svg { display: block; }
+  .heat text { fill: var(--faint); font-size: 10px; }
+  .heat rect.cell { stroke: rgba(255,255,255,.04); stroke-width: 1; }
+  .heat rect.cell:hover { stroke: var(--text); }
+  .heat-foot { display: flex; align-items: center; gap: 6px; justify-content: flex-end; margin-top: 8px; color: var(--muted); font-size: 11px; }
+  .heat-foot i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+
+  /* ---- breakdown --------------------------------------------------------- */
+  .bd-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { color: var(--muted); font-weight: 500; font-size: 11px; text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  td { padding: 9px 8px; text-align: right; border-bottom: 1px solid rgba(45,39,57,.6); }
+  th:first-child, td:first-child { text-align: right; width: 28px; color: var(--faint); }
+  th:nth-child(2), td:nth-child(2) { text-align: left; width: 100%; }
+  td .nm { display: flex; align-items: center; gap: 8px; font-weight: 500; }
+  td .nm span.t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 520px; }
+  td .under { height: 2px; border-radius: 2px; margin-top: 6px; opacity: .85; }
+  td.muted, .muted { color: var(--muted); }
+  .unp { color: var(--warn); }
+  tbody tr:hover { background: rgba(255,255,255,.02); }
+
+  .foot { margin-top: 18px; color: var(--faint); font-size: 11.5px; display: grid; gap: 4px; }
+  .warn { color: var(--warn); }
+  .empty { padding: 60px 24px; text-align: center; color: var(--muted); }
+  .hosts { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+  .hosts .stale { color: var(--warn); }
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="card" id="app" aria-live="polite">
+    <div class="bar">
+      <div class="crumbs">
+        <span>Usage</span><span class="sep">/</span>
+        <label class="pick"><span class="sr" hidden>Host</span><select id="host" aria-label="Host"></select></label>
+        <span class="sep">/</span>
+        <label class="pick"><select id="harness" aria-label="Provider"></select></label>
+      </div>
+      <div class="spacer"></div>
+      <div class="seg" id="range" role="group" aria-label="Range"></div>
+      <div class="seg" id="metric" role="group" aria-label="Metric">
+        <button data-v="cost">Cost</button><button data-v="tokens">Tokens</button>
+      </div>
+      <button class="icon-btn" id="refresh" title="Reload from the snapshots" aria-label="Refresh">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+      </button>
+    </div>
+    <div class="body" id="body"><div class="empty">Loading…</div></div>
+  </div>
+</div>
+<div class="tip" id="tip" role="tooltip"></div>
+
+<script>
+"use strict";
+
+// Colours per harness. Anything not listed gets a stable pick from the spare set.
+const HARNESS_COLORS = {
+  claude: "#e9724c", opencode: "#4f9ddb", pi: "#3fb8a0", omp: "#b58cf0",
+  codex: "#9bcf5f", cline: "#e0b341", gemini: "#6fb3f2", cursor: "#d9d9e3",
+};
+const SPARE = ["#f08fb0", "#7ad0d8", "#c9a36b", "#9aa5f5", "#b8c06a"];
+const colorFor = (name) => {
+  if (HARNESS_COLORS[name]) return HARNESS_COLORS[name];
+  let h = 0;
+  for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return SPARE[h % SPARE.length];
+};
+
+const RANGES = [["1d", "Today"], ["7d", "7 days"], ["30d", "30 days"], ["90d", "90 days"], ["1y", "1 year"], ["all", "All"]];
+const GROUPS = [["model", "Model"], ["day", "Day"], ["project", "Project"], ["host", "Host"]];
+
+const $ = (id) => document.getElementById(id);
+const store = (() => { try { return window.localStorage; } catch { return { getItem: () => null, setItem() {} }; } })();
+const state = {
+  range: store.getItem("usage.range") || "30d",
+  metric: store.getItem("usage.metric") || "cost",
+  host: "all", harness: "all",
+  group: store.getItem("usage.group") || "model",
+  data: null,
+};
+const save = () => { store.setItem("usage.range", state.range); store.setItem("usage.metric", state.metric); store.setItem("usage.group", state.group); };
+
+// ---- formatting ---------------------------------------------------------------
+const compact = (n) => {
+  n = Number(n || 0);
+  const a = Math.abs(n);
+  if (a >= 1e12) return (n / 1e12).toFixed(2) + "T";
+  if (a >= 1e9) return (n / 1e9).toFixed(2) + "B";
+  if (a >= 1e6) return (n / 1e6).toFixed(a >= 1e8 ? 0 : a >= 1e7 ? 1 : 2) + "M";
+  if (a >= 1e3) return (n / 1e3).toFixed(a >= 1e5 ? 0 : 1) + "K";
+  return String(Math.round(n));
+};
+const money = (n) => "$" + Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const axisMoney = (n) => (n >= 1000 ? "$" + (n / 1000).toFixed(n % 1000 ? 1 : 0) + "K" : "$" + (n >= 10 ? Math.round(n) : n.toFixed(n ? 1 : 0)));
+const plural = (n, w) => `${n.toLocaleString("en-US")} ${w}${n === 1 ? "" : "s"}`;
+const pct = (part, whole) => (whole ? (part / whole) * 100 : 0);
+const pctText = (v) => (v > 0 && v < 0.1 ? "<0.1%" : v.toFixed(1) + "%");
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const isCost = () => state.metric === "cost";
+const fmt = (n) => (isCost() ? money(n) : compact(n));
+const val = (o) => (isCost() ? o.cost : o.tokens);
+const shortDay = (d) => new Date(d + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }).toUpperCase();
+const longDay = (d) => new Date(d + "T00:00:00Z").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+const duration = (ms) => {
+  const m = Math.round(ms / 60000);
+  return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`;
+};
+
+// A cost cell for a row that may be partly or wholly unpriced.
+function costCell(o) {
+  if (o.unpricedRows && !o.cost) return `<span class="unp">Unpriced</span>`;
+  return money(o.cost) + (o.unpricedRows ? `<span class="unp" title="${o.unpricedRows} unpriced rows">*</span>` : "");
+}
+
+// ---- data ---------------------------------------------------------------------
+async function load(fresh = false) {
+  const q = new URLSearchParams({ range: state.range, host: state.host, harness: state.harness });
+  if (fresh) q.set("fresh", "1");
+  const res = await fetch("/api/usage?" + q);
+  const data = await res.json();
+  if (!res.ok || data.error) throw new Error(data.error || res.statusText);
+  state.data = data;
+  render();
+}
+
+// ---- controls -----------------------------------------------------------------
+function renderControls() {
+  const d = state.data;
+  const fill = (el, label, all, items, current) => {
+    el.innerHTML = `<option value="all">${all}</option>` + items.map((v) => `<option value="${esc(v)}">${esc(v)}</option>`).join("");
+    el.value = items.includes(current) ? current : "all";
+  };
+  fill($("host"), "Host", "All environments", d.filters.hosts, state.host);
+  fill($("harness"), "Provider", "All providers", d.filters.harnesses, state.harness);
+  $("range").innerHTML = RANGES.map(([k, l]) => `<button data-v="${k}" aria-pressed="${state.range === k}">${l}</button>`).join("");
+  for (const b of $("metric").children) b.setAttribute("aria-pressed", String(b.dataset.v === state.metric));
+}
+
+// ---- main render ----------------------------------------------------------------
+function render() {
+  const d = state.data;
+  renderControls();
+  const body = $("body");
+  if (!d.hosts.length) {
+    body.innerHTML = `<div class="empty">No host snapshots in <code>${esc(d.meta.usageDir)}</code> yet.<br>Run <code>usage collect</code> and refresh.</div>`;
+    return;
+  }
+  const t = d.totals;
+  const metricTotal = isCost() ? t.cost : t.tokens;
+
+  const harnessRows = d.harnesses.map((h) => {
+    const share = pct(val(h), metricTotal);
+    const detail = isCost()
+      ? `${pctText(share)} of cost · ${compact(h.tokens)} tokens`
+      : `${pctText(share)} of tokens · ${h.unpricedRows && !h.cost ? "unpriced" : money(h.cost) + (h.unpricedRows ? "*" : "")}`;
+    return `<li>
+      <span class="name"><i class="dot" style="background:${colorFor(h.harness)}"></i>${esc(h.harness)} <small>${plural(h.sessions, "session")}</small></span>
+      <span class="val num">${isCost() ? (h.unpricedRows && !h.cost ? '<span class="unp">Unpriced</span>' : money(h.cost)) : compact(h.tokens)}</span>
+      <span class="meta num">${detail}</span></li>`;
+  }).join("");
+
+  const typeParts = isCost()
+    ? [["Input", t.costByType.input, "#6b6480"], ["Cache read", t.costByType.cacheRead, "#8e86a8"], ["Cache write", t.costByType.cacheWrite, "#b9b2d0"], ["Output", t.costByType.output, "#ece8f5"]]
+    : [["Input", t.input, "#6b6480"], ["Cache read", t.cacheRead, "#8e86a8"], ["Cache write", t.cacheWrite, "#b9b2d0"], ["Output", t.output, "#ece8f5"]];
+  const typeSum = typeParts.reduce((s, p) => s + p[1], 0);
+
+  body.innerHTML = `
+    <section class="hero">
+      <div>
+        <div class="big num">${isCost() ? money(t.cost) + (t.unpricedRows ? "<span class='unp'>*</span>" : "") : compact(t.tokens)}</div>
+        <div class="sub">${plural(t.sessions, "session")}${isCost() ? " · API estimate" : ""}</div>
+        <ul class="legend">${harnessRows || '<li class="muted">No usage in this range</li>'}</ul>
+      </div>
+      <div>
+        <div class="chart-title">${isCost() ? "Daily cost" : "Daily processed tokens"}</div>
+        <div class="chart" id="chart"></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Totals</h2>
+      <div class="stats num">
+        <div class="stat"><div class="k">Processed tokens</div><div class="v">${compact(t.tokens)}</div></div>
+        <div class="stat"><div class="k">Cached input</div><div class="v">${compact(t.cacheRead)}</div></div>
+        <div class="stat"><div class="k">Uncached input</div><div class="v">${compact(t.input)}</div></div>
+        <div class="stat"><div class="k">Output</div><div class="v">${compact(t.output)}</div></div>
+        <div class="stat"><div class="k">Cache savings</div><div class="v good">${money(t.cacheSavings)}</div></div>
+        <div class="stat"><div class="k">Messages</div><div class="v">${t.messages.toLocaleString("en-US")}</div></div>
+        <div class="stat"><div class="k">Reasoning</div><div class="v">${compact(t.reasoning)}</div></div>
+        ${t.activeMs ? `<div class="stat"><div class="k">Active time</div><div class="v">${duration(t.activeMs)}</div></div>` : ""}
+      </div>
+    </section>
+
+    <section>
+      <h2>${isCost() ? "Cost by type" : "Tokens by type"}</h2>
+      <div class="stack" role="img" aria-label="${isCost() ? "Cost" : "Tokens"} by type">
+        ${typeParts.map(([n, v, c]) => `<i style="flex:${Math.max(v, typeSum * 0.004)};background:${c}" title="${n}"></i>`).join("")}
+      </div>
+      <div class="keys num">${typeParts.map(([n, v, c]) => `<span><i class="sq" style="background:${c}"></i>${n} <b>${fmt(v)}</b></span>`).join("")}</div>
+    </section>
+
+    <section>
+      <h2>Activity</h2>
+      <div class="heat-wrap heat" id="heat"></div>
+      <div class="heat-foot"><span>Less</span>${[0, 1, 2, 3, 4].map((i) => `<i style="background:var(--heat-${i})"></i>`).join("")}<span>More</span></div>
+    </section>
+
+    <section>
+      <div class="bd-head"><h2 style="margin:0">Breakdown</h2><div class="seg" id="group">${GROUPS.map(([k, l]) => `<button data-v="${k}" aria-pressed="${state.group === k}">${l}</button>`).join("")}</div></div>
+      <div id="table"></div>
+    </section>
+
+    <div class="foot">
+      <div class="hosts num">${d.hosts.map(hostChip).join("")}</div>
+      ${d.meta.warnings.map((w) => `<div class="warn">${esc(w)}</div>`).join("")}
+      ${d.totals.unpricedRows ? `<div>* ${plural(d.totals.unpricedRows, "row")} had no price and are left out of the dollar total.</div>` : ""}
+      <div>Reasoning is shown beside output, never added. Ranges count back from the newest day in the data (${esc(d.meta.newestDay)}). Prices ${d.meta.priceFetchedAt ? "fetched " + esc(d.meta.priceFetchedAt.slice(0, 10)) : "not cached yet — run usage prices update"}.</div>
+    </div>`;
+
+  drawChart();
+  drawHeat();
+  drawTable();
+}
+
+function hostChip(h) {
+  const age = Math.max(0, Math.round((Date.now() - Date.parse(h.collectedAt)) / 3600000));
+  const stale = age > 24;
+  return `<span class="${stale ? "stale" : ""}" title="collected ${esc(h.collectedAt)}">${esc(h.host)} · ${age}h${stale ? " stale" : ""}</span>`;
+}
+
+// ---- tooltip --------------------------------------------------------------------
+const tip = $("tip");
+function showTip(html, ev, within) {
+  tip.innerHTML = html;
+  const box = (within || document.body).getBoundingClientRect();
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = ev.clientX + 14, y = ev.clientY + 14;
+  if (x + w > window.innerWidth - 8) x = ev.clientX - w - 14;
+  if (y + h > window.innerHeight - 8) y = ev.clientY - h - 14;
+  tip.style.left = x + window.scrollX + "px";
+  tip.style.top = y + window.scrollY + "px";
+  tip.classList.add("on");
+}
+const hideTip = () => tip.classList.remove("on");
+
+// ---- line / area chart ----------------------------------------------------------
+function niceMax(v) {
+  // Candidates split evenly into three gridline steps (1.5 -> .5, 3 -> 1, 6 -> 2 ...).
+  if (v <= 0) return 1.5;
+  const p = Math.pow(10, Math.floor(Math.log10(v)));
+  const f = v / p;
+  return ([1.5, 3, 6, 9, 15].find((c) => c >= f - 1e-9) ?? 15) * p;
+}
+
+function smoothPath(pts) {
+  if (pts.length < 2) return pts.length ? `M${pts[0][0]},${pts[0][1]}` : "";
+  // Monotone cubic: no overshoot below zero between a spike and a flat stretch.
+  const n = pts.length, dx = [], m = [], s = [];
+  for (let i = 0; i < n - 1; i++) { dx[i] = pts[i + 1][0] - pts[i][0]; m[i] = (pts[i + 1][1] - pts[i][1]) / dx[i]; }
+  s[0] = m[0]; s[n - 1] = m[n - 2];
+  for (let i = 1; i < n - 1; i++) s[i] = m[i - 1] * m[i] <= 0 ? 0 : (m[i - 1] + m[i]) / 2;
+  for (let i = 0; i < n - 1; i++) {
+    if (m[i] === 0) { s[i] = 0; s[i + 1] = 0; continue; }
+    const a = s[i] / m[i], b = s[i + 1] / m[i], h = a * a + b * b;
+    if (h > 9) { const t = 3 / Math.sqrt(h); s[i] = t * a * m[i]; s[i + 1] = t * b * m[i]; }
+  }
+  let d = `M${pts[0][0]},${pts[0][1]}`;
+  for (let i = 0; i < n - 1; i++) {
+    const x1 = pts[i][0] + dx[i] / 3, y1 = pts[i][1] + (s[i] * dx[i]) / 3;
+    const x2 = pts[i + 1][0] - dx[i] / 3, y2 = pts[i + 1][1] - (s[i + 1] * dx[i]) / 3;
+    d += `C${x1},${y1} ${x2},${y2} ${pts[i + 1][0]},${pts[i + 1][1]}`;
+  }
+  return d;
+}
+
+function drawChart() {
+  const d = state.data, el = $("chart");
+  const days = d.daily.days, key = isCost() ? "cost" : "tokens";
+  const series = d.daily.series;
+  const W = 760, H = 250, L = 46, R = 12, T = 10, B = 24;
+  const pw = W - L - R, ph = H - T - B;
+  const max = niceMax(Math.max(0, ...series.flatMap((s) => s[key])));
+  const x = (i) => L + (days.length === 1 ? pw / 2 : (i / (days.length - 1)) * pw);
+  const y = (v) => T + ph - (v / max) * ph;
+  const fmtAxis = (v) => (isCost() ? axisMoney(v) : compact(v));
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${isCost() ? "Daily cost" : "Daily tokens"} by provider">`;
+  svg += `<g class="grid axis">`;
+  for (let i = 0; i <= 3; i++) {
+    const v = (max / 3) * i, yy = y(v);
+    svg += `<line x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}"/><text x="${L - 8}" y="${yy + 3}" text-anchor="end">${i === 0 ? "0" : fmtAxis(v)}</text>`;
+  }
+  svg += `</g><g class="axis">`;
+  const ticks = Math.min(days.length, 5);
+  for (let i = 0; i < ticks; i++) {
+    const idx = ticks === 1 ? 0 : Math.round((i / (ticks - 1)) * (days.length - 1));
+    svg += `<text x="${x(idx)}" y="${H - 6}" text-anchor="${i === 0 ? "start" : i === ticks - 1 ? "end" : "middle"}">${shortDay(days[idx])}</text>`;
+  }
+  svg += `</g>`;
+  for (const s of series) {
+    const c = colorFor(s.harness);
+    const pts = s[key].map((v, i) => [x(i), y(v)]);
+    if (days.length === 1) {
+      svg += `<circle cx="${pts[0][0]}" cy="${pts[0][1]}" r="4" fill="${c}"/>`;
+      continue;
+    }
+    const line = smoothPath(pts);
+    svg += `<path d="${line}L${x(days.length - 1)},${y(0)}L${x(0)},${y(0)}Z" fill="${c}" opacity=".10"/>`;
+    svg += `<path d="${line}" fill="none" stroke="${c}" stroke-width="1.6" stroke-linejoin="round"/>`;
+  }
+  svg += `<line id="cross" y1="${T}" y2="${T + ph}" stroke="#8d869c" stroke-dasharray="3 3" opacity="0"/>`;
+  svg += `<rect id="hit" x="${L}" y="${T}" width="${pw}" height="${ph}" fill="transparent"/></svg>`;
+  el.innerHTML = svg;
+
+  const hit = el.querySelector("#hit"), cross = el.querySelector("#cross"), root = el.querySelector("svg");
+  hit.addEventListener("pointermove", (ev) => {
+    const r = root.getBoundingClientRect();
+    const px = ((ev.clientX - r.left) / r.width) * W;
+    const i = Math.max(0, Math.min(days.length - 1, Math.round(((px - L) / pw) * (days.length - 1))));
+    cross.setAttribute("x1", x(i)); cross.setAttribute("x2", x(i)); cross.setAttribute("opacity", "1");
+    const rows = series.filter((s) => s[key][i] > 0).sort((a, b) => b[key][i] - a[key][i]);
+    const total = series.reduce((sum, s) => sum + s[key][i], 0);
+    showTip(`<div class="t">${longDay(days[i])}</div>` +
+      (rows.map((s) => `<div class="r"><span><i class="dot" style="background:${colorFor(s.harness)}"></i>${esc(s.harness)}</span><b class="num">${fmt(s[key][i])}</b></div>`).join("") ||
+        `<div class="muted">No usage</div>`) +
+      (rows.length > 1 ? `<div class="r" style="margin-top:4px;border-top:1px solid var(--line);padding-top:4px"><span>Total</span><b class="num">${fmt(total)}</b></div>` : ""), ev);
+  });
+  hit.addEventListener("pointerleave", () => { cross.setAttribute("opacity", "0"); hideTip(); });
+}
+
+// ---- calendar heatmap -----------------------------------------------------------
+function drawHeat() {
+  const d = state.data, el = $("heat");
+  const key = isCost() ? "cost" : "tokens";
+  const to = d.heatmap.to;
+  const end = new Date(to + "T00:00:00Z");
+  // Weeks run Sunday to Saturday; the last column ends on the newest day in the data.
+  const WEEKS = 53, CELL = 13, GAP = 3, LEFT = 30, TOP = 16;
+  const start = new Date(end);
+  start.setUTCDate(start.getUTCDate() - end.getUTCDay() - (WEEKS - 1) * 7);
+  const values = [];
+  const cells = [];
+  for (let w = 0; w < WEEKS; w++) {
+    for (let dow = 0; dow < 7; dow++) {
+      const dt = new Date(start);
+      dt.setUTCDate(start.getUTCDate() + w * 7 + dow);
+      if (dt > end) continue;
+      const day = dt.toISOString().slice(0, 10);
+      const rec = d.heatmap.days[day];
+      const v = rec ? rec[key] : 0;
+      if (v > 0) values.push(v);
+      cells.push({ w, dow, day, v, rec });
+    }
+  }
+  // Quartiles of the non-zero days, so a single huge day does not wash out the rest.
+  values.sort((a, b) => a - b);
+  const q = (p) => values.length ? values[Math.min(values.length - 1, Math.floor(p * values.length))] : Infinity;
+  const cuts = [q(0.25), q(0.5), q(0.75)];
+  const level = (v, active) => (v <= 0 ? (active ? 1 : 0) : v < cuts[0] ? 1 : v < cuts[1] ? 2 : v < cuts[2] ? 3 : 4);
+
+  const width = LEFT + WEEKS * (CELL + GAP);
+  const height = TOP + 7 * (CELL + GAP);
+  let svg = `<svg style="width:100%;min-width:820px;height:auto" viewBox="0 0 ${width} ${height}" role="img" aria-label="Activity by day over the last year">`;
+  let lastMonth = -1;
+  for (let w = 0; w < WEEKS; w++) {
+    const first = new Date(start); first.setUTCDate(start.getUTCDate() + w * 7);
+    const m = first.getUTCMonth();
+    if (m !== lastMonth && first.getUTCDate() <= 7) {
+      svg += `<text x="${LEFT + w * (CELL + GAP)}" y="10">${first.toLocaleDateString("en-US", { month: "short", timeZone: "UTC" })}</text>`;
+      lastMonth = m;
+    }
+  }
+  ["Mon", "Wed", "Fri"].forEach((n, i) => { svg += `<text x="0" y="${TOP + (i * 2 + 1) * (CELL + GAP) + CELL - 2}">${n}</text>`; });
+  for (const c of cells) {
+    svg += `<rect class="cell" data-day="${c.day}" x="${LEFT + c.w * (CELL + GAP)}" y="${TOP + c.dow * (CELL + GAP)}" width="${CELL}" height="${CELL}" rx="3" fill="var(--heat-${level(c.v, (c.rec?.messages ?? 0) > 0)})"/>`;
+  }
+  svg += `</svg>`;
+  el.innerHTML = svg;
+
+  const byDay = Object.fromEntries(cells.map((c) => [c.day, c]));
+  el.addEventListener("pointermove", (ev) => {
+    const day = ev.target.dataset?.day;
+    if (!day) return hideTip();
+    const c = byDay[day];
+    showTip(`<div class="t">${longDay(day)}</div>` + (c.rec
+      ? `<div class="r"><span>Cost</span><b class="num">${money(c.rec.cost)}</b></div><div class="r"><span>Tokens</span><b class="num">${compact(c.rec.tokens)}</b></div><div class="r"><span>Messages</span><b class="num">${c.rec.messages.toLocaleString("en-US")}</b></div>`
+      : `<div class="muted">No usage</div>`), ev);
+  });
+  el.addEventListener("pointerleave", hideTip);
+  // Scroll to the newest weeks on narrow screens.
+  el.scrollLeft = el.scrollWidth;
+}
+
+// ---- breakdown table ------------------------------------------------------------
+function drawTable() {
+  const d = state.data;
+  const g = state.group;
+  const metricTotal = isCost() ? d.totals.cost : d.totals.tokens;
+  let rows;
+  if (g === "model") rows = d.models.map((r) => ({ name: r.model, sub: r.harness, color: colorFor(r.harness), ...r }));
+  else if (g === "day") rows = d.byDay.map((r) => ({ name: r.day, color: "#8b6cf0", ...r }));
+  else if (g === "project") rows = d.byProject.map((r) => ({ name: r.project, color: "#8b6cf0", ...r }));
+  else rows = d.byHost.map((r) => ({ name: r.host, color: "#8b6cf0", ...r }));
+  if (g !== "day") rows.sort((a, b) => (isCost() ? b.cost - a.cost || b.tokens - a.tokens : b.tokens - a.tokens));
+  const max = Math.max(1, ...rows.map(val));
+  const label = GROUPS.find(([k]) => k === g)[1];
+
+  $("table").innerHTML = rows.length ? `<table class="num">
+    <thead><tr><th>#</th><th>${label}</th><th>Cost</th><th>Share</th><th>Tokens</th><th>Msgs</th></tr></thead>
+    <tbody>${rows.slice(0, 200).map((r, i) => `<tr>
+      <td>${i + 1}</td>
+      <td><div class="nm"><i class="dot" style="background:${r.color}"></i><span class="t" title="${esc(r.name)}">${esc(r.name)}</span>${r.sub ? `<small class="muted">${esc(r.sub)}</small>` : ""}</div>
+        <div class="under" style="width:${Math.max(2, (val(r) / max) * 100)}%;max-width:100%;background:${r.color}"></div></td>
+      <td>${costCell(r)}</td>
+      <td class="muted">${pctText(pct(val(r), metricTotal))}</td>
+      <td>${compact(r.tokens)}</td>
+      <td class="muted">${r.messages.toLocaleString("en-US")}</td></tr>`).join("")}</tbody></table>`
+    : `<div class="empty">Nothing in this range.</div>`;
+
+  $("group").addEventListener("click", (ev) => {
+    const v = ev.target.closest("button")?.dataset.v;
+    if (!v) return;
+    state.group = v; save(); drawTable();
+    for (const b of $("group").children) b.setAttribute("aria-pressed", String(b.dataset.v === v));
+  });
+}
+
+// ---- wiring ---------------------------------------------------------------------
+function fail(error) { $("body").innerHTML = `<div class="empty">Could not load usage: ${esc(error.message)}</div>`; }
+$("range").addEventListener("click", (ev) => { const v = ev.target.closest("button")?.dataset.v; if (v) { state.range = v; save(); load().catch(fail); } });
+$("metric").addEventListener("click", (ev) => { const v = ev.target.closest("button")?.dataset.v; if (v) { state.metric = v; save(); render(); } });
+$("host").addEventListener("change", (ev) => { state.host = ev.target.value; load().catch(fail); });
+$("harness").addEventListener("change", (ev) => { state.harness = ev.target.value; load().catch(fail); });
+$("refresh").addEventListener("click", async () => {
+  const b = $("refresh");
+  b.classList.add("spin");
+  try { await load(true); } catch (e) { fail(e); } finally { b.classList.remove("spin"); }
+});
+setInterval(() => { if (!document.hidden) load().catch(() => {}); }, 60000);
+load().catch(fail);
+</script>
+</body>
+</html>

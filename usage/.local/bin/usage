@@ -1,0 +1,18 @@
+#!/usr/bin/env sh
+# usage - agent token and dollar totals; `usage web` opens the browser dashboard.
+# Launcher for the copy of usage.mjs vendored in the `usage` stow package
+# (refresh it with scripts/sync-usage.sh). Resolves the real file first, so it
+# works whether this script is run directly or through the stow symlink.
+set -eu
+
+tool="${USAGE_CLI_DIR:-$HOME/.local/share/usage-cli}/usage.mjs"
+[ -f "$tool" ] || { echo "usage: $tool not found; run ~/dotfiles/install.sh or scripts/sync-usage.sh" >&2; exit 1; }
+
+node_bin="$(command -v node 2>/dev/null || true)"
+for candidate in "$HOME/.local/share/vite-plus/bin/node" "$HOME/.local/share/mise/shims/node"; do
+  [ -n "$node_bin" ] && break
+  [ -x "$candidate" ] && node_bin="$candidate"
+done
+[ -n "$node_bin" ] || { echo "usage: node not found (vp / mise provide it)" >&2; exit 1; }
+
+exec "$node_bin" "$tool" "$@"
