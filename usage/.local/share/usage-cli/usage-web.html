@@ -131,6 +131,17 @@
   #mscatter { min-height: 280px; }
   .keys { min-height: 42px; align-content: start; }
   #tablecard, #mtable { min-height: 62vh; }
+  /* Every breakdown tab uses the same grid: fixed column widths, one row height.
+     Cycling tabs changes the words, not where they sit. */
+  #tablecard table { table-layout: fixed; min-width: 860px; }
+  #tablecard th.idx { width: 34px; }
+  #tablecard th.num { width: 96px; }
+  #tablecard th.txt { width: 190px; }
+  #tablecard tbody td { height: 64px; padding-top: 0; padding-bottom: 0; overflow: hidden; text-overflow: ellipsis; }
+  #tablecard td.l { white-space: nowrap; }
+  #tablecard td.name { width: auto; max-width: none; }
+  .legend .meta.via { color: var(--faint); }
+  td .agent { display: inline-flex; align-items: center; gap: 7px; }
   .heat-wrap { aspect-ratio: 878 / 128; max-width: 1240px; min-height: 110px; }
   .sk { border-radius: 8px; background: linear-gradient(90deg, var(--raised) 25%, var(--line-2) 37%, var(--raised) 63%); background-size: 400% 100%; animation: sk 1.4s ease infinite; }
   @keyframes sk { from { background-position: 100% 50%; } to { background-position: 0 50%; } }
@@ -242,47 +253,82 @@
   .note.bad { color: var(--warn); }
 
   /* ---- threads --------------------------------------------------------------- */
-  main.flush { padding: 0; gap: 0; }
-  @media (min-width: 1700px) { .threads { border-inline: 1px solid var(--line); } }
-  .threads { display: grid; grid-template-columns: minmax(340px, 440px) minmax(0, 1fr); height: calc(100vh - var(--hh)); min-height: 480px; }
-  @media (max-width: 960px) { .threads { grid-template-columns: 1fr; height: auto; } }
-  .tl { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--line); }
-  .tl .bar { display: flex; gap: 8px; padding: 12px 18px; border-bottom: 1px solid var(--line-2); flex-wrap: wrap; align-items: center; }
-  .tl .bar .field { flex: 1; min-width: 120px; }
+  main.flush { padding: 0; gap: 0; max-width: none; }
+  .threads { display: grid; grid-template-columns: 320px minmax(0, 1fr) 340px; height: calc(100vh - var(--hh)); min-height: 480px; max-width: 2200px; margin: 0 auto; }
+  @media (max-width: 1280px) { .threads { grid-template-columns: 300px minmax(0, 1fr); } .tside { display: none; } }
+  @media (max-width: 820px) { .threads { grid-template-columns: 1fr; height: auto; } .tl { max-height: 46vh; } .td { height: 80vh; } }
+  .scroll { overflow-y: auto; min-height: 0; flex: 1; scrollbar-gutter: stable; }
+  .tl { display: flex; flex-direction: column; min-height: 0; background: var(--raised); border-right: 1px solid var(--line); }
+  .tl .bar { display: flex; gap: 8px; padding: 12px 12px 10px; flex-wrap: wrap; align-items: center; }
   .tl .bar .search { flex: 1 1 100%; }
-  .tl .bar .search input { width: 100%; }
-  .scroll { overflow-y: auto; min-height: 0; flex: 1; }
-  .ti { display: grid; grid-template-columns: 22px 1fr auto; gap: 2px 10px; padding: 11px 18px; border-bottom: 1px solid var(--line-2); cursor: pointer; }
+  .tl .bar .search input { width: 100%; background: var(--bg); }
+  .tl .bar select.field { flex: 1; min-width: 110px; background-color: var(--bg); }
+  .tl .subs { display: flex; gap: 6px; align-items: center; white-space: nowrap; font-size: 12px; }
+  .tl .scroll { padding: 0 8px 8px; }
+  .ti { display: grid; gap: 3px; padding: 10px 12px; border-radius: 10px; cursor: pointer; border: 1px solid transparent; }
+  .ti + .ti { margin-top: 2px; }
   .ti:hover { background: var(--hover); }
-  .ti.on { background: var(--accent-soft); box-shadow: inset 2px 0 0 var(--accent); }
-  .ti .t { font-weight: 500; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-  .ti .m { grid-column: 2 / 4; color: var(--faint); font-size: 11.5px; display: flex; gap: 10px; flex-wrap: wrap; }
-  .ti .when { color: var(--faint); font-size: 11.5px; }
-  .tcount { padding: 8px 18px; border-top: 1px solid var(--line-2); font-size: 11px; color: var(--faint); }
+  .ti.on { background: var(--bg); border-color: var(--line); }
+  .ti .r1, .ti .r3 { display: flex; align-items: center; gap: 8px; color: var(--faint); font-size: 11.5px; min-width: 0; }
+  .ti .r1 .p { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); min-width: 0; flex: 1; }
+  .ti .r1 .p span, .ti .b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ti .t { font-size: 13.5px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tcount { padding: 8px 14px; border-top: 1px solid var(--line); font-size: 11px; color: var(--faint); }
+
   .td { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
-  .td header { padding: 20px var(--pad) 14px 28px; border-bottom: 1px solid var(--line-2); display: grid; gap: 10px; }
-  .td h2 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -.01em; }
-  .facts { display: flex; flex-wrap: wrap; gap: 4px 18px; color: var(--muted); font-size: 12px; align-items: center; }
-  .facts b { color: var(--text); font-weight: 500; }
-  .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-  .cmd { background: var(--deep); border: 1px solid var(--line); border-radius: 9px; padding: 8px 8px 8px 12px; display: flex; gap: 10px; align-items: center; }
-  .cmd code { flex: 1; overflow-x: auto; white-space: nowrap; color: var(--text); }
-  .msgs { padding: 20px var(--pad) 40px 28px; display: grid; gap: 16px; max-width: 980px; }
-  .msg { display: grid; gap: 6px; }
-  .msg .who { font-size: 11px; color: var(--faint); text-transform: uppercase; letter-spacing: .08em; display: flex; gap: 8px; }
-  .msg.user .body { background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: 12px; padding: 10px 14px; word-break: break-word; }
-  .msg .body { word-break: break-word; }
-  .msg .body p { margin: 0 0 8px; white-space: pre-wrap; }
-  .msg .body pre { background: var(--deep); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; overflow-x: auto; margin: 6px 0; }
-  .msg .body code.i { background: var(--raised); border-radius: 4px; padding: 1px 5px; }
-  details.blk { border: 1px solid var(--line); border-radius: 8px; background: var(--raised); }
-  details.blk summary { cursor: pointer; padding: 6px 10px; color: var(--muted); font-size: 12px; list-style: none; display: flex; gap: 8px; align-items: center; }
-  details.blk summary::-webkit-details-marker { display: none; }
-  details.blk summary::before { content: ""; width: 12px; height: 12px; flex: none; background: var(--faint); transition: transform .12s;
-    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E") center / contain no-repeat;
-    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E") center / contain no-repeat; }
-  details.blk[open] summary::before { transform: rotate(90deg); }
-  details.blk pre { margin: 0; padding: 8px 12px 10px; overflow: auto; white-space: pre-wrap; word-break: break-word; border-top: 1px solid var(--line); color: var(--muted); max-height: 360px; }
+  .thead { display: flex; align-items: center; gap: 10px; padding: 0 28px; height: 52px; flex: none; min-width: 0; }
+  .thead .p { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-weight: 500; white-space: nowrap; }
+  .thead .sep { color: var(--faint); }
+  .thead h2 { margin: 0; font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .conv { width: 100%; max-width: 900px; margin: 0 auto; padding: 8px 28px 36px; display: grid; gap: 18px; font-size: 14px; line-height: 1.6; }
+  .body { word-break: break-word; min-width: 0; }
+  .body p { margin: 0 0 10px; white-space: pre-wrap; }
+  .body p:last-child { margin-bottom: 0; }
+  .body pre { background: var(--deep); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; overflow-x: auto; margin: 8px 0; font-size: 12px; line-height: 1.5; }
+  .body code.i { background: var(--raised); border: 1px solid var(--line-2); border-radius: 5px; padding: 0 5px; }
+  .bubble { justify-self: end; max-width: 82%; background: var(--raised); border: 1px solid var(--line); border-radius: 16px 16px 4px 16px; padding: 10px 14px 8px; min-width: 0; }
+  .bubble .body { max-height: 320px; overflow-y: auto; }
+  .bubble .at { text-align: right; color: var(--faint); font-size: 10.5px; margin-top: 4px; }
+  .steps { display: grid; gap: 2px; }
+  details.step, details.run { border-radius: 8px; min-width: 0; }
+  details.step summary, details.run summary { list-style: none; display: flex; align-items: center; gap: 10px; padding: 5px 8px; margin: 0 -8px; border-radius: 8px; cursor: pointer; color: var(--muted); font-size: 13px; min-width: 0; }
+  details summary::-webkit-details-marker { display: none; }
+  details.step summary:hover, details.run summary:hover { background: var(--hover); }
+  details summary > .ui:first-child { color: var(--faint); }
+  details summary .l { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  details summary .l b { color: var(--text); font-weight: 500; }
+  details summary .at { color: var(--faint); font-size: 11px; }
+  details summary > .ui:last-child { color: var(--faint); transition: transform .12s; }
+  details[open] > summary > .ui:last-child { transform: rotate(90deg); }
+  details.step pre { margin: 4px 0 8px 22px; padding: 10px 12px; background: var(--deep); border: 1px solid var(--line); border-radius: 10px; overflow: auto; max-height: 340px; white-space: pre-wrap; word-break: break-word; color: var(--muted); font-size: 12px; line-height: 1.5; }
+  details.run > .steps { margin: 2px 0 4px 12px; padding-left: 12px; border-left: 1px solid var(--line); }
+  .files { background: var(--raised); border: 1px solid var(--line); border-radius: 12px; padding: 8px 14px; }
+  .files .fh { display: flex; gap: 10px; align-items: center; padding: 4px 0 6px; font-size: 13px; }
+  .add { color: var(--c2); } .del { color: var(--up); }
+
+  /* The bar where T3 has its composer. One line for the command, fixed height. */
+  .composer { flex: none; width: 100%; max-width: 900px; margin: 0 auto; padding: 0 28px 12px; }
+  .composer .box { background: var(--raised); border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px 10px; display: grid; gap: 10px; }
+  .cmdline { display: flex; align-items: center; gap: 10px; min-width: 0; height: 22px; }
+  .cmdline code { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); font-size: 12.5px; }
+  .crow { display: flex; align-items: center; gap: 8px; min-width: 0; height: 30px; }
+  .crow > .faint { font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .crow .btn.primary { min-width: 186px; justify-content: center; }
+  .cfoot { display: flex; align-items: center; gap: 16px; padding: 8px 6px 0; color: var(--faint); font-size: 11.5px; height: 26px; }
+  .cfoot span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .tside { padding: 14px 16px 14px 0; min-height: 0; overflow-y: auto; }
+  .tside .card { background: var(--raised); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; display: grid; gap: 10px; }
+  .tside hr { border: 0; border-top: 1px solid var(--line); margin: 2px -16px; }
+  .tside .f { display: grid; grid-template-columns: 16px 82px minmax(0, 1fr); gap: 10px; align-items: center; color: var(--muted); }
+  .tside .f .ui { color: var(--faint); }
+  .tside .f .v { color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
+  .tside .h { font-size: 11.5px; color: var(--muted); display: flex; justify-content: space-between; }
+  .tside .m { display: grid; grid-template-columns: 92px minmax(0, 1fr) 44px; gap: 10px; align-items: center; color: var(--muted); font-size: 12px; }
+  .tside .m i { height: 3px; border-radius: 2px; background: var(--line); overflow: hidden; }
+  .tside .m i b { display: block; height: 100%; background: var(--text); border-radius: 2px; }
+  .tside .m .mono { text-align: right; color: var(--text); }
+  .tside .btn { justify-self: start; }
 
   /* ---- keyboard, palette, help ------------------------------------------------ */
   .kbd { font-family: var(--mono); font-size: 10px; line-height: 1.5; color: var(--muted); background: var(--raised); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; white-space: nowrap; }
@@ -401,6 +447,17 @@ function vi(vendor, size = 15) {
   if (f) return `<i class="ai" style="--m:url(/assets/icons/${f}.svg);--s:${size}px;color:var(--text)" aria-hidden="true"></i>`;
   return `<i class="chip-letter" style="--s:${size}px;color:var(--muted)" aria-hidden="true">${String(vendor || "?")[0].toUpperCase()}</i>`;
 }
+// The provider that served a model, as the transcripts name it, and how this
+// machine pays for it (from /api/usage's billing map).
+const PROVIDER = { anthropic: ["Anthropic", "anthropic"], openai: ["OpenAI", "openai"], commandcode: ["Command Code", "commandcode"], opencode: ["OpenCode Zen", "opencode"], openrouter: ["OpenRouter", "openrouter"], google: ["Google", "gemini"], deepseek: ["DeepSeek", "deepseek"], xai: ["xAI", "xai"], mistral: ["Mistral", "mistral"], ollama: ["Ollama", "ollama"], nvidia: ["NVIDIA", "nvidia"], groq: ["Groq", null], bedrock: ["Amazon Bedrock", null], vertex: ["Google Vertex AI", null] };
+const providerName = (p) => PROVIDER[p]?.[0] ?? (p || "unknown");
+function pi(p, size = 15) {
+  const f = PROVIDER[p]?.[1];
+  if (f) return `<i class="ai" style="--m:url(/assets/icons/${f}.svg);--s:${size}px;color:var(--text)" aria-hidden="true"></i>`;
+  return `<i class="chip-letter" style="--s:${size}px;color:var(--muted)" aria-hidden="true">${String(p || "?")[0].toUpperCase()}</i>`;
+}
+const billing = (agent, provider) => state.data?.billing?.[`${agent}|${provider}`] ?? null;
+const billTag = (agent, provider) => { const b = billing(agent, provider); return b ? `<span class="tag ${b.kind === "subscription" ? "you" : ""}">${esc(b.label)}</span>` : ""; };
 const UI = {
   "chevron-right": '<path d="m9 18 6-6-6-6"/>',
   "chevron-down": '<path d="m6 9 6 6 6-6"/>',
@@ -413,6 +470,12 @@ const UI = {
   "trend-down": '<path d="M7 7l10 10M17 8v9H8"/>',
   copy: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/>',
   check: '<path d="M20 6 9 17l-5-5"/>',
+  terminal: '<path d="m4 17 6-6-6-6M12 19h8"/>',
+  file: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>',
+  folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  branch: '<circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="8" r="2.5"/><path d="M6 8.5v7M18 10.5c0 4-6 3-12 5"/>',
+  sparkles: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 15l.7 2.3L22 18l-2.3.7L19 21l-.7-2.3L16 18l2.3-.7z"/>',
+  zap: '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',
   keyboard: '<rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M6.5 10h.01M10 10h.01M13.5 10h.01M17 10h.01M7 14h10"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
   moon: '<path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/>',
@@ -584,7 +647,7 @@ function fillSelect(el, all, items, current, nameOf = (x) => x) {
   el.value = items.includes(current) ? current : "all";
   el.classList.toggle("on", el.value !== "all");
 }
-const CTX_NOTE = { limits: "Plan limits for the agents installed on this machine", threads: "Conversations captured by atuin" };
+const CTX_NOTE = { limits: "Plan limits for the agents installed on this machine", threads: "Conversations captured by atuin, on every machine that syncs" };
 function controls() {
   const usage = state.view === "usage", scoped = usage || state.view === "models";
   $("crumbs").classList.toggle("hide", !scoped);
@@ -651,7 +714,7 @@ function renderUsage() {
     const v = m === "cost" ? a.cost : m === "messages" ? a.messages : a.tokens;
     const value = m === "cost" ? (a.unpricedRows && !a.cost ? '<span class="unp">Unpriced</span>' : money(a.cost) + (a.unpricedRows ? '<span class="unp">*</span>' : "")) : m === "messages" ? int(a.messages) : compact(a.tokens);
     const meta = m === "cost" ? `${pctText(pct(a.cost, t.cost))} of cost · ${compact(a.tokens)} tokens` : `${pctText(pct(v, total))} of ${METRIC_WORD[m]} · ${m === "tokens" ? (a.unpricedRows && !a.cost ? "unpriced" : money(a.cost)) : compact(a.tokens) + " tokens"}`;
-    return `<li><span class="name"><i class="dot" style="background:${agentColor(a.agent)}"></i>${ai(a.agent, 15)}${esc(agentName(a.agent))}<small>${plural(a.sessions, "session")}</small></span><span class="val">${value}</span><span class="meta">${meta}</span></li>`;
+    return `<li><span class="name"><i class="dot" style="background:${agentColor(a.agent)}"></i>${ai(a.agent, 15)}${esc(agentName(a.agent))}<small>${plural(a.sessions, "session")}</small></span><span class="val">${value}</span><span class="meta">${meta}</span><span class="meta via">${d.sources.filter((s) => s.agent === a.agent).map((s) => `via ${esc(providerName(s.provider))}${billing(s.agent, s.provider) ? ` · ${esc(billing(s.agent, s.provider).label)}` : ""}`).join("<br>")}</span></li>`;
   }).join("");
 
   const types = m === "cost"
@@ -723,6 +786,7 @@ function renderUsage() {
 
     <div class="foot"><div class="hosts">${d.hosts.map(hostChip).join("")}</div>
       ${d.meta.warnings.map((w) => `<div class="warn">${esc(w)}</div>`).join("")}
+      ${Object.values(d.billing ?? {}).some((b) => b.kind === "subscription") ? `<div>Dollar figures are what the tokens would cost at API list prices. Usage through a subscription is covered by the plan and is not charged per token. Billing labels describe this machine's logins.</div>` : ""}
       ${t.unpricedRows ? `<div>* ${plural(t.unpricedRows, "row")} had no price and are left out of the dollar figures. Add rates in <span class="mono">dot_config/usage/prices.json</span>.</div>` : ""}
       <div class="hint">Press <span class="kbd">?</span> for keyboard shortcuts, <span class="kbd">Ctrl K</span> for commands.</div>
       <div>Reasoning is shown beside output and never added. Windows count back from the newest day in the data (${esc(d.meta.newestDay)}). Prices ${d.meta.priceFetchedAt ? "fetched " + esc(d.meta.priceFetchedAt.slice(0, 10)) : "not cached yet; run <span class='mono'>usage prices update</span>"}.</div></div>`;
@@ -887,7 +951,7 @@ function tableDefs(d) {
   const C = (k, l, val, html, left = false) => ({ k, l, val, html, left });
   return {
     models: { label: "Model", rows: d.models, count: d.models.length, defaultSort: [state.metric === "cost" ? "cost" : "tokens", -1], cols: [
-      C("model", "Model", (r) => r.model, (r) => nameCell(ai(r.agent, 15), r.model, r, agentColor(r.agent), `<small>${esc(agentName(r.agent))}</small>`), true),
+      C("model", "Model", (r) => r.model, (r) => nameCell(ai(r.agent, 15), r.model, r, agentColor(r.agent), `<small>${esc(agentName(r.agent))} via ${esc(providerName(r.provider))}</small>`), true),
       C("cost", "Cost", (r) => r.cost, (r) => `<td>${costCell(r)}</td>`),
       C("share", "Share", (r) => mval(r), (r) => `<td class="muted">${pctText(pct(mval(r), mval(d.totals)))}</td>`),
       C("tokens", "Tokens", (r) => r.tokens, (r) => `<td>${compact(r.tokens)}</td>`),
@@ -914,8 +978,17 @@ function tableDefs(d) {
       C("messages", "Msgs", (r) => r.messages, (r) => `<td class="muted">${int(r.messages)}</td>`),
       C("share", "Share", (r) => r.tokens, (r) => `<td>${share(r.tokens, T, "var(--accent)")}</td>`),
     ] },
-    agents: { label: "Providers", rows: d.agents, count: d.agents.length, defaultSort: [state.metric === "cost" ? "cost" : "tokens", -1], cols: [
-      C("agent", "Provider", (r) => r.agent, (r) => nameCell(ai(r.agent, 17), agentName(r.agent), r, agentColor(r.agent)), true),
+    sources: { label: "Sources", rows: d.sources, count: d.sources.length, defaultSort: [state.metric === "cost" ? "cost" : "tokens", -1], cols: [
+      C("provider", "Served by", (r) => providerName(r.provider), (r) => nameCell(pi(r.provider, 16), providerName(r.provider), r, agentColor(r.agent), billTag(r.agent, r.provider)), true),
+      C("agent", "Agent", (r) => r.agent, (r) => `<td class="l muted"><span class="agent">${ai(r.agent, 14)}${esc(agentName(r.agent))}</span></td>`, true),
+      C("sessions", "Sessions", (r) => r.sessions, (r) => `<td>${int(r.sessions)}</td>`),
+      C("cost", "Cost", (r) => r.cost, (r) => `<td>${costCell(r)}</td>`),
+      C("tokens", "Tokens", (r) => r.tokens, (r) => `<td>${compact(r.tokens)}</td>`),
+      C("messages", "Msgs", (r) => r.messages, (r) => `<td class="muted">${int(r.messages)}</td>`),
+      C("share", "Share", (r) => r.tokens, (r) => `<td>${share(r.tokens, T, agentColor(r.agent))}</td>`),
+    ] },
+    agents: { label: "Agents", rows: d.agents, count: d.agents.length, defaultSort: [state.metric === "cost" ? "cost" : "tokens", -1], cols: [
+      C("agent", "Agent", (r) => r.agent, (r) => nameCell(ai(r.agent, 17), agentName(r.agent), r, agentColor(r.agent)), true),
       C("sessions", "Sessions", (r) => r.sessions, (r) => `<td>${int(r.sessions)}</td>`),
       C("cost", "Cost", (r) => r.cost, (r) => `<td>${costCell(r)}</td>`),
       C("tokens", "Tokens", (r) => r.tokens, (r) => `<td>${compact(r.tokens)}</td>`),
@@ -934,7 +1007,7 @@ function tableDefs(d) {
 }
 
 function drawTable() {
-  const d = state.data, defs = tableDefs(d), card = $("tablecard");
+  const d = state.data, defs = tableDefs(d), card = $("tablecard"), y0 = window.scrollY;
   if (!defs[state.tab]) state.tab = "models";
   const def = defs[state.tab];
   const [sk, sd] = state.sort[state.tab] ?? def.defaultSort;
@@ -946,10 +1019,19 @@ function drawTable() {
   card.innerHTML = `<div class="bdhead"><h2>Breakdown</h2><span class="spacer"></span>
       <div class="seg sm" role="tablist">${Object.entries(defs).map(([k, v]) => `<button role="tab" data-tab="${k}" aria-pressed="${state.tab === k}">${v.label}<span class="count">${int(v.count)}</span></button>`).join("")}</div>
       <button class="btn sm" id="csv" title="Export this table as CSV">${ui("download", 13)}CSV</button></div>
-    ${rows.length ? `<div class="table-wrap"><table><thead><tr><th class="idx">#</th>${def.cols.map((c) => `<th class="${c.left ? "l" : ""}" data-sort="${c.k}">${c.l}${c.k === sk ? ui(sd < 0 ? "arrow-down" : "arrow-up", 11) : ""}</th>`).join("")}</tr></thead>
+    ${rows.length ? `<div class="table-wrap"><table><thead><tr><th class="idx">#</th>${def.cols.map((c, n) => `<th class="${c.left ? "l" : ""} ${n === 0 ? "" : c.left ? "txt" : "num"}" data-sort="${c.k}">${c.l}${c.k === sk ? ui(sd < 0 ? "arrow-down" : "arrow-up", 11) : ""}</th>`).join("")}</tr></thead>
     <tbody>${shown.map((r, i) => `<tr class="${r.thread ? "click" : ""}" data-i="${i}" ${r.thread ? `title="Open this conversation"` : ""}><td class="idx">${i + 1}</td>${def.cols.map((c) => c.html(r)).join("")}</tr>`).join("")}</tbody></table></div>
     ${rows.length > shown.length ? `<div class="more"><button class="btn" id="more">Show ${Math.min(200, rows.length - shown.length)} more of ${int(rows.length - shown.length)}</button></div>` : ""}` : `<div class="empty">Nothing matches the current filters.</div>`}`;
 
+  // A tab with fewer rows would shorten the page, and if you are scrolled down the
+  // browser would pull the view up under you. So the section keeps just enough
+  // height that the bottom of the window still has page beneath it, and no more.
+  card.style.minHeight = "";
+  const top = card.getBoundingClientRect().top + window.scrollY; // read after the reflow, so both terms agree
+  const below = document.documentElement.scrollHeight - (top + card.offsetHeight);
+  const need = y0 + window.innerHeight - below - top;
+  if (need > card.offsetHeight) card.style.minHeight = need + "px";
+  if (window.scrollY !== y0) window.scrollTo(0, y0); // the reflow above may already have clamped it
   card.querySelectorAll("[data-tab]").forEach((b) => b.addEventListener("click", () => { state.tab = b.dataset.tab; state.shown = 100; save(); drawTable(); }));
   card.querySelectorAll("th[data-sort]").forEach((th) => th.addEventListener("click", () => {
     const k = th.dataset.sort;
@@ -992,18 +1074,22 @@ function renderLimits() {
 }
 
 // ==== threads ==================================================================
+// Three columns, like T3 Code: the thread list, the conversation, and a details
+// panel. The bar under the conversation holds the resume command where T3 has its
+// composer; this page reads threads, it does not write to them.
 function renderThreads() {
   const t = state.thr, main = $("main");
   if (t.unavailable) { main.innerHTML = `<div class="empty">${esc(t.unavailable)}.<br>Threads come from <code>atuin threads</code>; install atuin and enable capture with <code>atuin threads enable</code>.</div>`; return; }
   const list = t.list;
   main.innerHTML = `<section class="threads">
-    <div class="tl"><div class="bar">
-      <label class="search">${ui("search", 14)}<input class="field" id="tq" type="search" value="${esc(t.q)}" placeholder="Search titles, messages, tool calls" autocomplete="off"></label>
+    <aside class="tl"><div class="bar">
+      <label class="search">${ui("search", 14)}<input class="field" id="tq" type="search" value="${esc(t.q)}" placeholder="Search" autocomplete="off" aria-label="Search threads"></label>
       <select class="field ${t.agent !== "all" ? "on" : ""}" id="tagent" aria-label="Agent"><option value="all">All agents</option>${(list?.harnesses ?? []).map((h) => `<option value="${esc(h)}" ${h === t.agent ? "selected" : ""}>${esc(agentName(h))}</option>`).join("")}</select>
-      <label class="muted" style="display:flex;gap:6px;align-items:center;white-space:nowrap"><input type="checkbox" id="tsub" ${t.sub ? "checked" : ""}><span id="tsubl">Subagents${list?.hiddenSubagents ? ` (${int(list.hiddenSubagents)} hidden)` : ""}</span></label>
-    </div><div class="scroll" id="tlist">${list ? threadRows(list) : `<div style="padding:14px 18px">${skRows(9, 48)}</div>`}</div>
-    <div class="tcount mono" id="tcount">${list ? `${int(list.threads.length)} of ${int(list.total)}${list.ranked ? " · best match first" : " · newest first"}` : ""}</div></div>
-    <div class="td" id="tdetail"></div></section>`;
+      <label class="muted subs"><input type="checkbox" id="tsub" ${t.sub ? "checked" : ""}><span id="tsubl">Subagents${list?.hiddenSubagents ? ` (${int(list.hiddenSubagents)} hidden)` : ""}</span></label>
+    </div><div class="scroll" id="tlist">${list ? threadRows(list) : `<div style="padding:10px">${skRows(9, 66)}</div>`}</div>
+    <div class="tcount mono" id="tcount">${list ? `${int(list.threads.length)} of ${int(list.total)}${list.ranked ? " · best match first" : " · newest first"}` : ""}</div></aside>
+    <div class="td" id="tdetail"></div>
+    <aside class="tside" id="tside"></aside></section>`;
   const tq = $("tq");
   tq.addEventListener("input", debounce(() => { t.q = tq.value; loadThreads().catch(() => {}); }, 280));
   $("tagent").addEventListener("change", (e) => { t.agent = e.target.value; loadThreads().catch(() => {}); });
@@ -1011,11 +1097,13 @@ function renderThreads() {
   $("tlist").addEventListener("click", (e) => { const row = e.target.closest("[data-id]"); if (row) openThread(row.dataset.id); });
   renderThreadDetail();
 }
+const shortAgo = (iso) => ago(iso).replace(" ago", "").replace("just now", "now");
 function threadRows(list) {
   if (!list.threads.length) return `<div class="empty">No threads match.</div>`;
   return list.threads.map((x) => `<div class="ti ${x.id === state.thr.sel ? "on" : ""}" data-id="${esc(x.id)}">
-    <span style="padding-top:2px">${ai(x.harness, 18)}</span><span class="t">${esc(x.title || x.preview || "(untitled)")}</span><span class="when">${x.updatedAt ? ago(x.updatedAt) : ""}</span>
-    <span class="m"><span>${esc(tail(x.cwd, 2))}</span>${x.branch ? `<span class="mono">${esc(x.branch)}</span>` : ""}<span>${int(x.messages)} msgs</span>${x.subagent ? '<span class="pill">subagent</span>' : ""}</span></div>`).join("");
+    <div class="r1"><span class="p">${ui("folder", 12)}<span>${esc(tail(x.cwd, 1))}</span></span><span class="when">${x.updatedAt ? shortAgo(x.updatedAt) : ""}</span></div>
+    <div class="t">${esc(x.title || x.preview || "(untitled)")}</div>
+    <div class="r3"><span class="b mono">${esc(x.branch || `${int(x.messages)} msgs`)}</span>${x.subagent ? '<span class="pill">subagent</span>' : ""}<span class="spacer"></span>${ai(x.harness, 14)}</div></div>`).join("");
 }
 function refreshThreadList() {
   const t = state.thr, list = t.list;
@@ -1038,52 +1126,127 @@ function formatText(text) {
     return html ? `<p>${html}</p>` : "";
   }).join("");
 }
-function blockHTML(b) {
-  if (b.type === "text") return `<div class="body">${formatText(b.text)}</div>`;
-  if (b.type === "thinking") return `<details class="blk"><summary>Reasoning</summary><pre>${esc(b.text)}</pre></details>`;
-  if (b.type === "tool_call") return `<details class="blk"><summary><span class="pill">tool</span>${esc(b.name)}</summary><pre>${esc(b.input)}</pre></details>`;
-  if (b.type === "tool_result") return `<details class="blk"><summary><span class="pill">result</span>${esc(b.text.split("\n")[0].slice(0, 100))}</summary><pre>${esc(b.text)}</pre></details>`;
-  if (b.type === "patch") return b.files.map((f) => `<details class="blk"><summary><span class="pill">${esc(f.change)}</span>${esc(tail(f.path, 3))} <span class="faint">+${f.additions} -${f.deletions}</span></summary><pre>${esc(f.diff)}</pre></details>`).join("");
+// What a tool call was about, in one line: its description, command, path or query.
+function toolSummary(input) {
+  try {
+    const o = JSON.parse(input);
+    const v = o.description ?? o.command ?? o.file_path ?? o.path ?? o.pattern ?? o.query ?? o.prompt ?? o.url ?? Object.values(o).find((x) => typeof x === "string");
+    return String(v ?? "").split("\n")[0];
+  } catch { return String(input).split("\n")[0]; }
+}
+const TOOL_ICON = { Bash: "terminal", Read: "file", Write: "file", Edit: "file", Glob: "search", Grep: "search", Agent: "zap", Task: "zap" };
+const clock = (at) => (at ? new Date(at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : "");
+function stepHTML(b, at) {
+  const line = (icon, label, body, extra = "") => `<details class="step"><summary>${ui(icon, 14)}<span class="l">${label}</span>${extra}<span class="at mono">${clock(at)}</span>${ui("chevron-right", 12)}</summary><pre>${esc(body)}</pre></details>`;
+  if (b.type === "thinking") return line("sparkles", "Thinking", b.text);
+  if (b.type === "tool_call") return line(TOOL_ICON[b.name] ?? "terminal", `<b>${esc(b.name)}</b> ${esc(toolSummary(b.input).slice(0, 160))}`, b.input);
+  if (b.type === "tool_result") return line("chevron-right", `<span class="faint">${esc(b.text.split("\n")[0].slice(0, 160) || "result")}</span>`, b.text);
+  if (b.type === "patch") {
+    const add = b.files.reduce((s, f) => s + f.additions, 0), del = b.files.reduce((s, f) => s + f.deletions, 0);
+    return `<div class="files"><div class="fh"><b>${plural(b.files.length, "changed file")}</b><span class="add">+${add}</span><span class="del">-${del}</span></div>${b.files.map((f) => `<details class="step"><summary>${ui("file", 14)}<span class="l mono">${esc(tail(f.path, 3))}</span><span class="add mono">+${f.additions}</span><span class="del mono">-${f.deletions}</span>${ui("chevron-right", 12)}</summary><pre>${esc(f.diff)}</pre></details>`).join("")}</div>`;
+  }
   return "";
 }
+// The conversation as T3 shows it: user turns as bubbles on the right, the
+// assistant's words as plain text, and everything it did in between as one-line
+// steps. A long run of steps folds into a single line.
+function conversationHTML(messages) {
+  const out = [];
+  let run = [];
+  const flush = () => {
+    if (!run.length) return;
+    if (run.length > 5) {
+      const names = [...new Set(run.map((r) => r.name).filter(Boolean))].slice(0, 4).join(", ");
+      out.push(`<details class="run"><summary>${ui("zap", 14)}<span class="l"><b>${run.length} steps</b>${names ? ` <span class="faint">${esc(names)}</span>` : ""}</span><span class="at mono">${clock(run.at(-1).at)}</span>${ui("chevron-right", 12)}</summary><div class="steps">${run.map((r) => r.html).join("")}</div></details>`);
+    } else out.push(`<div class="steps">${run.map((r) => r.html).join("")}</div>`);
+    run = [];
+  };
+  for (const m of messages) for (const b of m.content) {
+    if (b.type === "text") {
+      if (!b.text.trim()) continue;
+      flush();
+      out.push(m.role === "user" ? `<div class="bubble"><div class="body">${formatText(b.text)}</div><div class="at mono">${clock(m.at)}</div></div>` : `<div class="say body">${formatText(b.text)}</div>`);
+    } else {
+      const html = stepHTML(b, m.at);
+      if (html) run.push({ html, at: m.at, name: b.type === "tool_call" ? b.name : null });
+    }
+  }
+  flush();
+  return out.join("");
+}
+
 function renderThreadDetail() {
-  const t = state.thr, el = $("tdetail");
+  const t = state.thr, el = $("tdetail"), side = $("tside");
   if (!el) return;
   $("tlist")?.querySelectorAll(".ti").forEach((r) => r.classList.toggle("on", r.dataset.id === t.sel));
-  if (!t.sel) { el.innerHTML = `<div class="empty">Pick a thread to read it.<br><span class="faint">Resume gives you the exact command; nothing is started from this page.</span></div>`; return; }
+  if (!t.sel) { side.innerHTML = ""; el.innerHTML = `<div class="empty">Pick a thread to read it.<br><span class="faint">Resume gives you the exact command; nothing is started from this page.</span></div>`; return; }
   const dt = t.detail;
-  if (!dt) { el.innerHTML = `<div style="padding:22px 28px" class="skrow">${sk(24, "55%")}${sk(14, "70%")}${sk(30, "260px")}<div style="height:10px"></div>${sk(120)}${sk(40)}${sk(40)}${sk(90)}</div>`; return; }
-  if (dt.error) { el.innerHTML = `<div class="empty">${esc(dt.error)}</div>`; return; }
-  const x = dt.thread, tok = x.tokens ? x.tokens.input + x.tokens.output + x.tokens.cache_read + x.tokens.cache_write : 0;
-  el.innerHTML = `<header><h2>${esc(x.title || "(untitled)")}</h2>
-    <div class="facts"><span style="display:inline-flex;gap:6px;align-items:center">${ai(x.harness, 15)}<b>${esc(agentName(x.harness))}</b></span>${x.model ? `<span><b>${esc(x.model)}</b></span>` : ""}<span title="${esc(x.cwd)}">${esc(tail(x.cwd, 3))}</span>${x.branch ? `<span class="mono">${esc(x.branch)}</span>` : ""}<span>${int(x.messages)} messages</span>${tok ? `<span>${compact(tok)} tokens</span>` : ""}<span>started ${x.startedAt ? new Date(x.startedAt).toLocaleString("en-GB") : "?"}</span></div>
-    <div class="actions"><button class="btn primary" id="resume">Resume</button><button class="btn" id="fork">Fork</button>
-      <select class="field" id="cont" aria-label="Continue in another agent"><option value="">Continue in</option></select>
-      <button class="btn" id="copyid">${ui("copy", 13)}Copy id</button></div>
-    <div id="cmdbox">${t.cmd ? cmdHTML(t.cmd) : ""}</div></header>
-    <div class="scroll"><div class="msgs">${dt.messages.map((m) => `<div class="msg ${m.role}"><div class="who"><span>${esc(m.role)}</span>${m.at ? `<span>${new Date(m.at).toLocaleTimeString("en-GB")}</span>` : ""}</div>${m.content.map(blockHTML).join("")}</div>`).join("")}
-      ${dt.total > dt.offset + dt.messages.length ? `<div class="faint">Showing the first ${dt.messages.length} of ${int(dt.total)} messages. Read the rest with <code>atuin threads show ${esc(x.id.slice(-8))}</code>.</div>` : ""}</div></div>`;
-  $("resume").addEventListener("click", () => resume(x, "resume"));
-  $("fork").addEventListener("click", () => resume(x, "fork"));
-  $("cont").addEventListener("change", (e) => { if (e.target.value) resume(x, e.target.value); e.target.value = ""; });
+  if (!dt) { side.innerHTML = `<div class="card skrow">${sk(18, "60%")}${sk(18, "80%")}${sk(18, "50%")}${sk(60)}</div>`; el.innerHTML = `<div class="conv skrow" style="padding-top:24px">${sk(22, "45%")}<div style="height:14px"></div>${sk(80, "70%")}${sk(18)}${sk(18, "90%")}${sk(34)}${sk(34)}${sk(120)}</div>`; return; }
+  if (dt.error) { side.innerHTML = ""; el.innerHTML = `<div class="empty">${esc(dt.error)}</div>`; return; }
+  const x = dt.thread, k = x.tokens ?? {}, tok = (k.input ?? 0) + (k.output ?? 0) + (k.cache_read ?? 0) + (k.cache_write ?? 0);
+  el.innerHTML = `<header class="thead"><span class="p">${ui("folder", 14)}${esc(tail(x.cwd, 1))}</span><span class="sep">/</span><h2 title="${esc(x.title)}">${esc(x.title || "(untitled)")}</h2></header>
+    <div class="scroll" id="tscroll"><div class="conv">${conversationHTML(dt.messages)}
+      ${dt.total > dt.offset + dt.messages.length ? `<div class="faint">Showing the first ${dt.messages.length} of ${int(dt.total)} messages. Read the rest with <code>atuin threads show ${esc(x.id.slice(-8))}</code>.</div>` : ""}</div></div>
+    <div class="composer"><div class="box">
+      <div class="cmdline"><span class="faint">${ui("terminal", 14)}</span><code id="cmdtext" class="mono">Getting the resume command</code></div>
+      <div class="crow"><span class="faint" id="cmdnote">Run it in a terminal on this machine. Nothing is started from this page.</span><span class="spacer"></span>
+        <select class="field" id="cont" aria-label="Continue in another agent"><option value="">Continue in</option></select>
+        <button class="btn" id="fork">Fork</button>
+        <button class="btn primary" id="resume">${ui("copy", 13)}<span>Copy resume command</span></button></div></div>
+      <div class="cfoot"><span>${ai(x.harness, 13)}${esc(agentName(x.harness))}</span>${x.model ? `<span>${esc(x.model)}</span>` : ""}<span class="spacer"></span>${x.branch ? `<span class="mono">${ui("branch", 12)}${esc(x.branch)}</span>` : ""}</div></div>`;
+
+  const lim = state.limits?.providers.find((p) => p.id === agentKey(x.harness));
+  const fact = (icon, label, value) => `<div class="f">${ui(icon, 14)}<span class="k">${label}</span><span class="v" title="${esc(value)}">${esc(value)}</span></div>`;
+  const meter = (label, pc, text) => `<div class="m"><span>${esc(label)}</span><i><b style="width:${Math.max(0, Math.min(100, pc))}%"></b></i><span class="mono">${esc(text)}</span></div>`;
+  side.innerHTML = `<div class="card">
+      ${fact("folder", "Folder", tail(x.cwd, 2))}${x.branch ? fact("branch", "Branch", x.branch) : ""}${fact("zap", "Agent", agentName(x.harness) + (x.model ? " · " + x.model : ""))}
+      <hr>${fact("file", "Messages", int(x.messages))}${fact("sparkles", "Started", x.startedAt ? new Date(x.startedAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" }) : "-")}${fact("refresh", "Last active", x.updatedAt ? ago(x.updatedAt) : "-")}
+      ${tok ? `<hr><div class="h">Tokens <span class="mono faint">${compact(tok)}</span></div>${[["Input", k.input], ["Output", k.output], ["Cache read", k.cache_read], ["Cache write", k.cache_write]].map(([l, v]) => meter(l, pct(v ?? 0, tok), compact(v ?? 0))).join("")}` : ""}
+      ${lim?.windows.length ? `<hr><div class="h">${esc(lim.name)} limits${lim.plan ? ` <span class="faint">${esc(lim.plan)}</span>` : ""}</div>${lim.windows.map((w) => meter(w.label.replace(/, all models|-hour| session/g, (s) => (s === "-hour" ? "h" : "")), w.stale ? 0 : w.percent, w.stale ? "reset" : Math.round(w.percent) + "%")).join("")}` : ""}
+      <hr><button class="btn sm" id="copyid">${ui("copy", 12)}Copy session id</button></div>`;
+
+  $("resume").addEventListener("click", () => resume(x, "resume", true));
+  $("fork").addEventListener("click", () => resume(x, "fork", true));
+  $("cont").addEventListener("change", (e) => { if (e.target.value) resume(x, e.target.value, true); e.target.value = ""; });
   $("copyid").addEventListener("click", () => copy(x.session));
+  resume(x, "resume", false);
+  if (!state.limits) loadLimits().then(() => { if (state.view === "threads" && state.thr.sel === x.id && !$("tside").querySelector(".lim-on")) renderSideOnly(); }).catch(() => {});
 }
-const cmdHTML = (c) => `<div class="cmd"><code>${esc(c.text)}</code><button class="btn sm" data-copy>${ui("copy", 13)}Copy</button></div>${c.note ? `<div class="faint" style="font-size:11.5px;margin-top:6px">${esc(c.note)}</div>` : ""}`;
-async function resume(x, mode) {
+// Limits arrive after the thread: redraw only the panel, not the conversation,
+// so the reader's scroll position and any open step stay as they were.
+function renderSideOnly() {
+  const scroll = $("tscroll")?.scrollTop ?? 0, open = [...document.querySelectorAll("#tdetail details")].map((d) => d.open);
+  renderThreadDetail();
+  if ($("tscroll")) $("tscroll").scrollTop = scroll;
+  document.querySelectorAll("#tdetail details").forEach((d, i) => { d.open = Boolean(open[i]); });
+  $("tside").firstElementChild?.classList.add("lim-on");
+}
+// The command sits on one line and is cut with an ellipsis, so a long path never
+// changes the height of the bar; the full text is in the tooltip and in the copy.
+async function resume(x, mode, doCopy) {
   const t = state.thr;
+  let code, note;
   try {
-    const r = await get("/api/threads/resume?id=" + encodeURIComponent(x.id));
+    // One request per thread, shared by every caller: the panel can be redrawn
+    // while it is in flight, and the answer must land in the element on screen.
+    if (t.cmds?.id !== x.id) t.cmds = { id: x.id, p: get("/api/threads/resume?id=" + encodeURIComponent(x.id)) };
+    const r = await t.cmds.p;
+    code = $("cmdtext"); note = $("cmdnote");
+    if (state.thr.sel !== x.id || !code) return;
     const sel = $("cont");
-    if (sel && sel.options.length === 1) Object.keys(r.continueIn).forEach((h) => sel.add(new Option(agentName(h), h)));
-    if (mode === "resume") t.cmd = { text: r.resume, note: "Run this in a terminal on this machine. Nothing was started." };
-    else if (mode === "fork") t.cmd = { text: r.fork, note: "Writes a new session with the same history and resumes it. The original is left alone." };
-    else t.cmd = { text: r.continueIn[mode], note: `Writes the thread out as a new ${agentName(mode)} session and resumes it there.` };
-    $("cmdbox").innerHTML = cmdHTML(t.cmd);
-    $("cmdbox").querySelector("[data-copy]").addEventListener("click", (e) => {
-      const b = e.currentTarget; copy(t.cmd.text); b.innerHTML = `${ui("check", 13)}Copied`; setTimeout(() => (b.innerHTML = `${ui("copy", 13)}Copy`), 1200);
-    });
-    copy(t.cmd.text);
-  } catch (e) { $("cmdbox").innerHTML = `<div class="warn">${esc(e.message)}</div>`; }
+    if (sel.options.length === 1) Object.keys(r.continueIn).forEach((h) => sel.add(new Option(agentName(h), h)));
+    const [text, why] = mode === "resume" ? [r.resume, r.asIs ? "This thread also went on elsewhere. The command resumes this machine's copy as it is; Fork keeps both." : "Run it in a terminal on this machine. Nothing is started from this page."]
+      : mode === "fork" ? [r.fork, "Writes a new session with the same history and resumes it. The original is left alone."]
+      : [r.continueIn[mode], `Writes the thread out as a new ${agentName(mode)} session and resumes it there.`];
+    t.cmd = { text };
+    code.textContent = text; code.title = text; note.textContent = why;
+    if (doCopy) {
+      copy(text);
+      const b = $("resume"), label = b.querySelector("span");
+      b.firstElementChild.outerHTML = ui("check", 13); label.textContent = "Copied";
+      setTimeout(() => { if (b.isConnected) { b.firstElementChild.outerHTML = ui("copy", 13); label.textContent = mode === "resume" ? "Copy resume command" : "Copy command"; } }, 1300);
+    }
+  } catch (e) { t.cmds = null; code = $("cmdtext"); note = $("cmdnote"); if (code) { code.textContent = "No resume command for this thread"; code.title = e.message; note.textContent = e.message.split("\n")[0]; } }
 }
 async function copy(text) {
   try { await navigator.clipboard.writeText(text); } catch {
@@ -1211,7 +1374,7 @@ function drawModelTable() {
     return (typeof x === "string" ? x.localeCompare(y) : x - y) * sd;
   });
   const shown = rows.slice(0, M.shown);
-  const tags = (r) => `${r.u ? '<span class="tag you">used</span>' : ""}${r.u?.free ? '<span class="tag">free tier</span>' : ""}${r.c?.reasoning ? '<span class="tag">reasoning</span>' : ""}${r.c?.inputs?.includes("image") ? '<span class="tag">vision</span>' : ""}${r.u && !r.c ? '<span class="tag">not in the list</span>' : ""}`;
+  const tags = (r) => `${r.u ? '<span class="tag you">used</span>' : ""}${r.u?.free ? '<span class="tag">free tier</span>' : ""}${r.c?.reasoning ? '<span class="tag">reasoning</span>' : ""}${r.c?.inputs?.includes("image") ? '<span class="tag">vision</span>' : ""}${r.u && !r.c ? '<span class="tag">not in the list</span>' : ""}${(r.u?.providers ?? []).map((p) => `<span class="tag">via ${esc(providerName(p))}</span>`).join("")}`;
   card.innerHTML = rows.length ? `<div class="table-wrap"><table><thead><tr><th class="pick"></th>${cols.map(([k, l, , left]) => `<th class="${left ? "l" : ""}" data-sort="${k}">${l}${k === sk ? ui(sd < 0 ? "arrow-down" : "arrow-up", 11) : ""}</th>`).join("")}</tr></thead>
     <tbody>${shown.map((r) => `<tr><td class="pick"><input type="checkbox" data-key="${esc(r.key)}" ${M.picked.has(r.key) ? "checked" : ""} aria-label="Compare ${esc(r.name)}"></td>
       <td class="l name"><div class="nm">${vi(r.vendor, 15)}<span class="t" title="${esc(r.c?.name ?? r.name)}">${esc(r.name)}</span>${tags(r)}</div>${r.c && r.u ? `<span class="sub mono">${esc(r.c.id)}${r.c.created ? " · released " + esc(r.c.created) : ""}</span>` : r.c?.created ? `<span class="sub mono">released ${esc(r.c.created)}</span>` : ""}</td>
@@ -1244,7 +1407,7 @@ const closeOverlay = () => { overlay.innerHTML = ""; };
 const isOpen = () => Boolean(overlay.firstChild);
 const pickView = (v) => { if (["cost", "tokens", "messages"].includes(v)) { state.metric = v; save(); setView("usage"); } else setView(v); };
 const pickRange = (v) => { state.range = v; save(); if (v === "custom" && state.data) { state.from = state.from || state.data.meta.start; state.to = state.to || state.data.meta.end; } controls(); if (v !== "custom" || (state.from && state.to)) reloadUsage(); };
-const TABS = ["models", "sessions", "projects", "agents", "days"];
+const TABS = ["models", "sessions", "projects", "sources", "agents", "days"];
 function stepTab(n) { if (state.view !== "usage") return; state.tab = TABS[(TABS.indexOf(state.tab) + n + TABS.length) % TABS.length]; state.shown = 100; save(); drawTable(); $("tablecard").scrollIntoView({ block: "nearest" }); }
 function stepThread(n) {
   const list = state.thr.list?.threads;

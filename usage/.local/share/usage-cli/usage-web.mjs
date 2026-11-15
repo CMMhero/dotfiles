@@ -23,6 +23,7 @@ import { readFileSync, statSync } from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { detectBilling } from "./usage-billing.mjs";
 import { detectLimits } from "./usage-limits.mjs";
 import { listThreads, resumeCommands, sessionIndex, showThread } from "./usage-threads.mjs";
 import { loadPriceCache, refreshPrices, usageDir } from "./usage.mjs";
@@ -85,7 +86,7 @@ function createServer(bound) {
           ["range", "from", "to", "host", "harness", "project", "model", "q", "group"].filter((k) => q.get(k)).map((k) => [k, q.get(k)]),
         );
         return sessionIndex().then(
-          (threadsBySession) => send(res, 200, "application/json", JSON.stringify(summarize(filters, { threadsBySession }))),
+          (threadsBySession) => send(res, 200, "application/json", JSON.stringify({ ...summarize(filters, { threadsBySession }), billing: detectBilling() })),
           (error) => send(res, 500, "application/json", JSON.stringify({ error: error.message })),
         );
       }

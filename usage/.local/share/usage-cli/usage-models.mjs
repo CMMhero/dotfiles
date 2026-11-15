@@ -143,10 +143,11 @@ export async function modelsReport(filters = {}, { offline = false, fresh = fals
   for (const row of summarize(filters).models) {
     let entry = used.get(row.model);
     if (!entry) {
-      entry = { model: row.model, agents: [], tokens: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, messages: 0, sessions: 0, cost: 0, unpricedRows: 0, activeMs: 0 };
+      entry = { model: row.model, agents: [], providers: [], tokens: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, messages: 0, sessions: 0, cost: 0, unpricedRows: 0, activeMs: 0 };
       used.set(row.model, entry);
     }
     entry.agents.push(row.agent);
+    if (row.provider && !entry.providers.includes(row.provider)) entry.providers.push(row.provider);
     for (const key of ["tokens", "input", "output", "cacheRead", "cacheWrite", "messages", "sessions", "cost", "unpricedRows", "activeMs"]) entry[key] += row[key] ?? 0;
   }
   const usedList = [...used.values()].map((u) => {
