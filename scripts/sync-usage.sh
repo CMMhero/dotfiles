@@ -32,13 +32,12 @@ INSIGHTS=dot_config/herdr-app/mods/insights
 FILES=(
   usage.mjs usage-tui.mjs usage-web.mjs usage-web.html
   usage-limits.mjs usage-threads.mjs usage-summary.mjs
-  usage-web-assets/fonts/Geist-Variable.woff2
-  usage-web-assets/fonts/GeistMono-Variable.woff2
-  usage-web-assets/fonts/LICENSE.txt
   dot_config/usage/prices.json
   "$INSIGHTS/collector.mjs"
 )
 for f in "$SRC/$INSIGHTS"/core/*.mjs; do FILES+=("$INSIGHTS/core/$(basename "$f")"); done
+# Fonts and provider icons: everything under usage-web-assets, whatever is there.
+while IFS= read -r f; do FILES+=("${f#"$SRC"/}"); done < <(find "$SRC/usage-web-assets" -type f | sort)
 
 stale=0
 for rel in "${FILES[@]}"; do

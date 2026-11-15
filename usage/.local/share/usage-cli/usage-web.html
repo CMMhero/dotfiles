@@ -9,22 +9,23 @@
   @font-face { font-family: "Geist"; src: url("/assets/fonts/Geist-Variable.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
   @font-face { font-family: "Geist Mono"; src: url("/assets/fonts/GeistMono-Variable.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
   :root {
-    --bg: #100e16;
-    --panel: #171420;
-    --panel-2: #1e1a29;
+    --bg: #14111b;
+    --raised: #1b1724;
     --line: #2a2536;
     --line-2: #221e2d;
     --text: #efebf8;
-    --muted: #918aa2;
-    --faint: #625b72;
+    --muted: #958ea6;
+    --faint: #655e75;
     --accent: #8b6cf0;
-    --accent-soft: rgba(139, 108, 240, .16);
+    --accent-soft: rgba(139, 108, 240, .17);
     --good: #7fd6a2;
     --warn: #e0b341;
     --bad: #ef6b6b;
-    --heat-0: #1f1b29; --heat-1: #382d62; --heat-2: #4f3f98; --heat-3: #6e55d1; --heat-4: #a28cff;
+    --heat-0: #211c2c; --heat-1: #382d62; --heat-2: #4f3f98; --heat-3: #6e55d1; --heat-4: #a28cff;
     --sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
     --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --pad: clamp(18px, 3vw, 56px);
+    --hh: 96px;
     color-scheme: dark;
   }
   * { box-sizing: border-box; }
@@ -32,279 +33,284 @@
   body { font: 13px/1.5 var(--sans); font-feature-settings: "tnum" 1, "cv11" 1; -webkit-font-smoothing: antialiased; min-height: 100vh; }
   button, select, input { font: inherit; color: inherit; }
   button { cursor: pointer; }
-  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
   code, pre, .mono { font-family: var(--mono); font-size: 12px; }
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-thumb { background: #2f2a3d; border-radius: 8px; border: 2px solid var(--bg); }
-
-  /* ---- header ----------------------------------------------------------- */
-  .top { position: sticky; top: 0; z-index: 20; background: rgba(16,14,22,.86); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
-  .row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; padding: 10px clamp(16px, 2.2vw, 36px); }
-  .row + .row { border-top: 1px solid var(--line-2); padding-top: 8px; padding-bottom: 8px; }
-  .brand { font-weight: 600; font-size: 14px; letter-spacing: -.01em; display: flex; align-items: center; gap: 8px; }
-  .brand i { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
+  .hide { display: none !important; }
+  .muted { color: var(--muted); } .faint { color: var(--faint); } .unp { color: var(--warn); }
   .spacer { flex: 1; }
-  .seg { display: inline-flex; background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 2px; gap: 2px; }
-  .seg button { background: transparent; border: 0; border-radius: 7px; padding: 4px 11px; color: var(--muted); font-weight: 500; white-space: nowrap; }
+
+  /* ---- icons -------------------------------------------------------------- */
+  .ai { display: inline-block; width: var(--s, 15px); height: var(--s, 15px); flex: none; background: currentColor;
+    -webkit-mask: var(--m) center / contain no-repeat; mask: var(--m) center / contain no-repeat; }
+  .ui { flex: none; display: inline-block; vertical-align: -0.15em; }
+  .chip-letter { display: inline-grid; place-items: center; width: var(--s, 15px); height: var(--s, 15px); border-radius: 4px; font-size: 9px; font-weight: 600; flex: none; background: rgba(255,255,255,.08); }
+
+  /* ---- header ------------------------------------------------------------- */
+  .top { position: sticky; top: 0; z-index: 30; background: rgba(20,17,27,.9); backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+  .row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; padding: 11px var(--pad); }
+  .row.sub { padding-top: 0; padding-bottom: 10px; gap: 8px 12px; }
+  .crumbs { display: flex; align-items: center; gap: 4px; color: var(--muted); font-weight: 500; }
+  .brand { color: var(--muted); font-weight: 500; margin-right: -6px; }
+  .crumbs .sep { color: var(--faint); margin: 0 4px; }
+  .pick { position: relative; display: inline-flex; align-items: center; }
+  .pick select { appearance: none; background: transparent; border: 0; padding: 3px 18px 3px 4px; color: var(--text); font-weight: 600; cursor: pointer; border-radius: 6px; max-width: 220px; text-overflow: ellipsis; }
+  .pick select:hover { background: rgba(255,255,255,.04); }
+  .pick select option { background: #1e1a29; color: var(--text); font-weight: 400; }
+  .pick .ui { position: absolute; right: 3px; color: var(--muted); pointer-events: none; }
+  .seg { display: inline-flex; background: var(--raised); border: 1px solid var(--line); border-radius: 9px; padding: 2px; gap: 1px; }
+  .seg button { background: transparent; border: 0; border-radius: 7px; padding: 3px 11px; color: var(--muted); font-weight: 500; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
   .seg button:hover { color: var(--text); }
-  .seg button[aria-pressed="true"], .seg button[aria-selected="true"] { background: var(--accent-soft); color: var(--text); box-shadow: inset 0 0 0 1px rgba(139,108,240,.45); }
-  .seg.nav button { padding: 5px 14px; }
-  .field { background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 5px 10px; min-width: 0; }
-  select.field { appearance: none; padding-right: 26px; cursor: pointer; max-width: 220px; text-overflow: ellipsis;
-    background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
-    background-position: calc(100% - 14px) 52%, calc(100% - 9px) 52%; background-size: 5px 5px; background-repeat: no-repeat; }
-  select.field option { background: var(--panel-2); }
-  select.field.on { border-color: rgba(139,108,240,.6); color: var(--text); }
-  .search { position: relative; }
-  .search input { background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 5px 10px 5px 30px; width: min(320px, 38vw); outline: none; }
-  .search input:focus { border-color: rgba(139,108,240,.6); }
-  .search svg { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: var(--faint); pointer-events: none; }
+  .seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--text); box-shadow: inset 0 0 0 1px rgba(139,108,240,.4); }
+  .seg.sm button { padding: 2px 9px; font-size: 12px; }
+  .field { background: var(--raised); border: 1px solid var(--line); border-radius: 9px; padding: 4px 10px; min-width: 0; outline: none; }
+  .field:focus { border-color: rgba(139,108,240,.6); }
+  select.field { appearance: none; cursor: pointer; padding-right: 26px; max-width: 220px; text-overflow: ellipsis;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23958ea6' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 8px center; }
+  select.field option { background: #1e1a29; }
+  select.field.on { border-color: rgba(139,108,240,.6); }
+  .search { position: relative; display: inline-flex; align-items: center; }
+  .search .ui { position: absolute; left: 9px; color: var(--faint); pointer-events: none; }
+  .search input { padding-left: 30px; width: min(300px, 40vw); }
   input[type="date"] { color-scheme: dark; }
-  .btn { background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 5px 11px; color: var(--text); font-weight: 500; display: inline-flex; align-items: center; gap: 7px; }
-  .btn:hover { border-color: #3a3450; background: var(--panel-2); }
+  .btn { background: var(--raised); border: 1px solid var(--line); border-radius: 9px; padding: 4px 11px; font-weight: 500; display: inline-flex; align-items: center; gap: 7px; }
+  .btn:hover { border-color: #3a3450; }
   .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
   .btn.primary:hover { filter: brightness(1.08); }
-  .btn.sm { padding: 3px 9px; font-size: 12px; }
-  .icon-btn { background: transparent; border: 1px solid transparent; border-radius: 9px; width: 32px; height: 32px; color: var(--muted); display: inline-grid; place-items: center; }
-  .icon-btn:hover { color: var(--text); background: var(--panel); }
-  .icon-btn.spin svg { animation: spin .8s linear infinite; }
+  .btn.sm { padding: 2px 9px; font-size: 12px; }
+  .icon-btn { background: transparent; border: 0; border-radius: 8px; width: 30px; height: 30px; color: var(--muted); display: inline-grid; place-items: center; }
+  .icon-btn:hover { color: var(--text); background: rgba(255,255,255,.05); }
+  .icon-btn.spin .ui { animation: spin .8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .label { color: var(--faint); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; font-weight: 500; }
+  .custom { display: none; align-items: center; gap: 6px; }
+  .custom.on { display: inline-flex; }
 
-  /* ---- layout ------------------------------------------------------------ */
-  main { padding: 20px clamp(16px, 2.2vw, 36px) 56px; display: grid; gap: 16px; }
-  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
-  .grid { display: grid; gap: 16px; }
-  .tiles { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-  .tiles4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .tiles6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-  @media (max-width: 1280px) { .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } .tiles6 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-  @media (max-width: 760px) { .tiles, .tiles4, .tiles6 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-  .split { grid-template-columns: minmax(0, 1fr) 360px; }
-  @media (max-width: 1100px) { .split { grid-template-columns: 1fr; } }
+  /* ---- page ----------------------------------------------------------------- */
+  main { padding: 28px var(--pad) 72px; display: grid; gap: 40px; }
+  main h2 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: -.005em; display: flex; align-items: center; gap: 10px; }
+  h2 .sub { color: var(--faint); font-weight: 400; font-size: 12px; }
+  .hero { display: grid; grid-template-columns: minmax(300px, 360px) minmax(0, 1fr); gap: clamp(24px, 4vw, 64px); align-items: start; }
+  @media (max-width: 900px) { .hero { grid-template-columns: 1fr; } }
+  .big { font-size: 44px; font-weight: 600; letter-spacing: -.03em; line-height: 1.05; }
+  .bigsub { color: var(--muted); font-size: 12px; margin-top: 6px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .legend { list-style: none; margin: 22px 0 0; padding: 0; display: grid; gap: 16px; }
+  .legend li { display: grid; grid-template-columns: 1fr auto; gap: 1px 14px; }
+  .legend .name { display: flex; align-items: center; gap: 8px; font-weight: 600; min-width: 0; }
+  .legend .name small { color: var(--muted); font-weight: 400; font-size: 11px; }
+  .legend .val { font-weight: 600; text-align: right; }
+  .legend .meta { grid-column: 1 / -1; color: var(--muted); font-size: 11.5px; padding-left: 16px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+  .delta { display: inline-flex; align-items: center; gap: 2px; font-size: 11px; font-weight: 500; color: var(--muted); background: rgba(255,255,255,.05); border-radius: 6px; padding: 0 6px 0 3px; }
+  .delta.up { color: #e9b08a; } .delta.down { color: #8fc7e8; } .delta.flat { padding-left: 6px; }
+  .est { font-size: 9px; color: var(--faint); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; letter-spacing: .06em; margin-left: 4px; }
 
-  .tile { padding: 14px 16px 12px; position: relative; overflow: hidden; min-height: 92px; }
-  .tile .k { display: flex; align-items: center; gap: 6px; }
-  .tile .v { font-size: 26px; font-weight: 600; letter-spacing: -.02em; line-height: 1.15; margin-top: 4px; display: flex; align-items: baseline; gap: 8px; }
-  .tile.sm .v { font-size: 20px; }
-  .est { font-size: 9px; color: var(--faint); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; letter-spacing: .06em; }
-  .delta { font-size: 11px; font-weight: 500; color: var(--muted); background: var(--panel-2); border-radius: 6px; padding: 1px 6px; letter-spacing: 0; }
-  .delta.up { color: #e9b08a; } .delta.down { color: #8fc7e8; }
-  .spark { display: flex; align-items: flex-end; gap: 2px; height: 26px; margin-top: 8px; }
-  .spark i { flex: 1; min-width: 1px; background: var(--accent); border-radius: 1px; opacity: .85; min-height: 1px; }
-  .spark i.z { background: var(--line); opacity: 1; }
-  .dots { display: grid; grid-auto-flow: column; grid-template-rows: repeat(2, 5px); gap: 2px; margin-top: 10px; }
-  .dots i { width: 100%; background: var(--line); border-radius: 1px; }
-  .dots i.on { background: #d9d3ea; }
-  .bar2 { display: flex; gap: 2px; margin-top: 10px; height: 10px; }
-  .bar2 i { flex: 1; background: var(--line); border-radius: 1px; }
-  .bar2 i.on { background: var(--good); }
-  .tile .pct { position: absolute; top: 14px; right: 16px; color: var(--faint); font-size: 11px; }
-
-  .card-h { display: flex; align-items: center; gap: 10px; padding: 12px 16px 0; flex-wrap: wrap; }
-  .card-b { padding: 8px 16px 14px; }
+  .charthead { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+  .charthead .t { font-weight: 600; font-size: 12px; }
   .chart { position: relative; }
   .chart svg { display: block; width: 100%; height: auto; overflow: visible; }
-  .axis text { fill: var(--faint); font-size: 10px; font-family: var(--mono); }
+  .axis text { fill: var(--faint); font-size: 10px; font-family: var(--mono); letter-spacing: .02em; }
   .gridline { stroke: var(--line); stroke-width: 1; }
-  .keys { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 8px; color: var(--muted); font-size: 11.5px; }
+  .keys { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 10px; color: var(--muted); font-size: 11.5px; }
   .keys span { display: inline-flex; align-items: center; gap: 6px; max-width: 360px; }
-  .keys span b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; }
+  .keys b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; }
   .sq { width: 8px; height: 8px; border-radius: 2px; flex: none; }
-  .tip { position: absolute; pointer-events: none; z-index: 40; min-width: 170px; max-width: 340px; background: #0b0910; border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; box-shadow: 0 10px 30px rgba(0,0,0,.55); font-size: 12px; opacity: 0; transition: opacity .08s; }
+  .tip { position: fixed; pointer-events: none; z-index: 60; min-width: 170px; max-width: 340px; background: #0d0a13; border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; box-shadow: 0 10px 30px rgba(0,0,0,.55); font-size: 12px; opacity: 0; transition: opacity .08s; }
   .tip.on { opacity: 1; }
   .tip .t { color: var(--muted); margin-bottom: 4px; }
   .tip .r { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
   .tip .r span:first-child { display: flex; align-items: center; gap: 6px; min-width: 0; }
   .tip .r span:first-child b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; }
 
-  .insight { display: flex; flex-direction: column; justify-content: space-between; min-height: 100%; padding: 14px 18px; }
-  .insight .big { font-size: 40px; font-weight: 600; letter-spacing: -.03em; line-height: 1; margin-top: 18px; }
-  .insight p { margin: 8px 0 0; color: var(--muted); font-size: 14px; line-height: 1.45; }
-  .insight p b { color: var(--text); font-weight: 500; }
-  .pager { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; }
-  .pager .dotset { display: flex; gap: 4px; }
-  .pager .dotset i { width: 14px; height: 3px; border-radius: 2px; background: var(--line); }
-  .pager .dotset i.on { background: var(--good); }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px 32px; }
+  .stat .k { color: var(--muted); font-size: 11px; }
+  .stat .v { font-size: 16px; font-weight: 600; letter-spacing: -.01em; margin-top: 2px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .stat .v.good { color: var(--good); }
+  .stack { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--raised); gap: 2px; max-width: 560px; }
+  .stack i { display: block; min-width: 2px; }
+  .typekeys { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 10px; color: var(--muted); font-size: 11.5px; }
+  .typekeys span { display: inline-flex; align-items: center; gap: 6px; }
+  .typekeys b { color: var(--text); font-weight: 600; }
+  .two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(24px, 4vw, 64px); }
+  @media (max-width: 900px) { .two { grid-template-columns: 1fr; } }
+  .notes { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .notes li { color: var(--muted); line-height: 1.45; }
+  .notes b { color: var(--text); font-weight: 600; margin-right: 6px; }
 
-  /* ---- heatmap ----------------------------------------------------------- */
   .heat-wrap { overflow-x: auto; }
   .heat svg { display: block; width: 100%; min-width: 760px; max-width: 1240px; height: auto; }
   .heat text { fill: var(--faint); font-size: 10px; font-family: var(--mono); }
   .heat rect.cell { stroke: rgba(255,255,255,.04); stroke-width: 1; }
   .heat rect.cell:hover { stroke: var(--text); }
-  .heat-foot { display: flex; align-items: center; gap: 6px; justify-content: flex-end; margin-top: 6px; color: var(--muted); font-size: 11px; }
+  .heat-foot { display: flex; align-items: center; gap: 6px; max-width: 1240px; justify-content: flex-end; margin-top: 6px; color: var(--muted); font-size: 11px; }
   .heat-foot i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
 
-  /* ---- tabs + tables ----------------------------------------------------- */
-  .tabs { display: flex; align-items: center; gap: 4px; padding: 0 12px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
-  .tabs button { background: transparent; border: 0; border-bottom: 2px solid transparent; padding: 12px 10px 10px; color: var(--muted); font-weight: 500; display: inline-flex; gap: 7px; align-items: center; }
-  .tabs button:hover { color: var(--text); }
-  .tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--text); }
-  .count { font-size: 10.5px; background: var(--panel-2); color: var(--muted); border-radius: 6px; padding: 0 6px; }
-  .tabs .tools { margin-left: auto; display: flex; gap: 8px; align-items: center; padding: 6px 0; }
+  .bdhead { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; flex-wrap: wrap; }
+  .bdhead h2 { margin: 0; }
+  .count { font-size: 10.5px; color: var(--faint); margin-left: 4px; }
   .table-wrap { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; }
-  th { color: var(--faint); font-weight: 500; font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; text-align: right; padding: 9px 12px; white-space: nowrap; border-bottom: 1px solid var(--line-2); user-select: none; }
+  th { color: var(--muted); font-weight: 500; font-size: 11px; text-align: right; padding: 8px 10px; white-space: nowrap; border-bottom: 1px solid var(--line); user-select: none; }
   th.l, td.l { text-align: left; }
-  th[data-sort] { cursor: pointer; }
-  th[data-sort]:hover { color: var(--text); }
-  th .arr { color: var(--accent); margin-left: 3px; }
-  td { padding: 9px 12px; text-align: right; border-bottom: 1px solid var(--line-2); white-space: nowrap; }
+  th.idx, td.idx { width: 30px; text-align: right; color: var(--faint); padding-right: 4px; }
+  th[data-sort] { cursor: pointer; } th[data-sort]:hover { color: var(--text); }
+  th .ui { color: var(--accent); margin-left: 3px; }
+  td { padding: 9px 10px; text-align: right; border-bottom: 1px solid var(--line-2); white-space: nowrap; }
   td.l { white-space: normal; }
-  td.main { max-width: 560px; }
-  td .ttl { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 560px; }
-  td .sub { display: block; color: var(--faint); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 560px; }
-  td .agent { display: inline-flex; align-items: center; gap: 7px; }
-  tbody tr:hover { background: rgba(255,255,255,.025); }
+  td.name { width: 100%; max-width: 0; }
+  .nm { display: flex; align-items: center; gap: 8px; font-weight: 500; min-width: 0; }
+  .nm .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nm small { color: var(--faint); font-weight: 400; }
+  .under { height: 2px; border-radius: 2px; margin-top: 6px; opacity: .9; }
+  td .sub { display: block; color: var(--faint); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  tbody tr:hover { background: rgba(255,255,255,.02); }
   tr.click { cursor: pointer; }
-  .muted { color: var(--muted); } .faint { color: var(--faint); }
-  .unp { color: var(--warn); }
-  .more { display: flex; justify-content: center; padding: 12px; }
+  .pill { font-size: 10.5px; border-radius: 6px; padding: 0 7px; background: var(--raised); border: 1px solid var(--line); color: var(--muted); }
+  .share { display: inline-flex; align-items: center; gap: 8px; justify-content: flex-end; }
+  .share i { display: block; width: 56px; height: 3px; border-radius: 2px; background: var(--line); position: relative; overflow: hidden; }
+  .share i::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--w); background: var(--c, var(--accent)); border-radius: 2px; }
+  .more { display: flex; justify-content: center; padding: 14px; }
   .empty { padding: 56px 24px; text-align: center; color: var(--muted); }
-  .foot { color: var(--faint); font-size: 11.5px; display: grid; gap: 4px; padding-top: 4px; }
+  .foot { color: var(--faint); font-size: 11.5px; display: grid; gap: 4px; border-top: 1px solid var(--line-2); padding-top: 16px; }
   .foot .hosts { display: flex; flex-wrap: wrap; gap: 4px 16px; }
   .foot .stale, .warn { color: var(--warn); }
-  .share { display: inline-flex; align-items: center; gap: 8px; justify-content: flex-end; }
-  .share i { display: block; width: 64px; height: 4px; border-radius: 2px; background: var(--line); position: relative; overflow: hidden; }
-  .share i::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--w); background: var(--c, var(--accent)); border-radius: 2px; }
 
-  /* ---- limits ------------------------------------------------------------ */
-  .limits { grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); }
-  .lim { padding: 18px 20px; display: grid; gap: 16px; align-content: start; }
+  /* ---- limits ---------------------------------------------------------------- */
+  .lims { display: grid; gap: 0; }
+  .lim { display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); gap: 16px clamp(24px, 4vw, 64px); padding: 28px 0; border-top: 1px solid var(--line-2); }
+  .lim:first-child { border-top: 0; padding-top: 0; }
+  @media (max-width: 900px) { .lim { grid-template-columns: 1fr; } }
   .lim h3 { margin: 0; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
   .lim .plan { font-size: 11px; background: var(--accent-soft); color: #cbbcff; border-radius: 6px; padding: 1px 8px; font-weight: 500; }
+  .lim .src { color: var(--faint); font-size: 11.5px; margin-top: 6px; }
+  .wins { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px 40px; align-content: start; }
   .win .top2 { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
   .win .name { font-weight: 500; }
-  .win .pc { font-size: 20px; font-weight: 600; letter-spacing: -.02em; }
-  .meter { height: 8px; background: var(--panel-2); border-radius: 5px; overflow: hidden; margin: 8px 0 6px; }
-  .meter i { display: block; height: 100%; border-radius: 5px; background: var(--good); }
+  .win .pc { font-size: 24px; font-weight: 600; letter-spacing: -.02em; }
+  .meter { height: 6px; background: var(--raised); border-radius: 4px; overflow: hidden; margin: 8px 0 6px; }
+  .meter i { display: block; height: 100%; border-radius: 4px; background: var(--good); }
   .meter.mid i { background: var(--warn); } .meter.hot i { background: var(--bad); } .meter.stale i { background: var(--faint); }
   .win .when { color: var(--muted); font-size: 12px; }
-  .note { color: var(--muted); font-size: 12px; border-top: 1px solid var(--line-2); padding-top: 10px; }
+  .note { color: var(--muted); font-size: 12px; grid-column: 1 / -1; }
   .note.bad { color: var(--warn); }
 
-  /* ---- threads ------------------------------------------------------------ */
-  .threads { display: grid; grid-template-columns: minmax(340px, 440px) minmax(0, 1fr); gap: 16px; height: calc(100vh - 150px); min-height: 480px; }
+  /* ---- threads --------------------------------------------------------------- */
+  main.flush { padding: 0; gap: 0; }
+  .threads { display: grid; grid-template-columns: minmax(340px, 440px) minmax(0, 1fr); height: calc(100vh - var(--hh)); min-height: 480px; }
   @media (max-width: 960px) { .threads { grid-template-columns: 1fr; height: auto; } }
-  .tl { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
-  .tl .bar { display: flex; gap: 8px; padding: 10px; border-bottom: 1px solid var(--line-2); flex-wrap: wrap; }
+  .tl { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--line); }
+  .tl .bar { display: flex; gap: 8px; padding: 12px 18px; border-bottom: 1px solid var(--line-2); flex-wrap: wrap; align-items: center; }
   .tl .bar .field { flex: 1; min-width: 120px; }
-  .tl .scroll, .td .scroll { overflow-y: auto; min-height: 0; flex: 1; }
-  .ti { display: grid; grid-template-columns: 22px 1fr auto; gap: 2px 10px; padding: 11px 14px; border-bottom: 1px solid var(--line-2); cursor: pointer; }
+  .tl .bar .search { flex: 1 1 100%; }
+  .tl .bar .search input { width: 100%; }
+  .scroll { overflow-y: auto; min-height: 0; flex: 1; }
+  .ti { display: grid; grid-template-columns: 22px 1fr auto; gap: 2px 10px; padding: 11px 18px; border-bottom: 1px solid var(--line-2); cursor: pointer; }
   .ti:hover { background: rgba(255,255,255,.025); }
   .ti.on { background: var(--accent-soft); box-shadow: inset 2px 0 0 var(--accent); }
   .ti .t { font-weight: 500; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   .ti .m { grid-column: 2 / 4; color: var(--faint); font-size: 11.5px; display: flex; gap: 10px; flex-wrap: wrap; }
   .ti .when { color: var(--faint); font-size: 11.5px; }
-  .td { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
-  .td header { padding: 16px 20px 12px; border-bottom: 1px solid var(--line-2); display: grid; gap: 10px; }
-  .td h2 { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -.01em; }
-  .facts { display: flex; flex-wrap: wrap; gap: 4px 18px; color: var(--muted); font-size: 12px; }
+  .tcount { padding: 8px 18px; border-top: 1px solid var(--line-2); font-size: 11px; color: var(--faint); }
+  .td { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+  .td header { padding: 20px var(--pad) 14px 28px; border-bottom: 1px solid var(--line-2); display: grid; gap: 10px; }
+  .td h2 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -.01em; }
+  .facts { display: flex; flex-wrap: wrap; gap: 4px 18px; color: var(--muted); font-size: 12px; align-items: center; }
   .facts b { color: var(--text); font-weight: 500; }
   .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-  .cmd { background: #0b0910; border: 1px solid var(--line); border-radius: 9px; padding: 9px 12px; display: flex; gap: 10px; align-items: center; }
+  .cmd { background: #0d0a13; border: 1px solid var(--line); border-radius: 9px; padding: 8px 8px 8px 12px; display: flex; gap: 10px; align-items: center; }
   .cmd code { flex: 1; overflow-x: auto; white-space: nowrap; color: #d9d3ea; }
-  .msgs { padding: 16px 20px 28px; display: grid; gap: 14px; }
+  .msgs { padding: 20px var(--pad) 40px 28px; display: grid; gap: 16px; max-width: 980px; }
   .msg { display: grid; gap: 6px; }
   .msg .who { font-size: 11px; color: var(--faint); text-transform: uppercase; letter-spacing: .08em; display: flex; gap: 8px; }
-  .msg.user .body { background: var(--accent-soft); border: 1px solid rgba(139,108,240,.3); border-radius: 12px; padding: 10px 14px; white-space: pre-wrap; word-break: break-word; }
+  .msg.user .body { background: var(--accent-soft); border: 1px solid rgba(139,108,240,.3); border-radius: 12px; padding: 10px 14px; word-break: break-word; }
   .msg .body { word-break: break-word; }
   .msg .body p { margin: 0 0 8px; white-space: pre-wrap; }
-  .msg .body pre { background: #0b0910; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; overflow-x: auto; margin: 6px 0; }
-  .msg .body code.i { background: var(--panel-2); border-radius: 4px; padding: 1px 5px; }
-  details.blk { border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); }
+  .msg .body pre { background: #0d0a13; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; overflow-x: auto; margin: 6px 0; }
+  .msg .body code.i { background: var(--raised); border-radius: 4px; padding: 1px 5px; }
+  details.blk { border: 1px solid var(--line); border-radius: 8px; background: var(--raised); }
   details.blk summary { cursor: pointer; padding: 6px 10px; color: var(--muted); font-size: 12px; list-style: none; display: flex; gap: 8px; align-items: center; }
-  details.blk summary::before { content: "▸"; color: var(--faint); }
-  details.blk[open] summary::before { content: "▾"; }
-  details.blk pre { margin: 0; padding: 8px 12px 10px; overflow-x: auto; white-space: pre-wrap; word-break: break-word; border-top: 1px solid var(--line); color: #cfc8e0; max-height: 360px; overflow-y: auto; }
-  .pill { font-size: 10.5px; border-radius: 6px; padding: 0 7px; background: var(--panel); border: 1px solid var(--line); color: var(--muted); }
-  .hide { display: none !important; }
-  .custom { display: none; align-items: center; gap: 6px; }
-  .custom.on { display: inline-flex; }
+  details.blk summary::-webkit-details-marker { display: none; }
+  details.blk summary::before { content: ""; width: 12px; height: 12px; flex: none; background: var(--faint); transition: transform .12s;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E") center / contain no-repeat; }
+  details.blk[open] summary::before { transform: rotate(90deg); }
+  details.blk pre { margin: 0; padding: 8px 12px 10px; overflow: auto; white-space: pre-wrap; word-break: break-word; border-top: 1px solid var(--line); color: #cfc8e0; max-height: 360px; }
 </style>
 </head>
 <body>
-<div class="top">
+<header class="top" id="top">
   <div class="row">
-    <div class="brand"><i></i>Usage</div>
-    <div class="seg nav" id="nav" role="tablist" aria-label="View">
-      <button data-v="usage" role="tab">Usage</button>
-      <button data-v="limits" role="tab">Limits</button>
-      <button data-v="threads" role="tab">Threads</button>
-    </div>
+    <span class="brand">Usage</span>
+    <nav class="crumbs" id="crumbs" aria-label="Scope">
+      <span class="sep" data-icon="chevron-right"></span>
+      <label class="pick"><select id="f-host" aria-label="Host"></select><span data-icon="chevron-down"></span></label>
+      <span class="sep" data-icon="chevron-right"></span>
+      <label class="pick"><select id="f-agent" aria-label="Agent"></select><span data-icon="chevron-down"></span></label>
+    </nav>
     <div class="spacer"></div>
-    <span class="faint mono" id="stamp"></span>
-    <button class="icon-btn" id="refresh" title="Reload" aria-label="Reload">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
-    </button>
+    <div class="seg" id="range" role="group" aria-label="Range"></div>
+    <div class="seg" id="view" role="group" aria-label="View"></div>
+    <button class="icon-btn" id="refresh" title="Reload" aria-label="Reload"><span data-icon="refresh" data-size="15"></span></button>
   </div>
-  <div class="row" id="filters">
-    <select class="field" id="f-host" aria-label="Host"></select>
-    <select class="field" id="f-agent" aria-label="Agent"></select>
+  <div class="row sub" id="filters">
     <select class="field" id="f-project" aria-label="Project"></select>
     <select class="field" id="f-model" aria-label="Model"></select>
-    <label class="search">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-      <input id="q" type="search" placeholder="Search sessions, projects, models" autocomplete="off" aria-label="Search">
-    </label>
-    <div class="seg" id="range" role="group" aria-label="Range"></div>
+    <label class="search"><span data-icon="search" data-size="14"></span><input class="field" id="q" type="search" placeholder="Search sessions, projects, models" autocomplete="off" aria-label="Search"></label>
     <span class="custom" id="custom"><input class="field" type="date" id="from" aria-label="From"><span class="faint">to</span><input class="field" type="date" id="to" aria-label="To"></span>
     <div class="spacer"></div>
-    <span style="display:inline-flex;gap:8px;align-items:center"><span class="label">Show</span><div class="seg" id="metric" role="group" aria-label="Metric"></div></span>
+    <span class="faint mono" id="stamp"></span>
   </div>
-</div>
-<main id="main"><div class="empty">Loading…</div></main>
+</header>
+<main id="main"><div class="empty">Loading</div></main>
 <div class="tip" id="tip" role="tooltip"></div>
+
 <script>
 "use strict";
 
-// ==== icons ===================================================================
-// One mark per agent, drawn from the agent's own logo where it has a simple one.
-const PATHS = {
-  openai: "M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z",
-  gemini: "M11.04 19.32Q12 21.51 12 24q0-2.49.93-4.68.96-2.19 2.58-3.81t3.81-2.55Q21.51 12 24 12q-2.49 0-4.68-.93a12.3 12.3 0 0 1-3.81-2.58 12.3 12.3 0 0 1-2.58-3.81Q12 2.49 12 0q0 2.49-.96 4.68-.93 2.19-2.55 3.81a12.3 12.3 0 0 1-3.81 2.58Q2.49 12 0 12q2.49 0 4.68.96 2.19.93 3.81 2.55t2.55 3.81",
-  opencode: "M22 24H2V0h20zM17 4.8H7v14.4h10z",
-  pi: "M3 3h18v7h-5.5v11H10V10H3z",
-  omp: "M3 3h18v7h-5.5v11H10V10H3zM6.5 6.5v0",
-};
+// ==== icons ====================================================================
+// Provider marks are the MIT-licensed lobe-icons set, served from /assets/icons and
+// drawn as a CSS mask so each one takes its agent's colour. Interface icons are
+// inline strokes.
 const AGENT = {
-  claude: { name: "Claude Code", color: "#e9724c" },
-  codex: { name: "Codex", color: "#74c69d" },
-  opencode: { name: "OpenCode", color: "#5aa9e6" },
-  pi: { name: "Pi", color: "#3fb8a0" },
-  omp: { name: "Oh My Pi", color: "#b58cf0" },
-  cline: { name: "Cline", color: "#e0b341" },
-  gemini: { name: "Gemini", color: "#8e75d2" },
-  copilot: { name: "Copilot", color: "#7aa2f7" },
-  cursor: { name: "Cursor", color: "#d9d9e3" },
-  grok: { name: "Grok", color: "#d9d9e3" },
-  amp: { name: "Amp", color: "#f08fb0" },
-  hermes: { name: "Hermes", color: "#c9a36b" },
-  kiro: { name: "Kiro", color: "#9aa5f5" },
+  claude: { name: "Claude Code", color: "#e9724c", file: "claude" },
+  codex: { name: "Codex", color: "#74c69d", file: "codex" },
+  opencode: { name: "OpenCode", color: "#6cb4f0", file: "opencode" },
+  pi: { name: "Pi", color: "#3fb8a0", file: "pi" },
+  omp: { name: "Oh My Pi", color: "#b58cf0", file: "pi" },
+  cline: { name: "Cline", color: "#e0b341", file: "cline" },
+  gemini: { name: "Gemini", color: "#8e9bf2", file: "gemini" },
+  copilot: { name: "Copilot", color: "#7aa2f7", file: "githubcopilot" },
+  cursor: { name: "Cursor", color: "#d9d9e3", file: "cursor" },
+  grok: { name: "Grok", color: "#d9d9e3", file: "xai" },
+  amp: { name: "Amp", color: "#f08fb0", file: "amp" },
+  hermes: { name: "Hermes", color: "#c9a36b", file: "nousresearch" },
+  kiro: { name: "Kiro", color: "#9aa5f5", file: "kiro" },
+  commandcode: { name: "Command Code", color: "#d9d9e3", file: "commandcode" },
 };
 const agentKey = (n) => String(n || "").toLowerCase().replace(/-code$/, "");
 const agentName = (n) => AGENT[agentKey(n)]?.name ?? n;
 const agentColor = (n) => AGENT[agentKey(n)]?.color ?? "#8d869c";
-
-function icon(name, size = 15) {
-  const k = agentKey(name), c = agentColor(name);
-  const wrap = (inner) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true" style="flex:none">${inner}</svg>`;
-  if (k === "claude") {
-    // Twelve rays of uneven length, the shape of the Claude mark.
-    const lens = [10.5, 7.5, 9.5, 7, 10, 7.8, 10.5, 7.2, 9.4, 7.6, 10, 7.4];
-    return wrap(lens.map((l, i) => {
-      const a = (i * 30 - 90) * Math.PI / 180;
-      return `<line x1="${12 + Math.cos(a) * 2.6}" y1="${12 + Math.sin(a) * 2.6}" x2="${12 + Math.cos(a) * l}" y2="${12 + Math.sin(a) * l}" stroke="${c}" stroke-width="2.4" stroke-linecap="round"/>`;
-    }).join(""));
-  }
-  if (k === "codex") return wrap(`<path fill="${c}" d="${PATHS.openai}"/>`);
-  if (k === "gemini") return wrap(`<path fill="${c}" d="${PATHS.gemini}"/>`);
-  if (PATHS[k]) return wrap(`<path fill="${c}" d="${PATHS[k]}" fill-rule="evenodd"/>`);
-  if (k === "cline") return wrap(`<rect x="3" y="6" width="18" height="14" rx="4" fill="none" stroke="${c}" stroke-width="2"/><circle cx="9" cy="13" r="1.6" fill="${c}"/><circle cx="15" cy="13" r="1.6" fill="${c}"/><path d="M12 6V3" stroke="${c}" stroke-width="2" stroke-linecap="round"/>`);
-  const letter = String(name || "?")[0].toUpperCase();
-  return wrap(`<rect x="2" y="2" width="20" height="20" rx="6" fill="${c}" opacity=".25"/><text x="12" y="16.5" text-anchor="middle" font-size="12" font-weight="600" fill="${c}" font-family="Geist,sans-serif">${letter}</text>`);
+function ai(name, size = 15) {
+  const a = AGENT[agentKey(name)], c = agentColor(name);
+  if (a) return `<i class="ai" style="--m:url(/assets/icons/${a.file}.svg);--s:${size}px;color:${c}" aria-hidden="true"></i>`;
+  return `<i class="chip-letter" style="--s:${size}px;color:${c}" aria-hidden="true">${String(name || "?")[0].toUpperCase()}</i>`;
 }
+const UI = {
+  "chevron-right": '<path d="m9 18 6-6-6-6"/>',
+  "chevron-down": '<path d="m6 9 6 6 6-6"/>',
+  refresh: '<path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  download: '<path d="M12 3v12m0 0-4-4m4 4 4-4M4 21h16"/>',
+  "arrow-up": '<path d="M12 19V5M5 12l7-7 7 7"/>',
+  "arrow-down": '<path d="M12 5v14M19 12l-7 7-7-7"/>',
+  "trend-up": '<path d="M7 17 17 7M8 7h9v9"/>',
+  "trend-down": '<path d="M7 7l10 10M17 8v9H8"/>',
+  copy: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+};
+const ui = (n, s = 14) => `<svg class="ui" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${UI[n]}</svg>`;
+document.querySelectorAll("[data-icon]").forEach((el) => { el.outerHTML = ui(el.dataset.icon, Number(el.dataset.size) || 12); });
 
 // ==== state ====================================================================
 const $ = (id) => document.getElementById(id);
@@ -314,16 +320,17 @@ const state = {
   view: pref("view", "usage"),
   range: pref("range", "30d"), from: "", to: "",
   host: "all", agent: "all", project: "all", model: "all", q: "",
-  group: pref("group", "project"), metric: pref("metric", "tokens"), tab: pref("tab", "sessions"),
-  sort: {}, shown: 100, insight: 0,
+  group: pref("group", "project"), metric: pref("metric", "cost"), tab: pref("tab", "models"), chart: pref("chart", "lines"),
+  sort: {}, shown: 100,
   data: null, limits: null,
   thr: { q: "", agent: "all", sub: false, list: null, sel: null, detail: null, cmd: null, unavailable: null },
 };
-const save = () => { for (const k of ["view", "range", "group", "metric", "tab"]) store.setItem("usage." + k, state[k]); };
+const save = () => { for (const k of ["view", "range", "group", "metric", "tab", "chart"]) store.setItem("usage." + k, state[k]); };
 
-const RANGES = [["1d", "Today"], ["7d", "7d"], ["30d", "30d"], ["90d", "90d"], ["1y", "1y"], ["all", "All"], ["custom", "Custom"]];
+const RANGES = [["1d", "Today"], ["7d", "7 days"], ["30d", "30 days"], ["90d", "90 days"], ["1y", "1 year"], ["all", "All"], ["custom", "Custom"]];
 const GROUPS = [["project", "Project"], ["agent", "Agent"], ["model", "Model"]];
-const METRICS = [["tokens", "Tokens"], ["cost", "Cost"], ["messages", "Messages"]];
+const VIEWS = [["cost", "Cost"], ["tokens", "Tokens"], ["messages", "Messages"], ["limits", "Limits"], ["threads", "Threads"]];
+const METRIC_WORD = { cost: "cost", tokens: "tokens", messages: "messages" };
 
 // ==== formatting ===============================================================
 const compact = (n) => {
@@ -342,7 +349,8 @@ const plural = (n, w) => `${int(n)} ${w}${n === 1 ? "" : "s"}`;
 const pct = (a, b) => (b ? (a / b) * 100 : 0);
 const pctText = (v) => (v > 0 && v < 0.1 ? "<0.1%" : v.toFixed(v >= 10 ? 0 : 1) + "%");
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const shortDay = (d) => new Date(d + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+const shortDay = (d) => new Date(d + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }).toUpperCase();
+const niceDay = (d) => new Date(d + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 const longDay = (d) => new Date(d + "T00:00:00Z").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
 const duration = (ms) => { const m = Math.round(ms / 60000); return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`; };
 const tail = (p, n = 2) => { const parts = String(p || "").split(/[\\/]/).filter(Boolean); return parts.length ? parts.slice(-n).join("/") : "(none)"; };
@@ -359,21 +367,20 @@ const until = (iso) => {
   const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
   return d ? `${d}d ${h}h` : h ? `${h}h ${m}m` : `${m}m`;
 };
-const metricVal = (o, m = state.metric) => (m === "cost" ? o.cost : m === "messages" ? o.messages : o.tokens);
-const fmtMetric = (v, m = state.metric) => (m === "cost" ? money(v) : compact(v));
+const mval = (o) => (state.metric === "cost" ? o.cost : state.metric === "messages" ? o.messages : o.tokens);
+const mfmt = (v) => (state.metric === "cost" ? money(v) : compact(v));
 
 function costCell(o) {
   if (o.unpricedRows && !o.cost) return `<span class="unp">Unpriced</span>`;
   return money(o.cost) + (o.unpricedRows ? `<span class="unp" title="${o.unpricedRows} unpriced rows">*</span>` : "");
 }
-
 function delta(cur, prev, label) {
   if (prev === null || prev === undefined) return "";
-  if (!prev) return cur ? `<span class="delta" title="No usage in the previous period">new</span>` : "";
-  const ch = ((cur - prev) / prev) * 100;
-  if (Math.abs(ch) < 0.5) return `<span class="delta" title="${esc(label)}">0%</span>`;
-  const a = Math.abs(ch), big = a >= 1000 ? ">999" : a >= 10 ? Math.round(a) : a.toFixed(1);
-  return `<span class="delta ${ch > 0 ? "up" : "down"}" title="${esc(label)}${a >= 1000 ? ` (${Math.round(a).toLocaleString("en-US")}%)` : ""}">${ch > 0 ? "▲" : "▼"} ${big}%</span>`;
+  if (!prev) return cur ? `<span class="delta flat" title="No usage in the previous period">new</span>` : "";
+  const ch = ((cur - prev) / prev) * 100, a = Math.abs(ch);
+  if (a < 0.5) return `<span class="delta flat" title="${esc(label)}">0%</span>`;
+  const txt = a >= 1000 ? ">999" : a >= 10 ? Math.round(a) : a.toFixed(1);
+  return `<span class="delta ${ch > 0 ? "up" : "down"}" title="${esc(label)}${a >= 1000 ? ` (${Math.round(a).toLocaleString("en-US")}%)` : ""}">${ui(ch > 0 ? "trend-up" : "trend-down", 12)}${txt}%</span>`;
 }
 
 // ==== tooltip ==================================================================
@@ -384,7 +391,6 @@ function showTip(html, ev) {
   let x = ev.clientX + 14, y = ev.clientY + 14;
   if (x + w > window.innerWidth - 8) x = ev.clientX - w - 14;
   if (y + h > window.innerHeight - 8) y = ev.clientY - h - 14;
-  tip.style.position = "fixed";
   tip.style.left = Math.max(4, x) + "px";
   tip.style.top = Math.max(4, y) + "px";
   tip.classList.add("on");
@@ -433,17 +439,13 @@ async function openThread(id) {
   t.sel = id; t.detail = null; t.cmd = null;
   history.replaceState(null, "", "#threads/" + id);
   if (state.view === "threads") render();
-  try {
-    t.detail = await get("/api/threads/show?id=" + encodeURIComponent(id));
-  } catch (e) { t.detail = { error: e.message }; }
+  try { t.detail = await get("/api/threads/show?id=" + encodeURIComponent(id)); } catch (e) { t.detail = { error: e.message }; }
   if (state.view === "threads" && t.sel === id) renderThreadDetail();
 }
 const stamp = () => { $("stamp").textContent = "updated " + new Date().toLocaleTimeString("en-GB"); };
 
-// ==== header controls ==========================================================
-function segHTML(items, current) {
-  return items.map(([k, l]) => `<button data-v="${k}" aria-pressed="${current === k}">${l}</button>`).join("");
-}
+// ==== header ===================================================================
+const segHTML = (items, current) => items.map(([k, l]) => `<button data-v="${k}" aria-pressed="${current === k}">${l}</button>`).join("");
 function fillSelect(el, all, items, current, nameOf = (x) => x) {
   const html = `<option value="all">${esc(all)}</option>` + items.map((v) => `<option value="${esc(v)}">${esc(nameOf(v))}</option>`).join("");
   if (el.dataset.sig !== html) { el.innerHTML = html; el.dataset.sig = html; }
@@ -451,105 +453,153 @@ function fillSelect(el, all, items, current, nameOf = (x) => x) {
   el.classList.toggle("on", el.value !== "all");
 }
 function controls() {
-  for (const b of $("nav").children) b.setAttribute("aria-selected", String(b.dataset.v === state.view));
-  $("filters").classList.toggle("hide", state.view !== "usage");
+  const usage = state.view === "usage";
+  $("crumbs").classList.toggle("hide", !usage);
+  $("range").classList.toggle("hide", !usage);
+  $("filters").classList.toggle("hide", !usage);
   $("range").innerHTML = segHTML(RANGES, state.range);
-  if ($("group")) $("group").innerHTML = segHTML(GROUPS, state.group);
-  $("metric").innerHTML = segHTML(METRICS, state.metric);
+  $("view").innerHTML = segHTML(VIEWS, usage ? state.metric : state.view);
   $("custom").classList.toggle("on", state.range === "custom");
   const d = state.data;
   if (d) {
-    fillSelect($("f-host"), "All hosts", d.options.hosts, state.host);
-    fillSelect($("f-agent"), "All agents", d.options.agents, state.agent, agentName);
+    fillSelect($("f-host"), "All environments", d.options.hosts, state.host);
+    fillSelect($("f-agent"), "All providers", d.options.agents, state.agent, agentName);
     fillSelect($("f-project"), "All projects", d.options.projects, state.project, (p) => tail(p, 2));
     fillSelect($("f-model"), "All models", d.options.models, state.model);
     if (state.range !== "custom" && d.meta) { $("from").value = d.meta.start; $("to").value = d.meta.end; }
   }
+  document.documentElement.style.setProperty("--hh", $("top").offsetHeight + "px");
 }
-
-// ==== render dispatch ==========================================================
 function render() {
   controls();
+  $("main").classList.toggle("flush", state.view === "threads");
   if (state.view === "limits") return renderLimits();
   if (state.view === "threads") return renderThreads();
   renderUsage();
+  controls();
 }
 
 // ==== usage view ===============================================================
-function spark(values, cls = "") {
-  const max = Math.max(...values, 0);
-  return `<div class="spark ${cls}" aria-hidden="true">${values.map((v) => `<i class="${v ? "" : "z"}" style="height:${v && max ? Math.max(8, (v / max) * 100) : 4}%"></i>`).join("")}</div>`;
-}
-function dots(share, n = 40) {
-  const on = share > 0 ? Math.max(1, Math.round(share * n)) : 0;
-  return `<div class="bar2" aria-hidden="true">${Array.from({ length: n }, (_, i) => `<i class="${i < on ? "on" : ""}"></i>`).join("")}</div>`;
-}
-
-function tile(label, value, d, extra, { est = false, small = false } = {}) {
-  return `<div class="panel tile ${small ? "sm" : ""}"><div class="k label">${label}${est ? '<span class="est">EST.</span>' : ""}</div>
-    <div class="v">${value}${d}</div>${extra ?? ""}</div>`;
+function stat(label, value, d = "", cls = "") {
+  return `<div class="stat"><div class="k">${label}</div><div class="v ${cls}">${value}${d}</div></div>`;
 }
 
 function renderUsage() {
   const d = state.data, main = $("main");
   if (!d) return;
   if (!d.hosts.length) {
-    main.innerHTML = `<div class="empty panel">No host snapshots in <code>${esc(d.meta.usageDir)}</code> yet.<br>Run <code>usage collect</code>, then reload.</div>`;
+    main.innerHTML = `<div class="empty">No host snapshots in <code>${esc(d.meta.usageDir)}</code> yet.<br>Run <code>usage collect</code>, then reload.</div>`;
     return;
   }
-  const t = d.totals, p = d.previous, prevLabel = p ? `vs ${d.meta.span} days before (${d.meta.previous.start} to ${d.meta.previous.end})` : "";
+  const t = d.totals, p = d.previous, m = state.metric;
+  const prevLabel = p ? `vs the ${d.meta.span} days before (${d.meta.previous.start} to ${d.meta.previous.end})` : "";
   const dl = (cur, prev) => delta(cur, p ? prev : null, prevLabel);
   const unp = t.unpricedRows ? '<span class="unp" title="Some rows have no price">*</span>' : "";
+  const total = m === "cost" ? t.cost : m === "messages" ? t.messages : t.tokens;
+  const big = m === "cost" ? money(t.cost) + unp : m === "messages" ? int(t.messages) : compact(t.tokens);
+  const sub = `${plural(t.sessions, "session")}${m === "cost" ? " · API estimate" : ""}${dl(total, p && (m === "cost" ? p.cost : m === "messages" ? p.messages : p.tokens))}`;
 
-  const tiles = `<section class="grid tiles">
-    ${tile("Tokens", compact(t.tokens), dl(t.tokens, p?.tokens), spark(d.sparks.tokens))}
-    ${tile("Cost", money(t.cost) + unp, dl(t.cost, p?.cost), spark(d.sparks.cost), { est: true })}
-    ${tile("Sessions", int(t.sessions), dl(t.sessions, p?.sessions), spark(d.sparks.sessions))}
-    ${tile("Messages", int(t.messages), dl(t.messages, p?.messages), spark(d.sparks.messages))}
-    ${tile("Cache hit rate", Math.round(t.cacheHitRate * 100) + "%", dl(t.cacheHitRate, p?.cacheHitRate), spark(d.sparks.cacheHitRate))}
-  </section>`;
+  const legend = d.agents.map((a) => {
+    const v = m === "cost" ? a.cost : m === "messages" ? a.messages : a.tokens;
+    const value = m === "cost" ? (a.unpricedRows && !a.cost ? '<span class="unp">Unpriced</span>' : money(a.cost) + (a.unpricedRows ? '<span class="unp">*</span>' : "")) : m === "messages" ? int(a.messages) : compact(a.tokens);
+    const meta = m === "cost" ? `${pctText(pct(a.cost, t.cost))} of cost · ${compact(a.tokens)} tokens` : `${pctText(pct(v, total))} of ${METRIC_WORD[m]} · ${m === "tokens" ? (a.unpricedRows && !a.cost ? "unpriced" : money(a.cost)) : compact(a.tokens) + " tokens"}`;
+    return `<li><span class="name"><i class="dot" style="background:${agentColor(a.agent)}"></i>${ai(a.agent, 15)}${esc(agentName(a.agent))}<small>${plural(a.sessions, "session")}</small></span><span class="val">${value}</span><span class="meta">${meta}</span></li>`;
+  }).join("");
 
-  const types = [["Input", t.input], ["Output", t.output], ["Cache read", t.cacheRead], ["Cache write", t.cacheWrite]];
+  const types = m === "cost"
+    ? [["Input", t.costByType.input, "#6d6682"], ["Cache read", t.costByType.cacheRead, "#9189a8"], ["Cache write", t.costByType.cacheWrite, "#bdb6d3"], ["Output", t.costByType.output, "#efebf8"]]
+    : [["Input", t.input, "#6d6682"], ["Cache read", t.cacheRead, "#9189a8"], ["Cache write", t.cacheWrite, "#bdb6d3"], ["Output", t.output, "#efebf8"]];
   const typeSum = types.reduce((s, x) => s + x[1], 0) || 1;
-  const prevTypes = p ? { Input: p.input, Output: p.output, "Cache read": p.cacheRead, "Cache write": p.cacheWrite } : null;
-  const typeRow = `<section class="grid tiles4">${types.map(([n, v]) => `<div class="panel tile sm"><div class="k label">${n}</div><span class="pct">${pctText(pct(v, typeSum))}</span>
-    <div class="v">${compact(v)}${dl(v, prevTypes?.[n])}</div>${dots(v / typeSum)}</div>`).join("")}</section>`;
+  const typeFmt = (v) => (m === "cost" ? money(v) : compact(v));
 
-  const chartCard = `<div class="panel"><div class="card-h"><span class="label">${METRICS.find((m) => m[0] === state.metric)[1]} by day, per ${state.group}</span><span class="spacer"></span><span class="faint mono">${esc(d.meta.start)} to ${esc(d.meta.end)}</span><div class="seg" id="group" role="group" aria-label="Stack chart by">${segHTML(GROUPS, state.group)}</div></div>
-    <div class="card-b"><div class="chart" id="chart"></div><div class="keys" id="keys"></div></div></div>`;
-  const insightCard = `<div class="panel insight" id="insight"></div>`;
+  main.innerHTML = `
+    <section class="hero">
+      <div>
+        <div class="big">${big}</div>
+        <div class="bigsub">${sub}</div>
+        <ul class="legend">${legend || '<li class="muted">No usage in this range</li>'}</ul>
+      </div>
+      <div>
+        <div class="charthead"><span class="t">Daily ${m === "cost" ? "cost" : m === "messages" ? "messages" : "processed tokens"}</span><span class="spacer"></span>
+          <div class="seg sm" id="group" role="group" aria-label="Split by">${segHTML(GROUPS, state.group)}</div>
+          <div class="seg sm" id="ctype" role="group" aria-label="Chart type">${segHTML([["lines", "Lines"], ["bars", "Bars"]], state.chart)}</div></div>
+        <div class="chart" id="chart"></div><div class="keys" id="keys"></div>
+      </div>
+    </section>
 
-  const eff = `<section class="panel"><div class="card-h"><span class="label">Efficiency</span></div><div class="card-b grid tiles6" style="gap:0">
-    ${effCell("Cache hit rate", Math.round(t.cacheHitRate * 100) + "%", dl(t.cacheHitRate, p?.cacheHitRate), dots(t.cacheHitRate, 36))}
-    ${effCell("Output : input", t.outputPerInput == null ? "-" : t.outputPerInput.toFixed(1) + "×", dl(t.outputPerInput, p?.outputPerInput))}
-    ${effCell("Tokens / session", t.tokensPerSession == null ? "-" : compact(t.tokensPerSession), dl(t.tokensPerSession, p?.tokensPerSession))}
-    ${effCell("Cost / session", t.costPerSession == null ? "-" : money(t.costPerSession), dl(t.costPerSession, p?.costPerSession), "", true)}
-    ${effCell("Cost / message", t.costPerMessage == null ? "-" : money(t.costPerMessage), dl(t.costPerMessage, p?.costPerMessage), "", true)}
-    ${effCell("$ / 1K output", t.costPer1kOutput == null ? "-" : money(t.costPer1kOutput), dl(t.costPer1kOutput, p?.costPer1kOutput), "", true)}
-  </div></section>`;
+    <section>
+      <h2>Totals</h2>
+      <div class="stats">
+        ${stat("Processed tokens", compact(t.tokens), dl(t.tokens, p?.tokens))}
+        ${stat("Cached input", compact(t.cacheRead), dl(t.cacheRead, p?.cacheRead))}
+        ${stat("Uncached input", compact(t.input), dl(t.input, p?.input))}
+        ${stat("Output", compact(t.output), dl(t.output, p?.output))}
+        ${stat("Cache savings", money(t.cacheSavings), "", "good")}
+        ${stat("Messages", int(t.messages), dl(t.messages, p?.messages))}
+        ${stat("Reasoning", compact(t.reasoning))}
+        ${t.activeMs ? stat("Active time", duration(t.activeMs)) : ""}
+      </div>
+    </section>
 
-  const foot = `<div class="foot"><div class="hosts">${d.hosts.map(hostChip).join("")}</div>
-    ${d.meta.warnings.map((w) => `<div class="warn">${esc(w)}</div>`).join("")}
-    ${t.unpricedRows ? `<div>* ${plural(t.unpricedRows, "row")} had no price and are left out of the dollar figures. Add rates in <span class="mono">dot_config/usage/prices.json</span>.</div>` : ""}
-    <div>Reasoning is shown beside output and never added. Windows count back from the newest day in the data (${esc(d.meta.newestDay)}). Prices ${d.meta.priceFetchedAt ? "fetched " + esc(d.meta.priceFetchedAt.slice(0, 10)) : "not cached yet; run <span class='mono'>usage prices update</span>"}.</div></div>`;
+    <section class="two">
+      <div>
+        <h2>${m === "cost" ? "Cost" : "Tokens"} by type</h2>
+        <div class="stack" role="img" aria-label="${m === "cost" ? "Cost" : "Tokens"} by type">${types.map(([n, v, c]) => `<i style="flex:${Math.max(v, typeSum * 0.004)};background:${c}" title="${n}"></i>`).join("")}</div>
+        <div class="typekeys">${types.map(([n, v, c]) => `<span><i class="sq" style="background:${c}"></i>${n} <b>${typeFmt(v)}</b></span>`).join("")}</div>
+      </div>
+      <div>
+        <h2>Efficiency</h2>
+        <div class="stats" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">
+          ${stat("Cache hit rate", Math.round(t.cacheHitRate * 100) + "%", dl(t.cacheHitRate, p?.cacheHitRate))}
+          ${stat("Output : input", t.outputPerInput == null ? "-" : t.outputPerInput.toFixed(1) + "×", dl(t.outputPerInput, p?.outputPerInput))}
+          ${stat("Tokens / session", t.tokensPerSession == null ? "-" : compact(t.tokensPerSession), dl(t.tokensPerSession, p?.tokensPerSession))}
+          ${stat('Cost / session<span class="est">EST.</span>', t.costPerSession == null ? "-" : money(t.costPerSession), dl(t.costPerSession, p?.costPerSession))}
+          ${stat('Cost / message<span class="est">EST.</span>', t.costPerMessage == null ? "-" : money(t.costPerMessage), dl(t.costPerMessage, p?.costPerMessage))}
+          ${stat('$ / 1K output<span class="est">EST.</span>', t.costPer1kOutput == null ? "-" : money(t.costPer1kOutput), dl(t.costPer1kOutput, p?.costPer1kOutput))}
+        </div>
+      </div>
+    </section>
 
-  main.innerHTML = tiles + typeRow +
-    `<section class="grid split">${chartCard}${insightCard}</section>` + eff +
-    `<section class="panel"><div class="card-h"><span class="label">Activity, last year</span></div><div class="card-b"><div class="heat-wrap heat" id="heat"></div>
-      <div class="heat-foot"><span>Less</span>${[0, 1, 2, 3, 4].map((i) => `<i style="background:var(--heat-${i})"></i>`).join("")}<span>More</span></div></div></section>` +
-    `<section class="panel" id="tablecard"></section>` + foot;
+    <section>
+      <h2>Highlights</h2>
+      <ul class="notes">${insights().map((i) => `<li><b>${i.big}</b>${i.text}</li>`).join("")}</ul>
+    </section>
 
-  drawChart(); drawInsight(); drawHeat(); drawTable();
-}
-function effCell(label, value, d, extra = "", est = false) {
-  return `<div style="padding:4px 14px 8px 0"><div class="label" style="font-size:10.5px">${label}${est ? ' <span class="est">EST.</span>' : ""}</div><div style="font-size:22px;font-weight:600;letter-spacing:-.02em;margin-top:2px;display:flex;gap:8px;align-items:baseline">${value}${d}</div>${extra}</div>`;
+    <section>
+      <h2>Activity <span class="sub">last year</span></h2>
+      <div class="heat-wrap heat" id="heat"></div>
+      <div class="heat-foot"><span>Less</span>${[0, 1, 2, 3, 4].map((i) => `<i style="background:var(--heat-${i})"></i>`).join("")}<span>More</span></div>
+    </section>
+
+    <section id="tablecard"></section>
+
+    <div class="foot"><div class="hosts">${d.hosts.map(hostChip).join("")}</div>
+      ${d.meta.warnings.map((w) => `<div class="warn">${esc(w)}</div>`).join("")}
+      ${t.unpricedRows ? `<div>* ${plural(t.unpricedRows, "row")} had no price and are left out of the dollar figures. Add rates in <span class="mono">dot_config/usage/prices.json</span>.</div>` : ""}
+      <div>Reasoning is shown beside output and never added. Windows count back from the newest day in the data (${esc(d.meta.newestDay)}). Prices ${d.meta.priceFetchedAt ? "fetched " + esc(d.meta.priceFetchedAt.slice(0, 10)) : "not cached yet; run <span class='mono'>usage prices update</span>"}.</div></div>`;
+
+  drawChart(); drawHeat(); drawTable();
 }
 function hostChip(h) {
   const age = Math.max(0, Math.round((Date.now() - Date.parse(h.collectedAt)) / 3600000));
   return `<span class="${age > 24 ? "stale" : ""}" title="collected ${esc(h.collectedAt)}">${esc(h.host)} · ${age}h${age > 24 ? " stale" : ""}</span>`;
 }
 
-// ---- stacked day chart ---------------------------------------------------------
+function insights() {
+  const d = state.data, t = d.totals, list = [];
+  const sum = (a) => a.reduce((x, y) => x + y, 0);
+  list.push({ big: Math.round(t.cacheHitRate * 100) + "%", text: `of prompt tokens came from cache. Repeated context is being reused rather than re-sent.` });
+  if (t.cacheSavings > 0) list.push({ big: money(t.cacheSavings, 0), text: `of input cost avoided by cache reads, estimated at each model's input rate.` });
+  const top = [...d.stack].filter((s) => !s.other).sort((a, b) => sum(b.tokens) - sum(a.tokens))[0];
+  if (top && t.tokens) list.push({ big: pctText(pct(sum(top.tokens), t.tokens)), text: `of tokens went to ${esc(stackLabel(top))}, the largest ${d.meta.group} in this range.` });
+  const busiest = d.byDay.slice().sort((a, b) => b.tokens - a.tokens)[0];
+  if (busiest) list.push({ big: compact(busiest.tokens), text: `tokens on ${longDay(busiest.day)}, the busiest day: ${plural(busiest.messages, "message")} across ${plural(busiest.sessions, "session")}.` });
+  if (t.reasoning) list.push({ big: compact(t.reasoning), text: `reasoning tokens, ${pctText(pct(t.reasoning, t.output || 1))} of output. They are counted inside output and never added to the total.` });
+  if (t.unpricedRows) list.push({ big: int(t.unpricedRows), text: `rows have no price. Their tokens are counted and their dollars are not.` });
+  return list;
+}
+
+// ---- day chart ------------------------------------------------------------------
 const PALETTE = ["#8b6cf0", "#4f9ddb", "#3fb8a0", "#e9724c", "#e0b341", "#f08fb0", "#9bcf5f"];
 const OTHER = "#5d5670";
 const stackColor = (s, i) => (s.key === "Other" && s.other ? OTHER : state.data.meta.group === "agent" ? agentColor(s.key) : PALETTE[i % PALETTE.length]);
@@ -561,17 +611,34 @@ function niceMax(v) {
   const f = v / p;
   return ([1.5, 3, 6, 9, 15].find((c) => c >= f - 1e-9) ?? 15) * p;
 }
+function smoothPath(pts) {
+  if (pts.length < 2) return pts.length ? `M${pts[0][0]},${pts[0][1]}` : "";
+  const n = pts.length, dx = [], mm = [], s = [];
+  for (let i = 0; i < n - 1; i++) { dx[i] = pts[i + 1][0] - pts[i][0]; mm[i] = (pts[i + 1][1] - pts[i][1]) / dx[i]; }
+  s[0] = mm[0]; s[n - 1] = mm[n - 2];
+  for (let i = 1; i < n - 1; i++) s[i] = mm[i - 1] * mm[i] <= 0 ? 0 : (mm[i - 1] + mm[i]) / 2;
+  for (let i = 0; i < n - 1; i++) {
+    if (mm[i] === 0) { s[i] = 0; s[i + 1] = 0; continue; }
+    const a = s[i] / mm[i], b = s[i + 1] / mm[i], h = a * a + b * b;
+    if (h > 9) { const t = 3 / Math.sqrt(h); s[i] = t * a * mm[i]; s[i + 1] = t * b * mm[i]; }
+  }
+  let dd = `M${pts[0][0]},${pts[0][1]}`;
+  for (let i = 0; i < n - 1; i++) dd += `C${pts[i][0] + dx[i] / 3},${pts[i][1] + (s[i] * dx[i]) / 3} ${pts[i + 1][0] - dx[i] / 3},${pts[i + 1][1] - (s[i + 1] * dx[i]) / 3} ${pts[i + 1][0]},${pts[i + 1][1]}`;
+  return dd;
+}
 
 function drawChart() {
   const d = state.data, el = $("chart");
   if (!el) return;
-  const m = state.metric, days = d.days, series = d.stack;
-  const W = Math.max(480, el.clientWidth), H = 270, L = 52, R = 8, T = 8, B = 24;
+  const m = state.metric, days = d.days, series = d.stack, bars = state.chart === "bars";
+  const W = Math.max(480, el.clientWidth), H = 250, L = 50, R = 8, T = 8, B = 24;
   const pw = W - L - R, ph = H - T - B;
   const totals = days.map((_, i) => series.reduce((s, x) => s + x[m][i], 0));
-  const max = niceMax(Math.max(0, ...totals));
+  const peak = bars ? Math.max(0, ...totals) : Math.max(0, ...series.flatMap((s) => s[m]));
+  const max = niceMax(peak);
   const y = (v) => T + ph - (v / max) * ph;
   const slot = pw / days.length, bw = Math.max(1, Math.min(34, slot * 0.72));
+  const xAt = (i) => (bars ? L + slot * i + slot / 2 : L + (days.length === 1 ? pw / 2 : (i / (days.length - 1)) * pw));
   const fmt = (v) => (m === "cost" ? axisMoney(v) : compact(v));
 
   let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${m} by day"><g class="axis">`;
@@ -579,69 +646,50 @@ function drawChart() {
     const v = (max / 3) * i;
     svg += `<line class="gridline" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L - 8}" y="${y(v) + 3}" text-anchor="end">${i === 0 ? "0" : fmt(v)}</text>`;
   }
-  const ticks = Math.min(days.length, Math.max(2, Math.floor(pw / 90)));
+  const ticks = Math.min(days.length, Math.max(2, Math.floor(pw / 110)));
   for (let i = 0; i < ticks; i++) {
     const idx = ticks === 1 ? 0 : Math.round((i / (ticks - 1)) * (days.length - 1));
-    svg += `<text x="${L + slot * idx + slot / 2}" y="${H - 6}" text-anchor="${i === 0 ? "start" : i === ticks - 1 ? "end" : "middle"}">${shortDay(days[idx])}</text>`;
+    svg += `<text x="${xAt(idx)}" y="${H - 6}" text-anchor="${i === 0 ? "start" : i === ticks - 1 ? "end" : "middle"}">${shortDay(days[idx])}</text>`;
   }
-  svg += `</g><rect id="band" y="${T}" height="${ph}" width="${slot}" fill="#fff" opacity="0"/>`;
-  days.forEach((_, i) => {
-    let base = 0;
-    series.forEach((s, si) => {
-      const v = s[m][i];
-      if (!v) return;
-      const x = L + slot * i + (slot - bw) / 2;
-      svg += `<rect x="${x}" y="${y(base + v)}" width="${bw}" height="${Math.max(1, y(base) - y(base + v))}" fill="${stackColor(s, si)}" rx="1.5"/>`;
-      base += v;
+  svg += `</g><line id="cross" y1="${T}" y2="${T + ph}" stroke="#958ea6" stroke-dasharray="3 3" opacity="0"/>`;
+  if (bars) {
+    days.forEach((_, i) => {
+      let base = 0;
+      series.forEach((s, si) => {
+        const v = s[m][i];
+        if (!v) return;
+        svg += `<rect x="${xAt(i) - bw / 2}" y="${y(base + v)}" width="${bw}" height="${Math.max(1, y(base) - y(base + v))}" fill="${stackColor(s, si)}" rx="1.5"/>`;
+        base += v;
+      });
     });
-  });
+  } else {
+    series.forEach((s, si) => {
+      const c = stackColor(s, si), pts = s[m].map((v, i) => [xAt(i), y(v)]);
+      if (days.length === 1) { svg += `<circle cx="${pts[0][0]}" cy="${pts[0][1]}" r="3.5" fill="${c}"/>`; return; }
+      const line = smoothPath(pts);
+      svg += `<path d="${line}L${xAt(days.length - 1)},${y(0)}L${xAt(0)},${y(0)}Z" fill="${c}" opacity=".08"/><path d="${line}" fill="none" stroke="${c}" stroke-width="1.5" stroke-linejoin="round"/>`;
+    });
+  }
   svg += `<rect id="hit" x="${L}" y="${T}" width="${pw}" height="${ph}" fill="transparent"/></svg>`;
   el.innerHTML = svg;
-
   $("keys").innerHTML = series.map((s, i) => `<span title="${esc(s.key)}"><i class="sq" style="background:${stackColor(s, i)}"></i><b>${esc(stackLabel(s))}</b></span>`).join("");
 
-  const hit = el.querySelector("#hit"), band = el.querySelector("#band");
+  const hit = el.querySelector("#hit"), cross = el.querySelector("#cross");
   hit.addEventListener("pointermove", (ev) => {
-    const r = el.querySelector("svg").getBoundingClientRect();
-    const i = Math.max(0, Math.min(days.length - 1, Math.floor(((ev.clientX - r.left) / r.width * W - L) / slot)));
-    band.setAttribute("x", L + slot * i); band.setAttribute("opacity", ".06");
+    const r = el.querySelector("svg").getBoundingClientRect(), px = ((ev.clientX - r.left) / r.width) * W;
+    const i = Math.max(0, Math.min(days.length - 1, bars ? Math.floor((px - L) / slot) : Math.round(((px - L) / pw) * (days.length - 1))));
+    cross.setAttribute("x1", xAt(i)); cross.setAttribute("x2", xAt(i)); cross.setAttribute("opacity", "1");
     const rows = series.map((s, si) => [s, si, s[m][i]]).filter((x) => x[2] > 0).sort((a, b) => b[2] - a[2]);
-    const total = totals[i];
-    showTip(`<div class="t">${longDay(days[i])}</div>` + (rows.map(([s, si, v]) => `<div class="r"><span><i class="sq" style="background:${stackColor(s, si)}"></i><b>${esc(stackLabel(s))}</b></span><b class="mono">${fmtMetric(v)}</b></div>`).join("") || `<div class="muted">No usage</div>`) +
-      (rows.length > 1 ? `<div class="r" style="margin-top:4px;border-top:1px solid var(--line);padding-top:4px"><span>Total</span><b class="mono">${fmtMetric(total)}</b></div>` : ""), ev);
+    showTip(`<div class="t">${longDay(days[i])}</div>` + (rows.map(([s, si, v]) => `<div class="r"><span><i class="sq" style="background:${stackColor(s, si)}"></i><b>${esc(stackLabel(s))}</b></span><b class="mono">${mfmt(v)}</b></div>`).join("") || `<div class="muted">No usage</div>`) +
+      (rows.length > 1 ? `<div class="r" style="margin-top:4px;border-top:1px solid var(--line);padding-top:4px"><span>Total</span><b class="mono">${mfmt(totals[i])}</b></div>` : ""), ev);
   });
-  hit.addEventListener("pointerleave", () => { band.setAttribute("opacity", "0"); hideTip(); });
+  hit.addEventListener("pointerleave", () => { cross.setAttribute("opacity", "0"); hideTip(); });
 }
 
-// ---- insight carousel ----------------------------------------------------------
-function insights() {
-  const d = state.data, t = d.totals, list = [];
-  list.push({ big: Math.round(t.cacheHitRate * 100) + "%", text: `of prompt tokens came from cache <span class="muted">— repeated context is being reused rather than re-sent.</span>` });
-  if (t.cacheSavings > 0) list.push({ big: money(t.cacheSavings, 0), text: `of input cost avoided by cache reads <span class="muted">(estimate, at each model's input rate).</span>` });
-  const top = [...d.stack].filter((s) => !s.other).sort((a, b) => b.tokens.reduce((x, y) => x + y, 0) - a.tokens.reduce((x, y) => x + y, 0))[0];
-  const sum = (a) => a.reduce((x, y) => x + y, 0);
-  if (top && t.tokens) list.push({ big: pctText(pct(sum(top.tokens), t.tokens)), text: `of tokens went to <b>${esc(stackLabel(top))}</b> <span class="muted">— the largest ${state.data.meta.group} in this range.</span>` });
-  const busiest = d.byDay.slice().sort((a, b) => b.tokens - a.tokens)[0];
-  if (busiest) list.push({ big: compact(busiest.tokens), text: `tokens on <b>${longDay(busiest.day)}</b> <span class="muted">— the busiest day, ${plural(busiest.messages, "message")} across ${plural(busiest.sessions, "session")}.</span>` });
-  if (t.reasoning) list.push({ big: compact(t.reasoning), text: `reasoning tokens <span class="muted">— ${pctText(pct(t.reasoning, t.output || 1))} of output, counted inside output and never added to the total.</span>` });
-  if (t.unpricedRows) list.push({ big: int(t.unpricedRows), text: `rows have no price <span class="muted">— their tokens are counted, their dollars are not. Add rates in prices.json.</span>` });
-  return list;
-}
-function drawInsight() {
-  const el = $("insight"), list = insights();
-  state.insight = ((state.insight % list.length) + list.length) % list.length;
-  const cur = list[state.insight];
-  el.innerHTML = `<div><span class="label">Insight</span><div class="big">${cur.big}</div><p>${cur.text}</p></div>
-    <div class="pager"><button class="icon-btn" data-step="-1" aria-label="Previous insight">‹</button>
-    <div class="dotset">${list.map((_, i) => `<i class="${i === state.insight ? "on" : ""}"></i>`).join("")}</div>
-    <button class="icon-btn" data-step="1" aria-label="Next insight">›</button></div>`;
-  el.querySelectorAll("[data-step]").forEach((b) => b.addEventListener("click", () => { state.insight += Number(b.dataset.step); drawInsight(); }));
-}
-
-// ---- heatmap -------------------------------------------------------------------
+// ---- heatmap --------------------------------------------------------------------
 function drawHeat() {
   const d = state.data, el = $("heat");
-  const key = state.metric === "cost" ? "cost" : state.metric === "messages" ? "messages" : "tokens";
+  const key = state.metric;
   const end = new Date(d.heatmap.to + "T00:00:00Z");
   const WEEKS = 53, CELL = 13, GAP = 3, LEFT = 30, TOP = 16;
   const start = new Date(end);
@@ -672,83 +720,85 @@ function drawHeat() {
     const day = ev.target.dataset?.day;
     if (!day) return hideTip();
     const c = byDay[day];
-    showTip(`<div class="t">${longDay(day)}</div>` + (c.rec ? `<div class="r"><span>Tokens</span><b class="mono">${compact(c.rec.tokens)}</b></div><div class="r"><span>Cost</span><b class="mono">${money(c.rec.cost)}</b></div><div class="r"><span>Messages</span><b class="mono">${int(c.rec.messages)}</b></div>` : `<div class="muted">No usage</div>`), ev);
+    showTip(`<div class="t">${longDay(day)}</div>` + (c.rec ? `<div class="r"><span>Cost</span><b class="mono">${money(c.rec.cost)}</b></div><div class="r"><span>Tokens</span><b class="mono">${compact(c.rec.tokens)}</b></div><div class="r"><span>Messages</span><b class="mono">${int(c.rec.messages)}</b></div>` : `<div class="muted">No usage</div>`), ev);
   });
   el.addEventListener("pointerleave", hideTip);
   el.scrollLeft = el.scrollWidth;
 }
 
-// ---- tables ----------------------------------------------------------------------
+// ---- breakdown ----------------------------------------------------------------------
 const share = (v, total, color) => `<span class="share">${pctText(pct(v, total))}<i style="--w:${Math.min(100, pct(v, total))}%;--c:${color}"></i></span>`;
+function nameCell(icon, text, row, color, extra = "", sub = "") {
+  const top = state._top || 1;
+  const w = Math.max(2, (mval(row) / top) * 100);
+  return `<td class="l name"><div class="nm">${icon}<span class="t" title="${esc(text)}">${esc(text)}</span>${extra}</div>${sub ? `<span class="sub mono">${esc(sub)}</span>` : ""}<div class="under" style="width:${w}%;background:${color}"></div></td>`;
+}
 function tableDefs(d) {
-  const T = d.totals.tokens, C = d.totals.cost;
+  const T = d.totals.tokens;
+  const C = (k, l, val, html, left = false) => ({ k, l, val, html, left });
   return {
+    models: { label: "Model", rows: d.models, count: d.models.length, defaultSort: [state.metric === "cost" ? "cost" : "tokens", -1], cols: [
+      C("model", "Model", (r) => r.model, (r) => nameCell(ai(r.agent, 15), r.model, r, agentColor(r.agent), `<small>${esc(agentName(r.agent))}</small>`), true),
+      C("cost", "Cost", (r) => r.cost, (r) => `<td>${costCell(r)}</td>`),
+      C("share", "Share", (r) => mval(r), (r) => `<td class="muted">${pctText(pct(mval(r), mval(d.totals)))}</td>`),
+      C("tokens", "Tokens", (r) => r.tokens, (r) => `<td>${compact(r.tokens)}</td>`),
+      C("input", "In", (r) => r.input, (r) => `<td class="muted">${compact(r.input)}</td>`),
+      C("output", "Out", (r) => r.output, (r) => `<td class="muted">${compact(r.output)}</td>`),
+      C("cacheRead", "Cache read", (r) => r.cacheRead, (r) => `<td class="muted">${compact(r.cacheRead)}</td>`),
+    ] },
     sessions: { label: "Sessions", rows: d.sessions, count: d.sessionCount, defaultSort: ["lastDay", -1], cols: [
-      { k: "title", l: "Session", left: true, val: (r) => (r.thread?.title || r.project), html: (r) => `<td class="l main"><span class="ttl">${esc(r.thread?.title || tail(r.project, 2))}</span><span class="sub mono">${esc(r.session.replace(/^[a-z]+:/, "").slice(0, 36))}</span></td>` },
-      { k: "project", l: "Project", left: true, val: (r) => r.project, html: (r) => `<td class="l muted" title="${esc(r.project)}">${esc(tail(r.project, 2))}</td>` },
-      { k: "agent", l: "Agent", left: true, val: (r) => r.agent, html: (r) => `<td class="l"><span class="agent">${icon(r.agent)}${esc(agentName(r.agent))}</span></td>` },
-      { k: "model", l: "Model", left: true, val: (r) => r.model, html: (r) => `<td class="l muted">${esc(r.model)}${r.modelCount > 1 ? ` <span class="pill">+${r.modelCount - 1}</span>` : ""}</td>` },
-      { k: "tokens", l: "Tokens", val: (r) => r.tokens, html: (r) => `<td>${compact(r.tokens)}</td>` },
-      { k: "cacheRead", l: "Cache", val: (r) => r.cacheRead, html: (r) => `<td class="muted">${compact(r.cacheRead)}</td>` },
-      { k: "cost", l: "Cost", val: (r) => r.cost, html: (r) => `<td>${costCell(r)}</td>` },
-      { k: "messages", l: "Msgs", val: (r) => r.messages, html: (r) => `<td class="muted">${int(r.messages)}</td>` },
-      { k: "lastDay", l: "Last active", val: (r) => r.lastDay, html: (r) => `<td class="muted">${shortDay(r.lastDay)}</td>` },
+      C("title", "Session", (r) => r.thread?.title || r.project, (r) => nameCell(ai(r.agent, 15), r.thread?.title || tail(r.project, 2), r, agentColor(r.agent), r.modelCount > 1 ? `<span class="pill">${r.modelCount} models</span>` : "", r.session.replace(/^[a-z]+:/, "").slice(0, 36)), true),
+      C("project", "Project", (r) => r.project, (r) => `<td class="l muted" title="${esc(r.project)}">${esc(tail(r.project, 2))}</td>`, true),
+      C("model", "Model", (r) => r.model, (r) => `<td class="l muted">${esc(r.model)}</td>`, true),
+      C("cost", "Cost", (r) => r.cost, (r) => `<td>${costCell(r)}</td>`),
+      C("tokens", "Tokens", (r) => r.tokens, (r) => `<td>${compact(r.tokens)}</td>`),
+      C("cacheRead", "Cache", (r) => r.cacheRead, (r) => `<td class="muted">${compact(r.cacheRead)}</td>`),
+      C("messages", "Msgs", (r) => r.messages, (r) => `<td class="muted">${int(r.messages)}</td>`),
+      C("lastDay", "Last active", (r) => r.lastDay, (r) => `<td class="muted">${niceDay(r.lastDay)}</td>`),
     ] },
-    projects: { label: "Projects", rows: d.projects, count: d.projects.length, defaultSort: ["tokens", -1], cols: [
-      { k: "project", l: "Project", left: true, val: (r) => r.project, html: (r) => `<td class="l main"><span class="ttl">${esc(tail(r.project, 3))}</span><span class="sub mono">${esc(r.project)}</span></td>` },
-      { k: "sessions", l: "Sessions", val: (r) => r.sessions, html: (r) => `<td>${int(r.sessions)}</td>` },
-      { k: "tokens", l: "Tokens", val: (r) => r.tokens, html: (r) => `<td>${compact(r.tokens)}</td>` },
-      { k: "cacheRead", l: "Cache", val: (r) => r.cacheRead, html: (r) => `<td class="muted">${compact(r.cacheRead)}</td>` },
-      { k: "cost", l: "Cost", val: (r) => r.cost, html: (r) => `<td>${costCell(r)}</td>` },
-      { k: "messages", l: "Msgs", val: (r) => r.messages, html: (r) => `<td class="muted">${int(r.messages)}</td>` },
-      { k: "share", l: "Share", val: (r) => r.tokens, html: (r) => `<td>${share(r.tokens, T, "var(--accent)")}</td>` },
+    projects: { label: "Projects", rows: d.projects, count: d.projects.length, defaultSort: [state.metric === "cost" ? "cost" : "tokens", -1], cols: [
+      C("project", "Project", (r) => r.project, (r) => nameCell(`<i class="dot" style="background:var(--accent)"></i>`, tail(r.project, 3), r, "var(--accent)", "", r.project), true),
+      C("sessions", "Sessions", (r) => r.sessions, (r) => `<td>${int(r.sessions)}</td>`),
+      C("cost", "Cost", (r) => r.cost, (r) => `<td>${costCell(r)}</td>`),
+      C("tokens", "Tokens", (r) => r.tokens, (r) => `<td>${compact(r.tokens)}</td>`),
+      C("cacheRead", "Cache", (r) => r.cacheRead, (r) => `<td class="muted">${compact(r.cacheRead)}</td>`),
+      C("messages", "Msgs", (r) => r.messages, (r) => `<td class="muted">${int(r.messages)}</td>`),
+      C("share", "Share", (r) => r.tokens, (r) => `<td>${share(r.tokens, T, "var(--accent)")}</td>`),
     ] },
-    agents: { label: "Agents", rows: d.agents, count: d.agents.length, defaultSort: ["tokens", -1], cols: [
-      { k: "agent", l: "Agent", left: true, val: (r) => r.agent, html: (r) => `<td class="l"><span class="agent">${icon(r.agent, 17)}<b style="font-weight:500">${esc(agentName(r.agent))}</b></span></td>` },
-      { k: "sessions", l: "Sessions", val: (r) => r.sessions, html: (r) => `<td>${int(r.sessions)}</td>` },
-      { k: "tokens", l: "Tokens", val: (r) => r.tokens, html: (r) => `<td>${compact(r.tokens)}</td>` },
-      { k: "cost", l: "Cost", val: (r) => r.cost, html: (r) => `<td>${costCell(r)}</td>` },
-      { k: "messages", l: "Msgs", val: (r) => r.messages, html: (r) => `<td class="muted">${int(r.messages)}</td>` },
-      { k: "activeMs", l: "Active", val: (r) => r.activeMs, html: (r) => `<td class="muted">${r.activeMs ? duration(r.activeMs) : "-"}</td>` },
-      { k: "share", l: "Share", val: (r) => r.tokens, html: (r) => `<td>${share(r.tokens, T, agentColor(r.agent))}</td>` },
+    agents: { label: "Providers", rows: d.agents, count: d.agents.length, defaultSort: [state.metric === "cost" ? "cost" : "tokens", -1], cols: [
+      C("agent", "Provider", (r) => r.agent, (r) => nameCell(ai(r.agent, 17), agentName(r.agent), r, agentColor(r.agent)), true),
+      C("sessions", "Sessions", (r) => r.sessions, (r) => `<td>${int(r.sessions)}</td>`),
+      C("cost", "Cost", (r) => r.cost, (r) => `<td>${costCell(r)}</td>`),
+      C("tokens", "Tokens", (r) => r.tokens, (r) => `<td>${compact(r.tokens)}</td>`),
+      C("messages", "Msgs", (r) => r.messages, (r) => `<td class="muted">${int(r.messages)}</td>`),
+      C("activeMs", "Active", (r) => r.activeMs, (r) => `<td class="muted">${r.activeMs ? duration(r.activeMs) : "-"}</td>`),
+      C("share", "Share", (r) => r.tokens, (r) => `<td>${share(r.tokens, T, agentColor(r.agent))}</td>`),
     ] },
-    models: { label: "Models", rows: d.models, count: d.models.length, defaultSort: ["tokens", -1], cols: [
-      { k: "model", l: "Model", left: true, val: (r) => r.model, html: (r) => `<td class="l"><span class="agent">${icon(r.agent)}${esc(r.model)}</span></td>` },
-      { k: "agent", l: "Agent", left: true, val: (r) => r.agent, html: (r) => `<td class="l muted">${esc(agentName(r.agent))}</td>` },
-      { k: "tokens", l: "Tokens", val: (r) => r.tokens, html: (r) => `<td>${compact(r.tokens)}</td>` },
-      { k: "input", l: "In", val: (r) => r.input, html: (r) => `<td class="muted">${compact(r.input)}</td>` },
-      { k: "output", l: "Out", val: (r) => r.output, html: (r) => `<td class="muted">${compact(r.output)}</td>` },
-      { k: "cacheRead", l: "Cache read", val: (r) => r.cacheRead, html: (r) => `<td class="muted">${compact(r.cacheRead)}</td>` },
-      { k: "cost", l: "Cost", val: (r) => r.cost, html: (r) => `<td>${costCell(r)}</td>` },
-      { k: "share", l: "Share", val: (r) => r.tokens, html: (r) => `<td>${share(r.tokens, T, agentColor(r.agent))}</td>` },
-    ] },
-    days: { label: "Days", rows: d.byDay, count: d.byDay.length, defaultSort: ["day", -1], cols: [
-      { k: "day", l: "Day", left: true, val: (r) => r.day, html: (r) => `<td class="l">${longDay(r.day)}</td>` },
-      { k: "sessions", l: "Sessions", val: (r) => r.sessions, html: (r) => `<td>${int(r.sessions)}</td>` },
-      { k: "tokens", l: "Tokens", val: (r) => r.tokens, html: (r) => `<td>${compact(r.tokens)}</td>` },
-      { k: "cost", l: "Cost", val: (r) => r.cost, html: (r) => `<td>${costCell(r)}</td>` },
-      { k: "messages", l: "Msgs", val: (r) => r.messages, html: (r) => `<td class="muted">${int(r.messages)}</td>` },
+    days: { label: "Day", rows: d.byDay, count: d.byDay.length, defaultSort: ["day", -1], cols: [
+      C("day", "Day", (r) => r.day, (r) => nameCell(`<i class="dot" style="background:var(--accent)"></i>`, longDay(r.day), r, "var(--accent)"), true),
+      C("sessions", "Sessions", (r) => r.sessions, (r) => `<td>${int(r.sessions)}</td>`),
+      C("cost", "Cost", (r) => r.cost, (r) => `<td>${costCell(r)}</td>`),
+      C("tokens", "Tokens", (r) => r.tokens, (r) => `<td>${compact(r.tokens)}</td>`),
+      C("messages", "Msgs", (r) => r.messages, (r) => `<td class="muted">${int(r.messages)}</td>`),
     ] },
   };
 }
 
 function drawTable() {
   const d = state.data, defs = tableDefs(d), card = $("tablecard");
-  if (!defs[state.tab]) state.tab = "sessions";
+  if (!defs[state.tab]) state.tab = "models";
   const def = defs[state.tab];
   const [sk, sd] = state.sort[state.tab] ?? def.defaultSort;
   const col = def.cols.find((c) => c.k === sk) ?? def.cols[0];
-  const rows = def.rows.slice().sort((a, b) => {
-    const x = col.val(a), y = col.val(b);
-    const c = typeof x === "string" ? x.localeCompare(y) : x - y;
-    return (c || 0) * sd;
-  });
+  const rows = def.rows.slice().sort((a, b) => { const x = col.val(a), y = col.val(b); return ((typeof x === "string" ? x.localeCompare(y) : x - y) || 0) * sd; });
+  state._top = Math.max(1, ...rows.map(mval));
   const shown = rows.slice(0, state.shown);
 
-  card.innerHTML = `<div class="tabs" role="tablist">${Object.entries(defs).map(([k, v]) => `<button role="tab" data-tab="${k}" aria-selected="${state.tab === k}">${v.label}<span class="count">${int(v.count)}</span></button>`).join("")}
-    <div class="tools"><button class="btn sm" id="csv"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 21h16"/></svg>CSV</button></div></div>
-    ${rows.length ? `<div class="table-wrap"><table><thead><tr>${def.cols.map((c) => `<th class="${c.left ? "l" : ""}" data-sort="${c.k}">${c.l}${c.k === sk ? `<span class="arr">${sd < 0 ? "↓" : "↑"}</span>` : ""}</th>`).join("")}</tr></thead>
-    <tbody>${shown.map((r, i) => `<tr class="${r.thread ? "click" : ""}" data-i="${i}" ${r.thread ? `title="Open this conversation"` : ""}>${def.cols.map((c) => c.html(r)).join("")}</tr>`).join("")}</tbody></table></div>
+  card.innerHTML = `<div class="bdhead"><h2>Breakdown</h2><span class="spacer"></span>
+      <div class="seg sm" role="tablist">${Object.entries(defs).map(([k, v]) => `<button role="tab" data-tab="${k}" aria-pressed="${state.tab === k}">${v.label}<span class="count">${int(v.count)}</span></button>`).join("")}</div>
+      <button class="btn sm" id="csv" title="Export this table as CSV">${ui("download", 13)}CSV</button></div>
+    ${rows.length ? `<div class="table-wrap"><table><thead><tr><th class="idx">#</th>${def.cols.map((c) => `<th class="${c.left ? "l" : ""}" data-sort="${c.k}">${c.l}${c.k === sk ? ui(sd < 0 ? "arrow-down" : "arrow-up", 11) : ""}</th>`).join("")}</tr></thead>
+    <tbody>${shown.map((r, i) => `<tr class="${r.thread ? "click" : ""}" data-i="${i}" ${r.thread ? `title="Open this conversation"` : ""}><td class="idx">${i + 1}</td>${def.cols.map((c) => c.html(r)).join("")}</tr>`).join("")}</tbody></table></div>
     ${rows.length > shown.length ? `<div class="more"><button class="btn" id="more">Show ${Math.min(200, rows.length - shown.length)} more of ${int(rows.length - shown.length)}</button></div>` : ""}` : `<div class="empty">Nothing matches the current filters.</div>`}`;
 
   card.querySelectorAll("[data-tab]").forEach((b) => b.addEventListener("click", () => { state.tab = b.dataset.tab; state.shown = 100; save(); drawTable(); }));
@@ -758,13 +808,12 @@ function drawTable() {
     drawTable();
   }));
   card.querySelector("#more")?.addEventListener("click", () => { state.shown += 200; drawTable(); });
-  card.querySelector("#csv").addEventListener("click", () => exportCsv(def, rows));
+  card.querySelector("#csv")?.addEventListener("click", () => exportCsv(def, rows));
   if (state.tab === "sessions") card.querySelectorAll("tr.click").forEach((tr) => tr.addEventListener("click", () => {
     const row = shown[Number(tr.dataset.i)];
     if (row?.thread) { state.view = "threads"; save(); openThread(row.thread.id); loadThreads(); render(); }
   }));
 }
-
 function exportCsv(def, rows) {
   const cols = def.cols.filter((c) => c.k !== "share");
   const cell = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
@@ -776,43 +825,36 @@ function exportCsv(def, rows) {
   URL.revokeObjectURL(a.href);
 }
 
-// ==== limits view ===============================================================
+// ==== limits ===================================================================
 function renderLimits() {
   const main = $("main"), L = state.limits;
-  if (!L) { main.innerHTML = `<div class="empty">Checking what is installed…</div>`; return; }
-  if (!L.providers.length) {
-    main.innerHTML = `<div class="empty panel">No supported agent with plan limits was found on this machine.<br>Checked: ${L.checked.map(esc).join(", ")}.</div>`;
-    return;
-  }
-  main.innerHTML = `<section class="grid limits">${L.providers.map((p) => `<div class="panel lim">
-    <h3>${icon(p.id, 20)}${esc(p.name)}${p.plan ? `<span class="plan">${esc(p.plan)}</span>` : ""}<span class="spacer"></span>${p.status === "ok" && p.asOf ? `<span class="faint" style="font-size:11px;font-weight:400" title="${esc(p.asOf)}">${ago(p.asOf)}</span>` : ""}</h3>
-    ${p.windows.map((w) => {
-      const v = Math.max(0, Math.min(100, w.percent));
-      const cls = w.stale ? "stale" : v >= 90 ? "hot" : v >= 70 ? "mid" : "";
+  if (!L) { main.innerHTML = `<div class="empty">Checking what is installed</div>`; return; }
+  if (!L.providers.length) { main.innerHTML = `<div class="empty">No supported agent with plan limits was found on this machine.<br>Checked: ${L.checked.map(esc).join(", ")}.</div>`; return; }
+  main.innerHTML = `<div class="lims">${L.providers.map((p) => `<section class="lim">
+    <div><h3>${ai(p.id, 20)}${esc(p.name)}${p.plan ? `<span class="plan">${esc(p.plan)}</span>` : ""}</h3>
+      <div class="src">${esc(p.source || "local")}${p.status === "ok" && p.asOf ? ` · ${ago(p.asOf)}` : ""}</div></div>
+    <div class="wins">${p.windows.map((w) => {
+      const v = Math.max(0, Math.min(100, w.percent)), cls = w.stale ? "stale" : v >= 90 ? "hot" : v >= 70 ? "mid" : "";
       return `<div class="win"><div class="top2"><span class="name">${esc(w.label)}</span><span class="pc">${w.stale ? '<span class="faint">reset</span>' : Math.round(w.percent) + "%"}</span></div>
         <div class="meter ${cls}" role="progressbar" aria-valuenow="${Math.round(v)}" aria-valuemin="0" aria-valuemax="100"><i style="width:${w.stale ? 0 : v}%"></i></div>
         <div class="when">${w.resetsAt ? (w.stale ? `reset ${ago(w.resetsAt)}` : `resets in ${until(w.resetsAt)} · ${new Date(w.resetsAt).toLocaleString("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit" })}`) : "no reset time reported"}</div></div>`;
-    }).join("")}
-    ${p.note ? `<div class="note ${p.status !== "ok" ? "bad" : ""}">${esc(p.note)}</div>` : ""}
-    <div class="faint" style="font-size:11px">Source: ${esc(p.source || "local")}</div></div>`).join("")}</section>
+    }).join("")}${p.note ? `<div class="note ${p.status !== "ok" ? "bad" : ""}">${esc(p.note)}</div>` : ""}</div></section>`).join("")}</div>
     <div class="foot"><div>Detected on this machine: ${L.providers.map((p) => esc(p.name)).join(", ")}. Limits are the provider's own counters, so they cover every device on the account, not only this one.</div></div>`;
 }
 
-// ==== threads view ==============================================================
+// ==== threads ==================================================================
 function renderThreads() {
   const t = state.thr, main = $("main");
-  if (t.unavailable) { main.innerHTML = `<div class="empty panel">${esc(t.unavailable)}.<br>Threads come from <code>atuin threads</code>; install atuin and enable capture with <code>atuin threads enable</code>.</div>`; return; }
+  if (t.unavailable) { main.innerHTML = `<div class="empty">${esc(t.unavailable)}.<br>Threads come from <code>atuin threads</code>; install atuin and enable capture with <code>atuin threads enable</code>.</div>`; return; }
   const list = t.list;
   main.innerHTML = `<section class="threads">
-    <div class="panel tl"><div class="bar">
-      <label class="search" style="flex:1 1 100%"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-      <input id="tq" type="search" value="${esc(t.q)}" placeholder="Search titles, messages, tool calls" autocomplete="off" style="width:100%"></label>
+    <div class="tl"><div class="bar">
+      <label class="search">${ui("search", 14)}<input class="field" id="tq" type="search" value="${esc(t.q)}" placeholder="Search titles, messages, tool calls" autocomplete="off"></label>
       <select class="field ${t.agent !== "all" ? "on" : ""}" id="tagent" aria-label="Agent"><option value="all">All agents</option>${(list?.harnesses ?? []).map((h) => `<option value="${esc(h)}" ${h === t.agent ? "selected" : ""}>${esc(agentName(h))}</option>`).join("")}</select>
       <label class="muted" style="display:flex;gap:6px;align-items:center;white-space:nowrap"><input type="checkbox" id="tsub" ${t.sub ? "checked" : ""}><span id="tsubl">Subagents${list?.hiddenSubagents ? ` (${int(list.hiddenSubagents)} hidden)` : ""}</span></label>
-    </div><div class="scroll" id="tlist">${list ? threadRows(list) : `<div class="empty">Loading…</div>`}</div>
-    <div class="faint mono" id="tcount" style="padding:8px 14px;border-top:1px solid var(--line-2);font-size:11px">${list ? `${int(list.threads.length)} of ${int(list.total)}${list.ranked ? " · best match first" : " · newest first"}` : ""}</div></div>
-    <div class="panel td" id="tdetail"></div></section>`;
-
+    </div><div class="scroll" id="tlist">${list ? threadRows(list) : `<div class="empty">Loading</div>`}</div>
+    <div class="tcount mono" id="tcount">${list ? `${int(list.threads.length)} of ${int(list.total)}${list.ranked ? " · best match first" : " · newest first"}` : ""}</div></div>
+    <div class="td" id="tdetail"></div></section>`;
   const tq = $("tq");
   tq.addEventListener("input", debounce(() => { t.q = tq.value; loadThreads().catch(() => {}); }, 280));
   $("tagent").addEventListener("change", (e) => { t.agent = e.target.value; loadThreads().catch(() => {}); });
@@ -823,7 +865,7 @@ function renderThreads() {
 function threadRows(list) {
   if (!list.threads.length) return `<div class="empty">No threads match.</div>`;
   return list.threads.map((x) => `<div class="ti ${x.id === state.thr.sel ? "on" : ""}" data-id="${esc(x.id)}">
-    <span style="padding-top:2px">${icon(x.harness, 18)}</span><span class="t">${esc(x.title || x.preview || "(untitled)")}</span><span class="when">${x.updatedAt ? ago(x.updatedAt) : ""}</span>
+    <span style="padding-top:2px">${ai(x.harness, 18)}</span><span class="t">${esc(x.title || x.preview || "(untitled)")}</span><span class="when">${x.updatedAt ? ago(x.updatedAt) : ""}</span>
     <span class="m"><span>${esc(tail(x.cwd, 2))}</span>${x.branch ? `<span class="mono">${esc(x.branch)}</span>` : ""}<span>${int(x.messages)} msgs</span>${x.subagent ? '<span class="pill">subagent</span>' : ""}</span></div>`).join("");
 }
 function refreshThreadList() {
@@ -838,8 +880,8 @@ function refreshThreadList() {
 }
 const debounce = (fn, ms) => { let h; return (...a) => { clearTimeout(h); h = setTimeout(() => fn(...a), ms); }; };
 
-// Minimal formatting: fenced code, inline code, otherwise plain text. No HTML is
-// ever taken from a message; everything is escaped first.
+// Everything from a message is escaped before it is shown; only fenced code and
+// inline code get markup.
 function formatText(text) {
   return String(text).split(/```/).map((part, i) => {
     if (i % 2) { const nl = part.indexOf("\n"); return `<pre>${esc(nl >= 0 && nl < 20 ? part.slice(nl + 1) : part)}</pre>`; }
@@ -855,22 +897,20 @@ function blockHTML(b) {
   if (b.type === "patch") return b.files.map((f) => `<details class="blk"><summary><span class="pill">${esc(f.change)}</span>${esc(tail(f.path, 3))} <span class="faint">+${f.additions} -${f.deletions}</span></summary><pre>${esc(f.diff)}</pre></details>`).join("");
   return "";
 }
-
 function renderThreadDetail() {
   const t = state.thr, el = $("tdetail");
   if (!el) return;
   $("tlist")?.querySelectorAll(".ti").forEach((r) => r.classList.toggle("on", r.dataset.id === t.sel));
   if (!t.sel) { el.innerHTML = `<div class="empty">Pick a thread to read it.<br><span class="faint">Resume gives you the exact command; nothing is started from this page.</span></div>`; return; }
   const dt = t.detail;
-  if (!dt) { el.innerHTML = `<div class="empty">Loading…</div>`; return; }
+  if (!dt) { el.innerHTML = `<div class="empty">Loading</div>`; return; }
   if (dt.error) { el.innerHTML = `<div class="empty">${esc(dt.error)}</div>`; return; }
-  const x = dt.thread;
-  const tok = x.tokens ? x.tokens.input + x.tokens.output + x.tokens.cache_read + x.tokens.cache_write : 0;
+  const x = dt.thread, tok = x.tokens ? x.tokens.input + x.tokens.output + x.tokens.cache_read + x.tokens.cache_write : 0;
   el.innerHTML = `<header><h2>${esc(x.title || "(untitled)")}</h2>
-    <div class="facts"><span style="display:inline-flex;gap:6px;align-items:center">${icon(x.harness, 15)}<b>${esc(agentName(x.harness))}</b></span>${x.model ? `<span><b>${esc(x.model)}</b></span>` : ""}<span title="${esc(x.cwd)}">${esc(tail(x.cwd, 3))}</span>${x.branch ? `<span class="mono">${esc(x.branch)}</span>` : ""}<span>${int(x.messages)} messages</span>${tok ? `<span>${compact(tok)} tokens</span>` : ""}<span>started ${x.startedAt ? new Date(x.startedAt).toLocaleString("en-GB") : "?"}</span></div>
+    <div class="facts"><span style="display:inline-flex;gap:6px;align-items:center">${ai(x.harness, 15)}<b>${esc(agentName(x.harness))}</b></span>${x.model ? `<span><b>${esc(x.model)}</b></span>` : ""}<span title="${esc(x.cwd)}">${esc(tail(x.cwd, 3))}</span>${x.branch ? `<span class="mono">${esc(x.branch)}</span>` : ""}<span>${int(x.messages)} messages</span>${tok ? `<span>${compact(tok)} tokens</span>` : ""}<span>started ${x.startedAt ? new Date(x.startedAt).toLocaleString("en-GB") : "?"}</span></div>
     <div class="actions"><button class="btn primary" id="resume">Resume</button><button class="btn" id="fork">Fork</button>
-      <select class="field" id="cont" aria-label="Continue in another agent"><option value="">Continue in…</option></select>
-      <button class="btn" id="copyid">Copy id</button></div>
+      <select class="field" id="cont" aria-label="Continue in another agent"><option value="">Continue in</option></select>
+      <button class="btn" id="copyid">${ui("copy", 13)}Copy id</button></div>
     <div id="cmdbox">${t.cmd ? cmdHTML(t.cmd) : ""}</div></header>
     <div class="scroll"><div class="msgs">${dt.messages.map((m) => `<div class="msg ${m.role}"><div class="who"><span>${esc(m.role)}</span>${m.at ? `<span>${new Date(m.at).toLocaleTimeString("en-GB")}</span>` : ""}</div>${m.content.map(blockHTML).join("")}</div>`).join("")}
       ${dt.total > dt.offset + dt.messages.length ? `<div class="faint">Showing the first ${dt.messages.length} of ${int(dt.total)} messages. Read the rest with <code>atuin threads show ${esc(x.id.slice(-8))}</code>.</div>` : ""}</div></div>`;
@@ -879,19 +919,20 @@ function renderThreadDetail() {
   $("cont").addEventListener("change", (e) => { if (e.target.value) resume(x, e.target.value); e.target.value = ""; });
   $("copyid").addEventListener("click", () => copy(x.session));
 }
-const cmdHTML = (c) => `<div class="cmd"><code>${esc(c.text)}</code><button class="btn sm" data-copy>Copy</button></div>${c.note ? `<div class="faint" style="font-size:11.5px;margin-top:6px">${esc(c.note)}</div>` : ""}`;
+const cmdHTML = (c) => `<div class="cmd"><code>${esc(c.text)}</code><button class="btn sm" data-copy>${ui("copy", 13)}Copy</button></div>${c.note ? `<div class="faint" style="font-size:11.5px;margin-top:6px">${esc(c.note)}</div>` : ""}`;
 async function resume(x, mode) {
   const t = state.thr;
   try {
     const r = await get("/api/threads/resume?id=" + encodeURIComponent(x.id));
-    const targets = Object.keys(r.continueIn);
     const sel = $("cont");
-    if (sel && sel.options.length === 1) targets.forEach((h) => sel.add(new Option(agentName(h), h)));
+    if (sel && sel.options.length === 1) Object.keys(r.continueIn).forEach((h) => sel.add(new Option(agentName(h), h)));
     if (mode === "resume") t.cmd = { text: r.resume, note: "Run this in a terminal on this machine. Nothing was started." };
     else if (mode === "fork") t.cmd = { text: r.fork, note: "Writes a new session with the same history and resumes it. The original is left alone." };
     else t.cmd = { text: r.continueIn[mode], note: `Writes the thread out as a new ${agentName(mode)} session and resumes it there.` };
     $("cmdbox").innerHTML = cmdHTML(t.cmd);
-    $("cmdbox").querySelector("[data-copy]").addEventListener("click", (e) => { copy(t.cmd.text); e.target.textContent = "Copied"; setTimeout(() => (e.target.textContent = "Copy"), 1200); });
+    $("cmdbox").querySelector("[data-copy]").addEventListener("click", (e) => {
+      const b = e.currentTarget; copy(t.cmd.text); b.innerHTML = `${ui("check", 13)}Copied`; setTimeout(() => (b.innerHTML = `${ui("copy", 13)}Copy`), 1200);
+    });
     copy(t.cmd.text);
   } catch (e) { $("cmdbox").innerHTML = `<div class="warn">${esc(e.message)}</div>`; }
 }
@@ -901,8 +942,8 @@ async function copy(text) {
   }
 }
 
-// ==== wiring ====================================================================
-const fail = (e) => { if (e.name !== "AbortError") $("main").innerHTML = `<div class="empty panel">Could not load: ${esc(e.message)}</div>`; };
+// ==== wiring ===================================================================
+const fail = (e) => { if (e.name !== "AbortError") $("main").innerHTML = `<div class="empty">Could not load: ${esc(e.message)}</div>`; };
 const reloadUsage = () => loadUsage().catch(fail);
 function setView(v) {
   state.view = v; save();
@@ -912,10 +953,17 @@ function setView(v) {
   if (v === "threads" && !state.thr.list) loadThreads().catch(fail);
   if (v === "usage" && !state.data) reloadUsage();
 }
-$("nav").addEventListener("click", (e) => { const v = e.target.closest("button")?.dataset.v; if (v) setView(v); });
+$("view").addEventListener("click", (e) => {
+  const v = e.target.closest("button")?.dataset.v;
+  if (!v) return;
+  if (v === "cost" || v === "tokens" || v === "messages") { state.metric = v; save(); setView("usage"); } else setView(v);
+});
 $("range").addEventListener("click", (e) => { const v = e.target.closest("button")?.dataset.v; if (!v) return; state.range = v; save(); if (v === "custom" && state.data) { state.from = state.from || state.data.meta.start; state.to = state.to || state.data.meta.end; } controls(); if (v !== "custom" || (state.from && state.to)) reloadUsage(); });
-$("main").addEventListener("click", (e) => { const b = e.target.closest("#group button"); if (b) { state.group = b.dataset.v; save(); reloadUsage(); } });
-$("metric").addEventListener("click", (e) => { const v = e.target.closest("button")?.dataset.v; if (v) { state.metric = v; save(); controls(); if (state.data) renderUsage(); } });
+$("main").addEventListener("click", (e) => {
+  const g = e.target.closest("#group button"), c = e.target.closest("#ctype button");
+  if (g) { state.group = g.dataset.v; save(); reloadUsage(); }
+  if (c) { state.chart = c.dataset.v; save(); renderUsage(); controls(); }
+});
 for (const k of ["host", "agent", "project", "model"]) $("f-" + k).addEventListener("change", (e) => { state[k] = e.target.value; state.shown = 100; reloadUsage(); });
 $("q").addEventListener("input", debounce((e) => { state.q = e.target.value; state.shown = 100; reloadUsage(); }, 250));
 for (const id of ["from", "to"]) $(id).addEventListener("change", (e) => { state[id] = e.target.value; if (state.from && state.to && state.from <= state.to) { state.range = "custom"; save(); reloadUsage(); } });
@@ -924,13 +972,14 @@ $("refresh").addEventListener("click", async () => {
   try { if (state.view === "limits") await loadLimits(true); else if (state.view === "threads") await loadThreads(true); else await loadUsage(true); } catch (e) { fail(e); } finally { b.classList.remove("spin"); }
 });
 let resizeTimer;
-new ResizeObserver(() => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { if (state.view === "usage" && state.data && $("chart")) drawChart(); }, 120); }).observe(document.body);
+new ResizeObserver(() => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { document.documentElement.style.setProperty("--hh", $("top").offsetHeight + "px"); if (state.view === "usage" && state.data && $("chart")) drawChart(); }, 120); }).observe(document.body);
 setInterval(() => {
   if (document.hidden) return;
   if (state.view === "usage") reloadUsage();
   else if (state.view === "limits") loadLimits().catch(() => {});
 }, 60000);
 
+if (!["cost", "tokens", "messages"].includes(state.metric)) state.metric = "cost";
 const hash = /^#threads\/([\w-]+)$/.exec(location.hash);
 if (hash) { state.view = "threads"; state.thr.sel = hash[1]; openThread(hash[1]); }
 setView(state.view);
