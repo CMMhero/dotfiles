@@ -52,8 +52,9 @@ This is standing authorization to spawn subagents without asking. Before the fir
   - git: g, ga (add .), gc (commit -m), gcl, gp, gpl, gst (short), gd (diff), gl (log --oneline --graph --decorate), gco, gb, gpo, lg (lazygit); gh-create = private repo + push + browse
   - view/search: cat (+bcat on Windows) = bat; find = fd; grep = rg --color=auto; vim/nvim = fresh ($EDITOR); ff = fastfetch; btop/htop/top = btop4win
   - misc: please/pls = sudo; ip = ifconfig.me; reload re-execs the shell; cls = clear
-  - Windows-only: update → upd (runs update.ps1 via the chezmoi source path); mise plain `activate`, no shims; vp shortcuts vpi/vpa/vpad/vpd/vpb/vpv/vpt/vpc/vpf/vpl/vpcr
-  - fish-only: du/df → dust/duf abbreviations (+ du-real/df-real escapes); add → `mise use -g`; pncr = `vp create --editor zed --package-manager pnpm`
+  - dev: `update` = upd; `add <tool>` = `mise use -g` (PowerShell also `chezmoi re-add`s the managed mise config); vp shortcuts vpi/vpa/vpad/vpd/vpb/vpv/vpt/vpc/vpf/vpl/vpcr; pncr = `vp create --editor zed --package-manager pnpm`; bcat = bat; `explorer` = FilePilot
+  - Windows-only: `wl` (WSL, lands in the distro home); mise plain `activate`, no shims
+  - fish-only: du/df → dust/duf abbreviations (+ du-real/df-real escapes); dust and duf are deliberately absent on Windows
 - Node/package: **vp-first — never raw npm/npx/bun** unless the project demands it. In both shells npm/npx are functions dispatching to vite+: install → `vp install`, install \<pkg\> → `vp add`, uninstall → `vp remove`, update → `vp update`, run → `vp run`, exec → `vpx`, plain npx → `vpx`. An unmapped npm subcommand errors with the mapping instead of guessing. Escape hatches `npm-real`/`npx-real` hit the real binaries (PowerShell via `npm.cmd`/`npx.cmd`, fish via `command`). pnpm/node themselves come from the vite+ runtime. vp shortcuts: vpi/vpa/vpad/vpd/vpb/vpv/vpt/vpc/vpf/vpl/vpcr. `skills` is a wrapper over vpx with global + agent + auto-yes defaults, and `npx skills` routes into it.
 - Python: use **uv** — `uv add` / `uv run` / `uv sync` / `uvx`. Manage project deps and venvs with uv, not raw pip/venv.
 
