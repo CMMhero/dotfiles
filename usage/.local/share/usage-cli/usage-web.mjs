@@ -124,7 +124,8 @@ function serveThreads(res, url) {
   let job;
   if (url.pathname === "/api/threads") {
     job = listThreads({
-      q: q.get("q") ?? "", harness: q.get("harness") ?? "all",
+      q: q.get("q") ?? "", harness: q.get("harness") ?? "all", host: q.get("host") ?? "all", model: q.get("model") ?? "all",
+      project: q.get("project") ?? "all", days: q.get("days") ?? 0, limit: q.get("limit") ?? 200,
       subagents: q.get("subagents") === "1", fresh: q.get("fresh") === "1",
     });
   } else if (url.pathname === "/api/threads/show") {

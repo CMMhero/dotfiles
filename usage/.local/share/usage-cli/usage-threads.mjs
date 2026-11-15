@@ -53,6 +53,8 @@ function brief(thread) {
     id: thread.atuin_id,
     session: thread.session_id,
     harness: thread.harness,
+    host: thread.host ?? null,
+    machine: machines?.get(thread.host)?.label ?? null,
     title: thread.title ?? "",
     preview: clip(thread.preview ?? "", 240),
     cwd: thread.cwd ?? null,
@@ -67,10 +69,48 @@ function brief(thread) {
   };
 }
 
+const folderOf = (cwd) => String(cwd ?? "").split(/[\\/]/).filter(Boolean).at(-1) ?? "";
+
+// atuin knows a machine only by an id. A name is worked out from the folders its
+// threads ran in: the account in /home/<user> or C:\Users\<user>, and the system
+// those paths belong to. Two machines that come out alike get the end of their id
+// appended, and the one this server runs on is marked.
+let machines = null;
+let localHost;
+async function nameMachines(threads) {
+  if (localHost === undefined) {
+    try { localHost = /host id:\s*(\w+)/.exec(await run(["info"], 10_000))?.[1] ?? null; } catch { localHost = null; }
+  }
+  const seen = new Map();
+  for (const thread of threads) {
+    if (!thread.host) continue;
+    const entry = seen.get(thread.host) ?? { count: 0, users: new Map(), win: 0, wsl: 0, nix: 0 };
+    entry.count += 1;
+    const cwd = String(thread.cwd ?? "");
+    const user = /^[A-Za-z]:\\Users\\([^\\]+)/.exec(cwd)?.[1] ?? /^\/(?:home|Users)\/([^/]+)/.exec(cwd)?.[1] ?? /^\/mnt\/[a-z]\/Users\/([^/]+)/.exec(cwd)?.[1];
+    if (user) entry.users.set(user, (entry.users.get(user) ?? 0) + 1);
+    if (/^[A-Za-z]:\\/.test(cwd)) entry.win += 1;
+    else if (/^\/mnt\/[a-z]\//.test(cwd)) entry.wsl += 1;
+    else if (cwd.startsWith("/")) entry.nix += 1;
+    seen.set(thread.host, entry);
+  }
+  const labels = new Map();
+  for (const [id, e] of seen) {
+    const user = [...e.users.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "unknown";
+    const os = e.win >= e.nix + e.wsl ? "Windows" : e.wsl ? "WSL" : "Linux";
+    labels.set(id, { id, base: `${user} · ${os}`, count: e.count });
+  }
+  const dupes = new Map();
+  for (const l of labels.values()) dupes.set(l.base, (dupes.get(l.base) ?? 0) + 1);
+  for (const l of labels.values()) l.label = `${l.base}${dupes.get(l.base) > 1 ? ` · ${l.id.slice(-4)}` : ""}${l.id === localHost ? " (this machine)" : ""}`;
+  machines = labels;
+}
+
 let listCache = null;
 async function allThreads(fresh) {
   if (!fresh && listCache && Date.now() - listCache.at < LIST_TTL_MS) return listCache.threads;
   const threads = JSON.parse(await run(["threads", "list", "--style", "json"]));
+  await nameMachines(threads);
   listCache = { at: Date.now(), threads };
   return threads;
 }
@@ -88,29 +128,49 @@ export async function sessionIndex() {
   }
 }
 
-export async function listThreads({ q = "", harness = "all", subagents = false, limit = 200, fresh = false } = {}) {
+const counted = (threads, key) => {
+  const counts = new Map();
+  for (const thread of threads) { const k = key(thread); if (k) counts.set(k, (counts.get(k) ?? 0) + 1); }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([value, count]) => ({ value, count }));
+};
+
+export async function listThreads({ q = "", harness = "all", host = "all", model = "all", project = "all", days = 0, subagents = false, limit = 200, fresh = false } = {}) {
   if (harness !== "all" && !HARNESS.test(harness)) throw new Error("bad harness");
-  let threads;
+  const all = await allThreads(fresh);
+  let threads = all;
   const query = String(q).trim();
   if (query) {
     // Atuin's own full-text search (titles, messages, reasoning, tool calls), best
     // match first. Words are separate argv entries after `--`, so a query that
-    // starts with a dash is still a query.
-    const args = ["threads", "search", "--limit", String(Math.min(limit, 100)), "--style", "json"];
+    // starts with a dash is still a query. The other filters are applied to its
+    // answer here, so search and filters combine.
+    const args = ["threads", "search", "--limit", "0", "--style", "json"];
     if (harness !== "all") args.push("--harness", harness);
     args.push("--", ...query.split(/\s+/).slice(0, 12));
     threads = JSON.parse(await run(args)).map((hit) => hit.session ?? hit);
-  } else {
-    threads = await allThreads(fresh);
-    if (harness !== "all") threads = threads.filter((t) => t.harness === harness);
   }
-  const harnesses = [...new Set((await allThreads(false)).map((t) => t.harness))].sort();
-  const visible = subagents ? threads : threads.filter((t) => t.parent_kind !== "subagent");
+  const since = Number(days) > 0 ? Date.now() - Number(days) * 86_400_000 : 0;
+  const keep = (thread) =>
+    (harness === "all" || thread.harness === harness) &&
+    (host === "all" || thread.host === host) &&
+    (model === "all" || thread.model === model) &&
+    (project === "all" || folderOf(thread.cwd) === project) &&
+    (!since || Date.parse(thread.updated_at) >= since);
+  const matched = threads.filter(keep);
+  const visible = subagents ? matched : matched.filter((thread) => thread.parent_kind !== "subagent");
+  const top = Math.max(1, Math.min(2000, Number(limit) || 200));
   return {
     total: visible.length,
-    hiddenSubagents: threads.length - visible.length,
-    harnesses,
-    threads: visible.slice(0, limit).map(brief),
+    hiddenSubagents: matched.length - visible.length,
+    // Menus list everything atuin has, so choosing one filter does not empty the others.
+    options: {
+      machines: [...(machines?.values() ?? [])].sort((a, b) => b.count - a.count).map((m) => ({ value: m.id, label: m.label, count: m.count })),
+      agents: counted(all, (thread) => thread.harness),
+      models: counted(all, (thread) => thread.model),
+      projects: counted(all, (thread) => folderOf(thread.cwd)).slice(0, 80),
+    },
+    harnesses: [...new Set(all.map((thread) => thread.harness))].sort(),
+    threads: visible.slice(0, top).map(brief),
     ranked: Boolean(query),
   };
 }
