@@ -23,7 +23,7 @@
   :root {
     --bg: #24273a; --raised: #1e2030; --deep: #181926;
     --line: #363a4f; --line-2: #2e3248;
-    --text: #cad3f5; --muted: #a5adcb; --faint: #6e738d;
+    --text: #cad3f5; --muted: #a5adcb; --faint: #8087a2;
     --accent: #c6a0f6; --accent-soft: rgba(198, 160, 246, .16); --accent-line: rgba(198, 160, 246, .45); --on-accent: #181926;
     --good: #a6da95; --warn: #eed49f; --bad: #ed8796; --up: #f5a97f; --down: #7dc4e4;
     --hover: rgba(202, 211, 245, .05);
@@ -40,7 +40,7 @@
   :root[data-theme="light"] {
     --bg: #eff1f5; --raised: #e6e9ef; --deep: #dce0e8;
     --line: #ccd0da; --line-2: #dce0e8;
-    --text: #4c4f69; --muted: #6c6f85; --faint: #9ca0b0;
+    --text: #4c4f69; --muted: #5c5f77; --faint: #7c7f93;
     --accent: #8839ef; --accent-soft: rgba(136, 57, 239, .12); --accent-line: rgba(136, 57, 239, .4); --on-accent: #eff1f5;
     --good: #40a02b; --warn: #df8e1d; --bad: #d20f39; --up: #fe640b; --down: #209fb5;
     --hover: rgba(76, 79, 105, .06);
@@ -50,6 +50,8 @@
     color-scheme: light;
   }
   * { box-sizing: border-box; }
+  /* The scrollbar's space is always reserved, so a short view and a long one line up. */
+  html { scrollbar-gutter: stable; }
   html, body { margin: 0; background: var(--bg); color: var(--text); }
   body { font: 13px/1.5 var(--sans); font-feature-settings: "tnum" 1, "cv11" 1; -webkit-font-smoothing: antialiased; min-height: 100vh; }
   button, select, input { font: inherit; color: inherit; }
@@ -72,7 +74,17 @@
   .top { position: sticky; top: 0; z-index: 30; background: color-mix(in srgb, var(--bg) 90%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
   /* Content stops growing at --maxw and centres, so an ultrawide screen gets margins instead of very long rows. */
   .row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; padding: 11px var(--pad); max-width: var(--maxw); margin: 0 auto; }
-  .row.sub { padding-top: 0; padding-bottom: 10px; gap: 8px 12px; }
+  .row.sub { padding-top: 0; padding-bottom: 10px; gap: 8px 12px; min-height: 46px; }
+  .uonly { display: inline-flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; }
+  .stamp { min-width: 14ch; text-align: right; font-size: 11px; }
+  .btn.ghost { background: transparent; color: var(--muted); transition: opacity .15s; }
+  .btn.ghost.off { opacity: 0; pointer-events: none; }
+  .busybar { position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; overflow: hidden; opacity: 0; transition: opacity .2s; }
+  .busybar::after { content: ""; position: absolute; inset: 0; width: 35%; background: var(--accent); border-radius: 2px; animation: slide 1s ease-in-out infinite; }
+  body.busy .busybar { opacity: 1; }
+  @keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(290%); } }
+  button, select, input, .ti, tr, th, .it { transition: background-color .15s, border-color .15s, color .15s; }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } body.busy .busybar::after { width: 100%; } }
   .crumbs { display: flex; align-items: center; gap: 4px; color: var(--muted); font-weight: 500; }
   .brand { color: var(--muted); font-weight: 500; margin-right: -6px; }
   .crumbs .sep { color: var(--faint); margin: 0 4px; }
@@ -82,20 +94,20 @@
   .pick select option { background: var(--raised); color: var(--text); font-weight: 400; }
   .pick .ui { position: absolute; right: 3px; color: var(--muted); pointer-events: none; }
   .seg { display: inline-flex; background: var(--raised); border: 1px solid var(--line); border-radius: 9px; padding: 2px; gap: 1px; }
-  .seg button { background: transparent; border: 0; border-radius: 7px; padding: 3px 9px; color: var(--muted); font-weight: 500; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+  .seg button { background: transparent; border: 0; border-radius: 7px; padding: 3px 9px; min-height: 26px; color: var(--muted); font-weight: 500; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
   .seg button:hover { color: var(--text); }
   .seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--text); box-shadow: inset 0 0 0 1px var(--accent-line); }
   .seg.sm button { padding: 2px 9px; font-size: 12px; }
   .field { background: var(--raised); border: 1px solid var(--line); border-radius: 9px; padding: 4px 10px; min-width: 0; outline: none; }
   .field:focus { border-color: var(--accent-line); }
-  select.field { appearance: none; cursor: pointer; padding-right: 26px; max-width: 220px; text-overflow: ellipsis;
+  select.field { appearance: none; cursor: pointer; padding-right: 26px; max-width: 180px; text-overflow: ellipsis;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23958ea6' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     background-repeat: no-repeat; background-position: right 8px center; }
   select.field option { background: var(--raised); }
   select.field.on { border-color: var(--accent-line); }
   .search { position: relative; display: inline-flex; align-items: center; }
   .search .ui { position: absolute; left: 9px; color: var(--faint); pointer-events: none; }
-  .search input { padding-left: 30px; width: min(300px, 40vw); }
+  .search input { padding-left: 30px; width: min(240px, 40vw); }
   input[type="date"] { color-scheme: dark; }
   .btn { background: var(--raised); border: 1px solid var(--line); border-radius: 9px; padding: 4px 11px; font-weight: 500; display: inline-flex; align-items: center; gap: 7px; }
   .btn:hover { border-color: var(--faint); }
@@ -110,7 +122,19 @@
   .custom.on { display: inline-flex; }
 
   /* ---- page ----------------------------------------------------------------- */
-  main { padding: 28px var(--pad) 72px; display: grid; gap: 40px; max-width: var(--maxw); margin: 0 auto; }
+  main { padding: 28px var(--pad) 72px; display: grid; gap: 40px; align-content: start; max-width: var(--maxw); margin: 0 auto; min-height: calc(100vh - var(--hh)); }
+  main.enter > * { animation: enter .16s ease-out; }
+  @keyframes enter { from { opacity: 0; } to { opacity: 1; } }
+  /* Space is held before the content arrives and when it changes, so nothing below
+     a chart, a legend or a table jumps. */
+  .chart { min-height: 250px; }
+  #mscatter { min-height: 280px; }
+  .keys { min-height: 42px; align-content: start; }
+  #tablecard, #mtable { min-height: 62vh; }
+  .heat-wrap { aspect-ratio: 878 / 128; max-width: 1240px; min-height: 110px; }
+  .sk { border-radius: 8px; background: linear-gradient(90deg, var(--raised) 25%, var(--line-2) 37%, var(--raised) 63%); background-size: 400% 100%; animation: sk 1.4s ease infinite; }
+  @keyframes sk { from { background-position: 100% 50%; } to { background-position: 0 50%; } }
+  .skrow { display: grid; gap: 10px; }
   main h2 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: -.005em; display: flex; align-items: center; gap: 10px; }
   h2 .sub { color: var(--faint); font-weight: 400; font-size: 12px; }
   .hero { display: grid; grid-template-columns: minmax(300px, 360px) minmax(0, 1fr); gap: clamp(24px, 4vw, 64px); align-items: start; }
@@ -305,30 +329,36 @@
 <header class="top" id="top">
   <div class="row">
     <span class="brand">Usage</span>
-    <nav class="crumbs" id="crumbs" aria-label="Scope">
-      <span class="sep" data-icon="chevron-right"></span>
-      <label class="pick"><select id="f-host" aria-label="Host"></select><span data-icon="chevron-down"></span></label>
-      <span class="sep" data-icon="chevron-right"></span>
-      <label class="pick"><select id="f-agent" aria-label="Agent"></select><span data-icon="chevron-down"></span></label>
-    </nav>
-    <div class="spacer"></div>
-    <div class="seg" id="range" role="group" aria-label="Range"></div>
     <div class="seg" id="view" role="group" aria-label="View"></div>
+    <div class="spacer"></div>
+    <span class="faint mono stamp" id="stamp" aria-live="off"></span>
     <button class="btn palbtn" id="palbtn" title="Command palette" aria-label="Command palette"><span data-icon="command" data-size="13"></span><span class="kbd">Ctrl K</span></button>
     <button class="icon-btn" id="theme" aria-label="Theme"></button>
     <button class="icon-btn" id="help" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts"><span data-icon="keyboard" data-size="16"></span></button>
     <button class="icon-btn" id="refresh" title="Reload (R)" aria-label="Reload"><span data-icon="refresh" data-size="15"></span></button>
   </div>
-  <div class="row sub" id="filters">
-    <select class="field" id="f-project" aria-label="Project"></select>
-    <select class="field" id="f-model" aria-label="Model"></select>
-    <label class="search"><span data-icon="search" data-size="14"></span><input class="field" id="q" type="search" placeholder="Search sessions, projects, models" autocomplete="off" aria-label="Search"></label>
-    <span class="custom" id="custom"><input class="field" type="date" id="from" aria-label="From"><span class="faint">to</span><input class="field" type="date" id="to" aria-label="To"></span>
+  <!-- Always present and always the same height: each view shows its own controls
+       here, so switching views never moves the page below. -->
+  <div class="row sub" id="ctx">
+    <nav class="crumbs" id="crumbs" aria-label="Scope">
+      <label class="pick"><select id="f-host" aria-label="Environment"></select><span data-icon="chevron-down"></span></label>
+      <span class="sep" data-icon="chevron-right"></span>
+      <label class="pick"><select id="f-agent" aria-label="Provider"></select><span data-icon="chevron-down"></span></label>
+    </nav>
+    <span class="uonly" id="filters">
+      <select class="field" id="f-project" aria-label="Project"></select>
+      <select class="field" id="f-model" aria-label="Model"></select>
+      <label class="search"><span data-icon="search" data-size="14"></span><input class="field" id="q" type="search" placeholder="Search sessions, models" autocomplete="off" aria-label="Search"></label>
+      <button class="btn sm ghost" id="clear" title="Clear every filter (X)"><span data-icon="x" data-size="12"></span>Clear</button>
+    </span>
+    <span class="muted" id="ctxnote"></span>
     <div class="spacer"></div>
-    <span class="faint mono" id="stamp"></span>
+    <span class="custom" id="custom"><input class="field" type="date" id="from" aria-label="From"><span class="faint">to</span><input class="field" type="date" id="to" aria-label="To"></span>
+    <div class="seg" id="range" role="group" aria-label="Range"></div>
   </div>
+  <div class="busybar" aria-hidden="true"></div>
 </header>
-<main id="main"><div class="empty">Loading</div></main>
+<main id="main"></main>
 <div class="tip" id="tip" role="tooltip"></div>
 <div id="overlay"></div>
 
@@ -408,7 +438,7 @@ const state = {
 };
 const save = () => { for (const k of ["view", "range", "group", "metric", "tab", "chart"]) store.setItem("usage." + k, state[k]); };
 
-const RANGES = [["1d", "Today"], ["7d", "7 days"], ["30d", "30 days"], ["90d", "90 days"], ["1y", "1 year"], ["all", "All"], ["custom", "Custom"]];
+const RANGES = [["1d", "Today"], ["7d", "7d"], ["30d", "30d"], ["90d", "90d"], ["1y", "1y"], ["all", "All"], ["custom", "Custom"]];
 const GROUPS = [["project", "Project"], ["agent", "Agent"], ["model", "Model"]];
 const VIEWS = [["cost", "Cost"], ["tokens", "Tokens"], ["messages", "Messages"], ["models", "Models"], ["limits", "Limits"], ["threads", "Threads"]];
 const METRIC_WORD = { cost: "cost", tokens: "tokens", messages: "messages" };
@@ -479,11 +509,17 @@ function showTip(html, ev) {
 const hideTip = () => tip.classList.remove("on");
 
 // ==== fetching =================================================================
+let inFlight = 0;
 const get = async (url, signal) => {
-  const res = await fetch(url, { signal });
-  const body = await res.json();
-  if (!res.ok || body.error) throw new Error(body.error || res.statusText);
-  return body;
+  document.body.classList.toggle("busy", ++inFlight > 0);
+  try {
+    const res = await fetch(url, { signal });
+    const body = await res.json();
+    if (!res.ok || body.error) throw new Error(body.error || res.statusText);
+    return body;
+  } finally {
+    document.body.classList.toggle("busy", --inFlight > 0);
+  }
 };
 let usageCtl = null;
 async function loadUsage(fresh = false) {
@@ -494,12 +530,18 @@ async function loadUsage(fresh = false) {
   if (state.q.trim()) q.set("q", state.q.trim());
   if (state.range === "custom" && state.from && state.to) { q.set("from", state.from); q.set("to", state.to); }
   if (fresh) q.set("fresh", "1");
-  state.data = await get("/api/usage?" + q, usageCtl.signal);
+  const data = await get("/api/usage?" + q, usageCtl.signal);
+  const sig = JSON.stringify({ ...data, meta: { ...data.meta, generatedAt: 0 }, hosts: data.hosts.map((h) => h.host + h.rows) });
+  const same = sig === state.sig && Boolean($("chart"));
+  state.sig = sig;
+  state.data = data;
   stamp();
+  if (same) return controls(); // a timer tick with identical numbers: leave the page alone
   if (state.view === "usage") render(); else controls();
 }
-async function loadModels() {
+async function loadModels(fresh = false) {
   const q = new URLSearchParams({ range: state.range });
+  if (fresh) q.set("fresh", "1");
   if (state.host !== "all") q.set("host", state.host);
   if (state.agent !== "all") q.set("harness", state.agent);
   if (state.range === "custom" && state.from && state.to) { q.set("from", state.from); q.set("to", state.to); }
@@ -542,14 +584,18 @@ function fillSelect(el, all, items, current, nameOf = (x) => x) {
   el.value = items.includes(current) ? current : "all";
   el.classList.toggle("on", el.value !== "all");
 }
+const CTX_NOTE = { limits: "Plan limits for the agents installed on this machine", threads: "Conversations captured by atuin" };
 function controls() {
   const usage = state.view === "usage", scoped = usage || state.view === "models";
   $("crumbs").classList.toggle("hide", !scoped);
   $("range").classList.toggle("hide", !scoped);
   $("filters").classList.toggle("hide", !usage);
+  $("ctxnote").textContent = CTX_NOTE[state.view] ?? "";
   $("range").innerHTML = segHTML(RANGES, state.range);
   $("view").innerHTML = segHTML(VIEWS, usage ? state.metric : state.view);
-  $("custom").classList.toggle("on", state.range === "custom");
+  $("custom").classList.toggle("on", scoped && state.range === "custom");
+  // The button keeps its place and only fades, so the search box never jumps.
+  $("clear").classList.toggle("off", !(state.host !== "all" || state.agent !== "all" || state.project !== "all" || state.model !== "all" || state.q.trim()));
   const d = state.data;
   if (d) {
     fillSelect($("f-host"), "All environments", d.options.hosts, state.host);
@@ -570,6 +616,17 @@ function render() {
   controls();
 }
 
+// ==== placeholders =============================================================
+// Shaped like the content they stand in for, so the page does not jump when the
+// data lands.
+const sk = (h, w = "100%") => `<div class="sk" style="height:${h}px;width:${w}"></div>`;
+const skRows = (n, h = 34) => `<div class="skrow">${Array.from({ length: n }, () => sk(h)).join("")}</div>`;
+const SKELETON = {
+  usage: () => `<section class="hero"><div class="skrow">${sk(48, "60%")}${sk(14, "45%")}<div style="height:8px"></div>${sk(36)}${sk(36)}${sk(36)}</div><div class="skrow">${sk(22, "30%")}${sk(250)}${sk(34)}</div></section><section>${sk(16, "80px")}<div style="height:12px"></div>${sk(42)}</section><section class="two">${sk(70)}${sk(70)}</section><section>${skRows(8)}</section>`,
+  models: () => `<section>${sk(30, "50%")}</section><section class="two">${sk(300)}${sk(300)}</section><section>${skRows(8, 44)}</section>`,
+  limits: () => `<div class="lims"><section class="lim"><div class="skrow">${sk(22, "60%")}${sk(12, "40%")}</div><div class="wins">${sk(64)}${sk(64)}</div></section><section class="lim"><div class="skrow">${sk(22, "60%")}${sk(12, "40%")}</div><div class="wins">${sk(64)}${sk(64)}</div></section></div>`,
+};
+
 // ==== usage view ===============================================================
 function stat(label, value, d = "", cls = "") {
   return `<div class="stat"><div class="k">${label}</div><div class="v ${cls}">${value}${d}</div></div>`;
@@ -577,7 +634,7 @@ function stat(label, value, d = "", cls = "") {
 
 function renderUsage() {
   const d = state.data, main = $("main");
-  if (!d) return;
+  if (!d) { main.innerHTML = SKELETON.usage(); return; }
   if (!d.hosts.length) {
     main.innerHTML = `<div class="empty">No host snapshots in <code>${esc(d.meta.usageDir)}</code> yet.<br>Run <code>usage collect</code>, then reload.</div>`;
     return;
@@ -920,7 +977,7 @@ function exportCsv(def, rows) {
 // ==== limits ===================================================================
 function renderLimits() {
   const main = $("main"), L = state.limits;
-  if (!L) { main.innerHTML = `<div class="empty">Checking what is installed</div>`; return; }
+  if (!L) { main.innerHTML = SKELETON.limits(); return; }
   if (!L.providers.length) { main.innerHTML = `<div class="empty">No supported agent with plan limits was found on this machine.<br>Checked: ${L.checked.map(esc).join(", ")}.</div>`; return; }
   main.innerHTML = `<div class="lims">${L.providers.map((p) => `<section class="lim">
     <div><h3>${ai(p.id, 20)}${esc(p.name)}${p.plan ? `<span class="plan">${esc(p.plan)}</span>` : ""}</h3>
@@ -944,7 +1001,7 @@ function renderThreads() {
       <label class="search">${ui("search", 14)}<input class="field" id="tq" type="search" value="${esc(t.q)}" placeholder="Search titles, messages, tool calls" autocomplete="off"></label>
       <select class="field ${t.agent !== "all" ? "on" : ""}" id="tagent" aria-label="Agent"><option value="all">All agents</option>${(list?.harnesses ?? []).map((h) => `<option value="${esc(h)}" ${h === t.agent ? "selected" : ""}>${esc(agentName(h))}</option>`).join("")}</select>
       <label class="muted" style="display:flex;gap:6px;align-items:center;white-space:nowrap"><input type="checkbox" id="tsub" ${t.sub ? "checked" : ""}><span id="tsubl">Subagents${list?.hiddenSubagents ? ` (${int(list.hiddenSubagents)} hidden)` : ""}</span></label>
-    </div><div class="scroll" id="tlist">${list ? threadRows(list) : `<div class="empty">Loading</div>`}</div>
+    </div><div class="scroll" id="tlist">${list ? threadRows(list) : `<div style="padding:14px 18px">${skRows(9, 48)}</div>`}</div>
     <div class="tcount mono" id="tcount">${list ? `${int(list.threads.length)} of ${int(list.total)}${list.ranked ? " · best match first" : " · newest first"}` : ""}</div></div>
     <div class="td" id="tdetail"></div></section>`;
   const tq = $("tq");
@@ -995,7 +1052,7 @@ function renderThreadDetail() {
   $("tlist")?.querySelectorAll(".ti").forEach((r) => r.classList.toggle("on", r.dataset.id === t.sel));
   if (!t.sel) { el.innerHTML = `<div class="empty">Pick a thread to read it.<br><span class="faint">Resume gives you the exact command; nothing is started from this page.</span></div>`; return; }
   const dt = t.detail;
-  if (!dt) { el.innerHTML = `<div class="empty">Loading</div>`; return; }
+  if (!dt) { el.innerHTML = `<div style="padding:22px 28px" class="skrow">${sk(24, "55%")}${sk(14, "70%")}${sk(30, "260px")}<div style="height:10px"></div>${sk(120)}${sk(40)}${sk(40)}${sk(90)}</div>`; return; }
   if (dt.error) { el.innerHTML = `<div class="empty">${esc(dt.error)}</div>`; return; }
   const x = dt.thread, tok = x.tokens ? x.tokens.input + x.tokens.output + x.tokens.cache_read + x.tokens.cache_write : 0;
   el.innerHTML = `<header><h2>${esc(x.title || "(untitled)")}</h2>
@@ -1068,13 +1125,13 @@ function modelRows() {
 
 function renderModels() {
   const main = $("main"), M = state.mod, d = M.data;
-  if (!d) { main.innerHTML = `<div class="empty">Loading the model list</div>`; return; }
+  if (!d) { main.innerHTML = SKELETON.models(); return; }
   const rows = modelRows();
   main.innerHTML = `
     <section><div class="mhead"><h2>Models</h2>
       <div class="seg sm" id="mscope">${segHTML([["used", `Used <span class="count">${d.used.length}</span>`], ["all", `All <span class="count">${d.catalog.length}</span>`]], M.scope)}</div>
       <label class="search">${ui("search", 14)}<input class="field" id="mq" type="search" value="${esc(M.q)}" placeholder="Search models and vendors" autocomplete="off"></label>
-      <span class="spacer"></span><span class="faint" style="font-size:11.5px">${d.fetchedAt ? `${esc(d.source)} · fetched ${ago(d.fetchedAt)}` : ""}</span></div>
+      <span class="spacer"></span><span class="faint" style="font-size:11.5px">${d.fetchedAt ? `${esc(d.source)} · fetched ${ago(d.fetchedAt)}${d.offline ? " · offline, not refreshing" : ""}` : ""}</span></div>
       ${d.note ? `<div class="warn" style="margin-top:10px">${esc(d.note)}</div>` : ""}</section>
     <section class="two">
       <div><div class="charthead"><span class="t">Compare</span><span class="spacer"></span>
@@ -1292,7 +1349,9 @@ document.addEventListener("keydown", (e) => {
 const fail = (e) => { if (e.name !== "AbortError") $("main").innerHTML = `<div class="empty">Could not load: ${esc(e.message)}</div>`; };
 const reloadUsage = () => (state.view === "models" ? Promise.all([loadModels(), loadUsage()]).catch(fail) : loadUsage().catch(fail));
 function setView(v) {
+  const changed = v !== state.view;
   state.view = v; save();
+  if (changed) { window.scrollTo(0, 0); const m = $("main"); m.classList.remove("enter"); void m.offsetWidth; m.classList.add("enter"); setTimeout(() => m.classList.remove("enter"), 220); }
   if (v !== "threads") history.replaceState(null, "", location.pathname);
   render();
   if (v === "limits") loadLimits().catch(fail);
@@ -1311,12 +1370,13 @@ $("main").addEventListener("click", (e) => {
   if (g) { state.group = g.dataset.v; save(); reloadUsage(); }
   if (c) { state.chart = c.dataset.v; save(); renderUsage(); controls(); }
 });
+$("clear").addEventListener("click", clearFilters);
 for (const k of ["host", "agent", "project", "model"]) $("f-" + k).addEventListener("change", (e) => { state[k] = e.target.value; state.shown = 100; reloadUsage(); });
 $("q").addEventListener("input", debounce((e) => { state.q = e.target.value; state.shown = 100; reloadUsage(); }, 250));
 for (const id of ["from", "to"]) $(id).addEventListener("change", (e) => { state[id] = e.target.value; if (state.from && state.to && state.from <= state.to) { state.range = "custom"; save(); reloadUsage(); } });
 $("refresh").addEventListener("click", async () => {
   const b = $("refresh"); b.classList.add("spin");
-  try { if (state.view === "models") await loadModels(); else if (state.view === "limits") await loadLimits(true); else if (state.view === "threads") await loadThreads(true); else await loadUsage(true); } catch (e) { fail(e); } finally { b.classList.remove("spin"); }
+  try { if (state.view === "models") await loadModels(true); else if (state.view === "limits") await loadLimits(true); else if (state.view === "threads") await loadThreads(true); else await loadUsage(true); } catch (e) { fail(e); } finally { b.classList.remove("spin"); }
 });
 let resizeTimer;
 new ResizeObserver(() => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { document.documentElement.style.setProperty("--hh", $("top").offsetHeight + "px"); if (state.view === "usage" && state.data && $("chart")) drawChart(); }, 120); }).observe(document.body);

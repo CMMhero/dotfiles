@@ -21,7 +21,9 @@ import { normalizeId, usageDir } from "./usage.mjs";
 import { summarize } from "./usage-summary.mjs";
 
 const OPENROUTER_MODELS = "https://openrouter.ai/api/v1/models";
-const TTL_MS = 24 * 60 * 60 * 1000;
+const TTL_MS = 24 * 60 * 60 * 1000; // server start: refresh in the background past this
+const OPEN_TTL_MS = 10 * 60 * 1000; // opening the Models view: refetch past this
+const FORCE_FLOOR_MS = 30 * 1000; // the reload button: refetch, but not more often than this
 
 const catalogFile = () => path.join(usageDir(), "catalog.json");
 
@@ -115,18 +117,23 @@ function matcher(models) {
   };
 }
 
+// The list is refetched when the Models view is opened and the cache is more than
+// ten minutes old, and whenever the reload button is pressed (at most once per 30
+// seconds). The request waits for the fetch, so what is shown is what was just
+// fetched. If OpenRouter cannot be reached the cached list is shown with a note:
+// an old price list is better than an empty page.
 let refreshing = null;
-export async function modelsReport(filters = {}, { offline = false } = {}) {
+export async function modelsReport(filters = {}, { offline = false, fresh = false } = {}) {
   let catalog = readCatalog();
   let note = null;
-  if (!catalog && !offline) {
-    // First visit: wait for the list once, so the page is not empty.
+  const age = Date.now() - (Date.parse(catalog?.fetchedAt) || 0);
+  if (!offline && (!catalog || age > (fresh ? FORCE_FLOOR_MS : OPEN_TTL_MS))) {
     refreshing ??= refreshCatalog().finally(() => { refreshing = null; });
     try {
       await refreshing;
       catalog = readCatalog();
     } catch (error) {
-      note = `Could not fetch the model list: ${error.message}`;
+      note = catalog ? `Could not refresh the model list (${error.message}); showing the copy from ${catalog.fetchedAt.slice(0, 16).replace("T", " ")} UTC.` : `Could not fetch the model list: ${error.message}`;
     }
   }
   const models = catalog?.models ?? [];
@@ -153,5 +160,5 @@ export async function modelsReport(filters = {}, { offline = false } = {}) {
     };
   }).sort((a, b) => b.tokens - a.tokens);
 
-  return { fetchedAt: catalog?.fetchedAt ?? null, source: "OpenRouter model list (prices, limits, Artificial Analysis and Design Arena scores)", note: note ?? (catalog ? null : "No model list cached yet. Start without --offline once to fetch it."), used: usedList, catalog: models };
+  return { fetchedAt: catalog?.fetchedAt ?? null, source: "OpenRouter model list (prices, limits, Artificial Analysis and Design Arena scores)", offline, note: note ?? (catalog ? null : "No model list cached yet. Start without --offline once to fetch it."), used: usedList, catalog: models };
 }
