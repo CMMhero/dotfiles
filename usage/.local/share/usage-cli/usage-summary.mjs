@@ -235,6 +235,7 @@ export function summarize(options = {}, { threadsBySession = null } = {}) {
   const bySession = new Map();
   const byProject = new Map();
   const byAgent = new Map();
+  const bySource = new Map(); // agent + the provider that served it
   const byModel = new Map();
   const byDay = new Map();
   const dayAcc = new Map(); // day -> accumulator, for the tile sparklines
@@ -276,7 +277,10 @@ export function summarize(options = {}, { threadsBySession = null } = {}) {
 
     bucket(byProject, row.project || "(no project)", row);
     bucket(byAgent, row.harness || "unknown", row);
-    bucket(byModel, `${row.harness}|${row.model}`, row, { model: row.model || "(unknown)", agent: row.harness || "unknown", provider: row.provider || "" });
+    bucket(bySource, `${row.harness || "unknown"}|${row.provider || ""}`, row, { agent: row.harness || "unknown", provider: row.provider || "" });
+    // The provider is part of the key: the same model through two providers is two
+    // lines, because it is billed two ways.
+    bucket(byModel, `${row.harness}|${row.provider}|${row.model}`, row, { model: row.model || "(unknown)", agent: row.harness || "unknown", provider: row.provider || "" });
     bucket(byDay, day, row);
     bucket(dayAcc, day, row);
 
@@ -349,6 +353,7 @@ export function summarize(options = {}, { threadsBySession = null } = {}) {
     sessionCount: sessions.length,
     projects: list(byProject, (key, v) => ({ project: key, ...v })).sort(byTokens),
     agents: list(byAgent, (key, v) => ({ agent: key, ...v })).sort(byTokens),
+    sources: list(bySource, (key, v, raw) => ({ agent: raw.agent, provider: raw.provider, ...v })).sort(byTokens),
     models: list(byModel, (key, v, raw) => ({ model: raw.model, agent: raw.agent, provider: raw.provider, ...v })).sort(byTokens),
     byDay: list(byDay, (key, v) => ({ day: key, ...v })).sort((a, b) => b.day.localeCompare(a.day)),
     heatmap: { from: heatFrom, to: newestDay, days: Object.fromEntries(heat) },

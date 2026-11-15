@@ -164,11 +164,24 @@ export async function showThread(id, { offset = 0 } = {}) {
 // built here as text and never executed (see the header).
 export async function resumeCommands(id, harnesses = []) {
   if (!ID.test(id)) throw new Error("bad thread id");
-  const printed = (await run(["threads", "resume", id, "--print"], 60_000)).trim().split("\n").filter(Boolean);
+  // A thread that went on separately on another machine cannot be caught up by a
+  // plain resume, and atuin says so instead of printing a command. `--as-is`
+  // resumes this machine's copy, which is what "resume it here" means, so that
+  // is the fallback, and the page says which one it got.
+  let asIs = false;
+  let printed;
+  try {
+    printed = await run(["threads", "resume", id, "--print"], 60_000);
+  } catch (error) {
+    if (error.missing) throw error;
+    printed = await run(["threads", "resume", id, "--as-is", "--print"], 60_000);
+    asIs = true;
+  }
   // atuin may add a status line before the command; the command is the last one.
-  const resume = printed.at(-1) ?? "";
+  const resume = printed.trim().split("\n").filter(Boolean).at(-1) ?? "";
   return {
     resume,
+    asIs,
     fork: `atuin threads resume ${id} --fork`,
     continueIn: Object.fromEntries(harnesses.filter((h) => HARNESS.test(h)).map((h) => [h, `atuin threads resume ${id} --in ${h}`])),
   };
