@@ -922,6 +922,7 @@ STOW_PACKAGES=(
   navi
   tealdeer
   television
+  usage
   vite-plus
 )
 
