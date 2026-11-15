@@ -109,7 +109,7 @@
   .search .ui { position: absolute; left: 9px; color: var(--faint); pointer-events: none; }
   .search input { padding-left: 30px; width: min(240px, 40vw); }
   input[type="date"] { color-scheme: dark; }
-  .btn { background: var(--raised); border: 1px solid var(--line); border-radius: 9px; padding: 4px 11px; font-weight: 500; display: inline-flex; align-items: center; gap: 7px; }
+  .btn { white-space: nowrap; flex: none; background: var(--raised); border: 1px solid var(--line); border-radius: 9px; padding: 4px 11px; font-weight: 500; display: inline-flex; align-items: center; gap: 7px; }
   .btn:hover { border-color: var(--faint); }
   .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
   .btn.primary:hover { filter: brightness(1.08); }
@@ -282,10 +282,27 @@
   .thead h2 { margin: 0; font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
   .conv { width: 100%; max-width: 900px; margin: 0 auto; padding: 8px 28px 36px; display: grid; gap: 18px; font-size: 14px; line-height: 1.6; }
   .body { word-break: break-word; min-width: 0; }
-  .body p { margin: 0 0 10px; white-space: pre-wrap; }
-  .body p:last-child { margin-bottom: 0; }
-  .body pre { background: var(--deep); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; overflow-x: auto; margin: 8px 0; font-size: 12px; line-height: 1.5; }
-  .body code.i { background: var(--raised); border: 1px solid var(--line-2); border-radius: 5px; padding: 0 5px; }
+  .body > :first-child { margin-top: 0; } .body > :last-child { margin-bottom: 0; }
+  .body p { margin: 0 0 10px; }
+  .body h3 { margin: 18px 0 8px; font-weight: 600; letter-spacing: -.01em; line-height: 1.3; }
+  .body h3.h1 { font-size: 20px; } .body h3.h2 { font-size: 17px; } .body h3.h3 { font-size: 15px; }
+  .body h3.h4, .body h3.h5, .body h3.h6 { font-size: 14px; color: var(--muted); }
+  .body ul, .body ol { margin: 0 0 10px; padding-left: 22px; }
+  .body li { margin: 3px 0; } .body li > ul, .body li > ol { margin: 3px 0 0; }
+  .body li::marker { color: var(--faint); }
+  .body a { color: var(--accent); text-underline-offset: 3px; }
+  .body strong { font-weight: 600; }
+  .body hr { border: 0; border-top: 1px solid var(--line); margin: 14px 0; }
+  .body blockquote { margin: 0 0 10px; padding: 2px 0 2px 14px; border-left: 2px solid var(--line); color: var(--muted); }
+  .body pre { background: var(--deep); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; overflow-x: auto; margin: 8px 0 10px; font-size: 12px; line-height: 1.55; }
+  .body pre code { font-size: inherit; }
+  .body code.i { background: var(--raised); border: 1px solid var(--line-2); border-radius: 5px; padding: 0 5px; font-size: .88em; }
+  .mdtable { overflow-x: auto; margin: 8px 0 12px; border: 1px solid var(--line); border-radius: 10px; }
+  .mdtable table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .mdtable th, .mdtable td { text-align: left; white-space: normal; padding: 7px 12px; border: 0; border-bottom: 1px solid var(--line-2); font-size: 13px; color: var(--text); text-transform: none; letter-spacing: 0; vertical-align: top; }
+  .mdtable th { background: var(--raised); font-weight: 600; cursor: default; }
+  .mdtable tr:last-child td { border-bottom: 0; }
+  .mdtable tbody tr:hover { background: transparent; }
   .bubble { justify-self: end; max-width: 82%; background: var(--raised); border: 1px solid var(--line); border-radius: 16px 16px 4px 16px; padding: 10px 14px 8px; min-width: 0; }
   .bubble .body { max-height: 320px; overflow-y: auto; }
   .bubble .at { text-align: right; color: var(--faint); font-size: 10.5px; margin-top: 4px; }
@@ -312,13 +329,16 @@
   .cmdline { display: flex; align-items: center; gap: 10px; min-width: 0; height: 22px; }
   .cmdline code { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); font-size: 12.5px; }
   .crow { display: flex; align-items: center; gap: 8px; min-width: 0; height: 30px; }
-  .crow > .faint { font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-  .crow .btn.primary { min-width: 186px; justify-content: center; }
+  .crow > .faint { flex: 1; font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .crow select.field { flex: none; width: 132px; }
+  .crow .btn { height: 30px; }
+  .crow .btn.primary { min-width: 138px; justify-content: center; }
   .cfoot { display: flex; align-items: center; gap: 16px; padding: 8px 6px 0; color: var(--faint); font-size: 11.5px; height: 26px; }
   .cfoot span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   .tside { padding: 14px 16px 14px 0; min-height: 0; overflow-y: auto; }
   .tside .card { background: var(--raised); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; display: grid; gap: 10px; }
+  .tside .m, .tside .f { min-height: 18px; }
   .tside hr { border: 0; border-top: 1px solid var(--line); margin: 2px -16px; }
   .tside .f { display: grid; grid-template-columns: 16px 82px minmax(0, 1fr); gap: 10px; align-items: center; color: var(--muted); }
   .tside .f .ui { color: var(--faint); }
@@ -1117,15 +1137,89 @@ function refreshThreadList() {
 }
 const debounce = (fn, ms) => { let h; return (...a) => { clearTimeout(h); h = setTimeout(() => fn(...a), ms); }; };
 
-// Everything from a message is escaped before it is shown; only fenced code and
-// inline code get markup.
-function formatText(text) {
-  return String(text).split(/```/).map((part, i) => {
-    if (i % 2) { const nl = part.indexOf("\n"); return `<pre>${esc(nl >= 0 && nl < 20 ? part.slice(nl + 1) : part)}</pre>`; }
-    const html = esc(part).replace(/`([^`\n]+)`/g, '<code class="i">$1</code>').trim();
-    return html ? `<p>${html}</p>` : "";
-  }).join("");
+// ---- markdown ---------------------------------------------------------------------
+// A small renderer for what agents write: headings, lists, tables, quotes, rules,
+// fenced and inline code, bold, italic, strikethrough and links. Every character
+// of the source is escaped before any tag is added, and links are limited to http
+// and https, so a transcript cannot inject markup or a script URL.
+function mdInline(src) {
+  const codes = [];
+  let s = String(src).replace(/`([^`\n]+)`/g, (m, c) => { codes.push(c); return `\u0000${codes.length - 1}\u0000`; });
+  s = esc(s)
+    .replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g, (m, t, u) => `<a href="${u}" target="_blank" rel="noopener noreferrer">${t}</a>`)
+    .replace(/\*\*([^*\n]+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[\s(])__([^_\n]+?)__(?=[\s).,;:!?]|$)/g, "$1<strong>$2</strong>")
+    .replace(/(^|[\s(])\*([^*\s][^*\n]*?)\*(?=[\s).,;:!?]|$)/g, "$1<em>$2</em>")
+    .replace(/(^|[\s(])_([^_\s][^_\n]*?)_(?=[\s).,;:!?]|$)/g, "$1<em>$2</em>")
+    .replace(/~~([^~\n]+?)~~/g, "<del>$1</del>");
+  return s.replace(/\u0000(\d+)\u0000/g, (m, i) => `<code class="i">${esc(codes[Number(i)])}</code>`);
 }
+const MD_RULE = /^\s*(-{3,}|\*{3,}|_{3,})\s*$/, MD_LIST = /^(\s*)([-*+]|\d+[.)])\s+(.*)$/, MD_TABLE_SEP = /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/;
+// A pipe inside backticks is text, not a column break.
+const mdCells = (line) => line.trim().replace(/`[^`]*`/g, (c) => c.replace(/\|/g, "\u0001")).replace(/^\|/, "").replace(/\|$/, "").split(/(?<!\\)\|/).map((c) => c.trim().replace(/\u0001/g, "|"));
+function md(text) {
+  const lines = String(text).replace(/\r\n?/g, "\n").split("\n"), out = [];
+  let para = [];
+  const flush = () => { if (para.length) { out.push(`<p>${para.map(mdInline).join("<br>")}</p>`); para = []; } };
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const fence = /^\s*(```|~~~)/.exec(line);
+    if (fence) {
+      flush();
+      const body = [];
+      for (i++; i < lines.length && !lines[i].trimStart().startsWith(fence[1]); i++) body.push(lines[i]);
+      out.push(`<pre><code>${esc(body.join("\n"))}</code></pre>`);
+      continue;
+    }
+    if (!line.trim()) { flush(); continue; }
+    const h = /^(#{1,6})\s+(.*?)\s*#*$/.exec(line);
+    if (h) { flush(); out.push(`<h3 class="h${h[1].length}">${mdInline(h[2])}</h3>`); continue; }
+    if (MD_RULE.test(line)) { flush(); out.push("<hr>"); continue; }
+    if (line.includes("|") && MD_TABLE_SEP.test(lines[i + 1] ?? "")) {
+      flush();
+      const head = mdCells(line), rows = [];
+      for (i += 2; i < lines.length && lines[i].includes("|") && lines[i].trim(); i++) rows.push(mdCells(lines[i]));
+      i--;
+      out.push(`<div class="mdtable"><table><thead><tr>${head.map((c) => `<th>${mdInline(c)}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr>${head.map((_, n) => `<td>${mdInline(r[n] ?? "")}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`);
+      continue;
+    }
+    if (/^\s*>/.test(line)) {
+      flush();
+      const body = [];
+      for (; i < lines.length && /^\s*>/.test(lines[i]); i++) body.push(lines[i].replace(/^\s*>\s?/, ""));
+      i--;
+      out.push(`<blockquote>${md(body.join("\n"))}</blockquote>`);
+      continue;
+    }
+    if (MD_LIST.test(line)) {
+      flush();
+      const items = [];
+      for (; i < lines.length; i++) {
+        const m = MD_LIST.exec(lines[i]);
+        if (m) items.push({ depth: Math.floor(m[1].replace(/\t/g, "  ").length / 2), ordered: /\d/.test(m[2]), text: [m[3]] });
+        else if (lines[i].trim() && /^\s+/.test(lines[i]) && items.length) items.at(-1).text.push(lines[i].trim()); // wrapped item text
+        else break;
+      }
+      i--;
+      let html = "";
+      const open = []; // stack of list tags
+      for (const it of items) {
+        const depth = Math.min(it.depth, open.length); // never skip a level
+        while (open.length > depth + 1) html += `</li></${open.pop()}>`;
+        if (open.length === depth + 1) html += "</li>";
+        else { const tag = it.ordered ? "ol" : "ul"; html += `<${tag}>`; open.push(tag); }
+        html += `<li>${it.text.map(mdInline).join("<br>")}`;
+      }
+      while (open.length) html += `</li></${open.pop()}>`;
+      out.push(html);
+      continue;
+    }
+    para.push(line);
+  }
+  flush();
+  return out.join("");
+}
+const formatText = md;
 // What a tool call was about, in one line: its description, command, path or query.
 function toolSummary(input) {
   try {
@@ -1175,51 +1269,70 @@ function conversationHTML(messages) {
   return out.join("");
 }
 
+// The frame (title bar, panel, resume bar) is drawn at once from what the list
+// already knows, and only the conversation is filled in when it arrives. Opening
+// a thread therefore changes the middle of the page and nothing around it.
+function threadBrief() {
+  const t = state.thr;
+  return t.detail?.thread ?? t.list?.threads.find((x) => x.id === t.sel) ?? { id: t.sel, title: "", harness: "", cwd: "", messages: 0 };
+}
 function renderThreadDetail() {
   const t = state.thr, el = $("tdetail"), side = $("tside");
   if (!el) return;
   $("tlist")?.querySelectorAll(".ti").forEach((r) => r.classList.toggle("on", r.dataset.id === t.sel));
-  if (!t.sel) { side.innerHTML = ""; el.innerHTML = `<div class="empty">Pick a thread to read it.<br><span class="faint">Resume gives you the exact command; nothing is started from this page.</span></div>`; return; }
-  const dt = t.detail;
-  if (!dt) { side.innerHTML = `<div class="card skrow">${sk(18, "60%")}${sk(18, "80%")}${sk(18, "50%")}${sk(60)}</div>`; el.innerHTML = `<div class="conv skrow" style="padding-top:24px">${sk(22, "45%")}<div style="height:14px"></div>${sk(80, "70%")}${sk(18)}${sk(18, "90%")}${sk(34)}${sk(34)}${sk(120)}</div>`; return; }
-  if (dt.error) { side.innerHTML = ""; el.innerHTML = `<div class="empty">${esc(dt.error)}</div>`; return; }
-  const x = dt.thread, k = x.tokens ?? {}, tok = (k.input ?? 0) + (k.output ?? 0) + (k.cache_read ?? 0) + (k.cache_write ?? 0);
-  el.innerHTML = `<header class="thead"><span class="p">${ui("folder", 14)}${esc(tail(x.cwd, 1))}</span><span class="sep">/</span><h2 title="${esc(x.title)}">${esc(x.title || "(untitled)")}</h2></header>
-    <div class="scroll" id="tscroll"><div class="conv">${conversationHTML(dt.messages)}
-      ${dt.total > dt.offset + dt.messages.length ? `<div class="faint">Showing the first ${dt.messages.length} of ${int(dt.total)} messages. Read the rest with <code>atuin threads show ${esc(x.id.slice(-8))}</code>.</div>` : ""}</div></div>
-    <div class="composer"><div class="box">
-      <div class="cmdline"><span class="faint">${ui("terminal", 14)}</span><code id="cmdtext" class="mono">Getting the resume command</code></div>
-      <div class="crow"><span class="faint" id="cmdnote">Run it in a terminal on this machine. Nothing is started from this page.</span><span class="spacer"></span>
-        <select class="field" id="cont" aria-label="Continue in another agent"><option value="">Continue in</option></select>
-        <button class="btn" id="fork">Fork</button>
-        <button class="btn primary" id="resume">${ui("copy", 13)}<span>Copy resume command</span></button></div></div>
-      <div class="cfoot"><span>${ai(x.harness, 13)}${esc(agentName(x.harness))}</span>${x.model ? `<span>${esc(x.model)}</span>` : ""}<span class="spacer"></span>${x.branch ? `<span class="mono">${ui("branch", 12)}${esc(x.branch)}</span>` : ""}</div></div>`;
-
-  const lim = state.limits?.providers.find((p) => p.id === agentKey(x.harness));
+  if (!t.sel) { side.innerHTML = ""; el.dataset.id = ""; el.innerHTML = `<div class="empty">Pick a thread to read it.<br><span class="faint">Resume gives you the exact command; nothing is started from this page.</span></div>`; return; }
+  const x = threadBrief(), dt = t.detail;
+  if (el.dataset.id !== x.id) {
+    el.dataset.id = x.id;
+    el.innerHTML = `<header class="thead"><span class="p">${ui("folder", 14)}<span id="tfolder"></span></span><span class="sep">/</span><h2 id="ttitle"></h2></header>
+      <div class="scroll" id="tscroll"><div class="conv" id="tconv"></div></div>
+      <div class="composer"><div class="box">
+        <div class="cmdline"><span class="faint">${ui("terminal", 14)}</span><code id="cmdtext" class="mono">Getting the resume command</code></div>
+        <div class="crow"><span class="faint" id="cmdnote">Run it in a terminal on this machine. Nothing is started from this page.</span>
+          <select class="field" id="cont" aria-label="Continue in another agent"><option value="">Continue in</option></select>
+          <button class="btn" id="fork">Fork</button>
+          <button class="btn primary" id="resume">${ui("copy", 13)}<span>Copy command</span></button></div></div>
+        <div class="cfoot" id="tfoot"></div></div>`;
+    $("resume").addEventListener("click", () => resume(threadBrief(), "resume", true));
+    $("fork").addEventListener("click", () => resume(threadBrief(), "fork", true));
+    $("cont").addEventListener("change", (e) => { if (e.target.value) resume(threadBrief(), e.target.value, true); e.target.value = ""; });
+    resume(x, "resume", false);
+    if (!state.limits) loadLimits().then(() => { if (state.view === "threads") renderThreadSide(); }).catch(() => {});
+  }
+  $("tfolder").textContent = tail(x.cwd, 1);
+  $("ttitle").textContent = x.title || "(untitled)";
+  $("ttitle").title = x.title || "";
+  $("tfoot").innerHTML = `<span>${ai(x.harness, 13)}${esc(agentName(x.harness))}</span>${x.model ? `<span>${esc(x.model)}</span>` : ""}<span class="spacer"></span>${x.branch ? `<span class="mono">${ui("branch", 12)}${esc(x.branch)}</span>` : ""}`;
+  const conv = $("tconv");
+  if (!dt) conv.innerHTML = `<div class="skrow">${sk(64, "62%")}<div style="height:6px"></div>${sk(16)}${sk(16, "92%")}${sk(16, "70%")}${sk(30)}${sk(30)}${sk(16, "85%")}${sk(120)}</div>`;
+  else if (dt.error) conv.innerHTML = `<div class="empty">${esc(dt.error)}</div>`;
+  else {
+    conv.innerHTML = conversationHTML(dt.messages) + (dt.total > dt.offset + dt.messages.length ? `<div class="faint">Showing the first ${dt.messages.length} of ${int(dt.total)} messages. Read the rest with <code>atuin threads show ${esc(x.id.slice(-8))}</code>.</div>` : "");
+    $("tscroll").scrollTop = 0;
+  }
+  renderThreadSide();
+}
+// The panel on its own, so limits arriving late never touch the conversation.
+// Its sections are always present: a figure that is still loading is a
+// placeholder of the same height, not a gap that opens later.
+function renderThreadSide() {
+  const side = $("tside");
+  if (!side || !state.thr.sel) return;
+  const x = threadBrief(), k = x.tokens ?? {}, tok = (k.input ?? 0) + (k.output ?? 0) + (k.cache_read ?? 0) + (k.cache_write ?? 0);
   const fact = (icon, label, value) => `<div class="f">${ui(icon, 14)}<span class="k">${label}</span><span class="v" title="${esc(value)}">${esc(value)}</span></div>`;
   const meter = (label, pc, text) => `<div class="m"><span>${esc(label)}</span><i><b style="width:${Math.max(0, Math.min(100, pc))}%"></b></i><span class="mono">${esc(text)}</span></div>`;
+  const hasLimits = ["claude", "codex"].includes(agentKey(x.harness));
+  const lim = state.limits?.providers.find((p) => p.id === agentKey(x.harness));
+  const limits = !hasLimits ? "" : !state.limits ? `<hr><div class="h">Plan limits</div>${sk(18)}${sk(18)}`
+    : lim?.windows.length ? `<hr><div class="h">${esc(lim.name)} limits${lim.plan ? ` <span class="faint">${esc(lim.plan)}</span>` : ""}</div>${lim.windows.slice(0, 2).map((w) => meter(w.label.replace(/, all models| session/g, "").replace("-hour", "h"), w.stale ? 0 : w.percent, w.stale ? "reset" : Math.round(w.percent) + "%")).join("")}`
+    : `<hr><div class="h">Plan limits</div><div class="m faint" style="display:block;height:18px">${esc(lim?.note ?? "Not reported")}</div><div style="height:18px"></div>`;
   side.innerHTML = `<div class="card">
-      ${fact("folder", "Folder", tail(x.cwd, 2))}${x.branch ? fact("branch", "Branch", x.branch) : ""}${fact("zap", "Agent", agentName(x.harness) + (x.model ? " · " + x.model : ""))}
+      ${fact("folder", "Folder", tail(x.cwd, 2))}${fact("branch", "Branch", x.branch || "-")}${fact("zap", "Agent", agentName(x.harness) + (x.model ? " · " + x.model : ""))}
       <hr>${fact("file", "Messages", int(x.messages))}${fact("sparkles", "Started", x.startedAt ? new Date(x.startedAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" }) : "-")}${fact("refresh", "Last active", x.updatedAt ? ago(x.updatedAt) : "-")}
-      ${tok ? `<hr><div class="h">Tokens <span class="mono faint">${compact(tok)}</span></div>${[["Input", k.input], ["Output", k.output], ["Cache read", k.cache_read], ["Cache write", k.cache_write]].map(([l, v]) => meter(l, pct(v ?? 0, tok), compact(v ?? 0))).join("")}` : ""}
-      ${lim?.windows.length ? `<hr><div class="h">${esc(lim.name)} limits${lim.plan ? ` <span class="faint">${esc(lim.plan)}</span>` : ""}</div>${lim.windows.map((w) => meter(w.label.replace(/, all models|-hour| session/g, (s) => (s === "-hour" ? "h" : "")), w.stale ? 0 : w.percent, w.stale ? "reset" : Math.round(w.percent) + "%")).join("")}` : ""}
+      <hr><div class="h">Tokens <span class="mono faint">${compact(tok)}</span></div>${[["Input", k.input], ["Output", k.output], ["Cache read", k.cache_read], ["Cache write", k.cache_write]].map(([l, v]) => meter(l, pct(v ?? 0, tok), compact(v ?? 0))).join("")}
+      ${limits}
       <hr><button class="btn sm" id="copyid">${ui("copy", 12)}Copy session id</button></div>`;
-
-  $("resume").addEventListener("click", () => resume(x, "resume", true));
-  $("fork").addEventListener("click", () => resume(x, "fork", true));
-  $("cont").addEventListener("change", (e) => { if (e.target.value) resume(x, e.target.value, true); e.target.value = ""; });
   $("copyid").addEventListener("click", () => copy(x.session));
-  resume(x, "resume", false);
-  if (!state.limits) loadLimits().then(() => { if (state.view === "threads" && state.thr.sel === x.id && !$("tside").querySelector(".lim-on")) renderSideOnly(); }).catch(() => {});
-}
-// Limits arrive after the thread: redraw only the panel, not the conversation,
-// so the reader's scroll position and any open step stay as they were.
-function renderSideOnly() {
-  const scroll = $("tscroll")?.scrollTop ?? 0, open = [...document.querySelectorAll("#tdetail details")].map((d) => d.open);
-  renderThreadDetail();
-  if ($("tscroll")) $("tscroll").scrollTop = scroll;
-  document.querySelectorAll("#tdetail details").forEach((d, i) => { d.open = Boolean(open[i]); });
-  $("tside").firstElementChild?.classList.add("lim-on");
 }
 // The command sits on one line and is cut with an ellipsis, so a long path never
 // changes the height of the bar; the full text is in the tooltip and in the copy.
@@ -1244,7 +1357,7 @@ async function resume(x, mode, doCopy) {
       copy(text);
       const b = $("resume"), label = b.querySelector("span");
       b.firstElementChild.outerHTML = ui("check", 13); label.textContent = "Copied";
-      setTimeout(() => { if (b.isConnected) { b.firstElementChild.outerHTML = ui("copy", 13); label.textContent = mode === "resume" ? "Copy resume command" : "Copy command"; } }, 1300);
+      setTimeout(() => { if (b.isConnected) { b.firstElementChild.outerHTML = ui("copy", 13); label.textContent = "Copy command"; } }, 1300);
     }
   } catch (e) { t.cmds = null; code = $("cmdtext"); note = $("cmdnote"); if (code) { code.textContent = "No resume command for this thread"; code.title = e.message; note.textContent = e.message.split("\n")[0]; } }
 }
