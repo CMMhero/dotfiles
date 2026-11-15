@@ -922,6 +922,7 @@ STOW_PACKAGES=(
   navi
   tealdeer
   television
+  ttt
   usage
   vite-plus
 )
@@ -1614,7 +1615,7 @@ echo "      pnpm $(pnpm --version 2>/dev/null || echo '?'), bun/npm/yarn shims v
 echo "  - Python manager: uv (pip/venv/run/build)"
 echo "  - Terminal multiplexer: herdr (with custom keybinds & Catppuccin theme)"
 echo "  - Terminal emulator config: wezterm (.wezterm.lua, Windows-only; in repo, not stowed on Linux)"
-echo "  - Editor: fresh (fresh-editor) with catppuccin theme, color-highlighter plugin, vi-mode + toggle"
+echo "  - Editor: ttt (settings.json from the live config, \$EDITOR=ttt --new-window); fresh (catppuccin, vi-mode) is the fallback"
 echo "  - AI Agents: opencode (Homebrew), pi + oh-my-pi (omp) via mise"
 echo "  - Agent extensions: pi packages from ~/.pi/agent/settings.json, omp plugins from ~/.omp/plugins/package.json"
 echo "  - Skills: ~/skills store (git) symlinked into every harness; install with 'skills add <pkg>'"
