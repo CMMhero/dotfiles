@@ -1,5 +1,7 @@
 [core]
-	editor = fresh
+	# --new-window: ttt's reuseWindow setting makes a plain `ttt` return at once,
+	# and git needs an editor that blocks until the message is saved.
+	editor = ttt --new-window
 	# hunk is the pager. It detects diff output and renders it in its own
 	# review UI instead of a scrollback, and falls back to a plain pager for
 	# non-diff output such as `git log --oneline`.

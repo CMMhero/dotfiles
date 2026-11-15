@@ -109,7 +109,13 @@ set -gx NONINTERACTIVE 1
 set -gx HOMEBREW_NO_ASK 1
 
 # ---------- Editor ----------
-if command -q fresh
+# ttt's settings.json sets reuseWindow, which makes a plain `ttt` hand the file
+# to a running editor and return at once. git and anything else that waits for the
+# edit needs `--new-window`, so that is what the variables carry.
+if command -q ttt
+    set -gx EDITOR 'ttt --new-window'
+    set -gx VISUAL 'ttt --new-window'
+else if command -q fresh
     set -gx EDITOR fresh
     set -gx VISUAL fresh
 else if command -q nvim

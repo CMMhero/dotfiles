@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "theme": "dracula",
+  "reuseWindow": true,
+  "appearance": {
+    "icons": "nerd-font",
+    "scrollbarGlyphs": "blocks",
+    "pointerShapes": true
+  },
+  "editor": {
+    "autoClosing": {
+      "brackets": true,
+      "quotes": true,
+      "skipClosing": true,
+      "deletePairs": true,
+      "inStrings": false,
+      "plainText": false
+    },
+    "tabSize": 2,
+    "insertSpaces": false,
+    "wordWrap": true,
+    "wordWrapColumn": 0,
+    "diffMode": "split",
+    "diffContext": "changes",
+    "diffWordWrap": true,
+    "diffHighContrast": false,
+    "diffEmphasizeCollapsedRows": false,
+    "diffSigns": false,
+    "diffSignsColor": true,
+    "diffGutterHighlight": true,
+    "diffColorGutterNumbers": false,
+    "diffScrollbarGitMarks": false,
+    "lineNumbers": true,
+    "cursorStyle": "block",
+    "selectionStyle": "background",
+    "formatOnSave": true,
+    "insertFinalNewline": true,
+    "trimTrailingWhitespace": true,
+    "focusOnOpen": false,
+    "syntaxHighlight": true,
+    "gitGutter": false,
+    "scrollbarGitMarks": true,
+    "autoDedent": true,
+    "autoIndent": true,
+    "gutterStyle": "compact",
+    "borderStyle": "rounded",
+    "bracketPairColorization": true,
+    "showTrailingNewline": false,
+    "menuBar": true,
+    "transparentBackground": true,
+    "saveAllOnQuit": true,
+    "saveAllOnQuitExceptUnnamed": false
+  },
+  "quickOpen": {
+    "showHidden": true,
+    "showGitIgnored": false
+  },
+  "search": {
+    "debounce": 350
+  },
+  "explorer": {
+    "showHidden": true,
+    "showGitIgnored": true,
+    "gitStatusColors": true,
+    "dimStagedGitColors": false,
+    "autoReveal": true,
+    "compactFolders": true
+  },
+  "sidebar": {
+    "tabStyle": "label-icon"
+  },
+  "git": {
+    "fileView": "tree"
+  },
+  "terminal": {
+    "scrollback": 1000,
+    "selectionStyle": "background",
+    "ctrlVPastes": true,
+    "padding_x": 1
+  },
+  "lsp": {
+    "saveOnRename": false,
+    "hoverDelay": 500
+  },
+  "autocomplete": {
+    "enabled": true,
+    "autoSuggest": true,
+    "debounce": 150,
+    "signatureHelp": true
+  },
+  "markdown": {
+    "wrapWidth": 80
+  },
+  "image": {
+    "protocol": "auto"
+  },
+  "plugins": {
+    "enabled": true,
+    "selectionStyle": "invert"
+  },
+  "welcome": {
+    "showOnHome": true,
+    "recentFolders": true
+  }
+}

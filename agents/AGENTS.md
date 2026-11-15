@@ -50,7 +50,7 @@ This is standing authorization to spawn subagents without asking. Before the fir
   - list: eza with `--icons=auto --group-directories-first` — ls shows all (`-aF`); l/la slim (`--no-filesize --no-permissions --no-user`); ll adds `--git`; tree/dtree prune `node_modules` + `.git`
   - open: c / c. = zed (falls back to $EDITOR when zed is absent); e / e. / explorer = FilePilot, falling back to explorer.exe
   - git: g, ga (add .), gc (commit -m), gcl, gp, gpl, gst (short), gd (diff), gl (log --oneline --graph --decorate), gco, gb, gpo, lg (lazygit); gh-create = private repo + push + browse
-  - view/search: cat (+bcat on Windows) = bat; find = fd; grep = rg --color=auto; vim/nvim = fresh ($EDITOR); ff = fastfetch; btop/htop/top = btop4win
+  - view/search: cat (+bcat on Windows) = bat; find = fd; grep = rg --color=auto; vim/nvim = ttt; ff = fastfetch; btop/htop/top = btop4win
   - misc: please/pls = sudo; ip = ifconfig.me; reload re-execs the shell; cls = clear
   - dev: `update` = upd; `add <tool>` = `mise use -g` (PowerShell also `chezmoi re-add`s the managed mise config); vp shortcuts vpi/vpa/vpad/vpd/vpb/vpv/vpt/vpc/vpf/vpl/vpcr; pncr = `vp create --editor zed --package-manager pnpm`; bcat = bat; `explorer` = FilePilot
   - Windows-only: `wl` (WSL, lands in the distro home); mise plain `activate`, no shims
@@ -65,7 +65,7 @@ This is standing authorization to spawn subagents without asking. Before the fir
   2. If it isn't managed yet: `chezmoi add <file>` first, so it enters the source dir (Windows).
   3. Edit the **source copy** in `~/dotfiles-win` (that's the file you change — e.g. `readonly_documents/PowerShell/CMM.profile.ps1` for `~/Documents/PowerShell/CMM.profile.ps1`), never the live file directly.
   4. Run `chezmoi apply` to push the change live, then verify (`chezmoi status` clean / `chezmoi diff` empty).
-- Editor: **Zed** ($EDITOR is fresh in the terminal). WezTerm + PowerShell workflow.
+- Editor: **Zed**; in the terminal **ttt** (`$EDITOR` is `ttt --new-window`, because the managed `reuseWindow` setting makes a plain `ttt` return at once and git needs an editor that blocks). fresh is the fallback. ttt's settings are managed: `~/.config/ttt/settings.json` on both platforms. WezTerm + PowerShell workflow.
 - Use project's own linter/formatter (Biome, ESLint, Prettier, rustfmt, etc.) — match existing config, don't add a new one.
 - **Herdr** (terminal multiplexer) is the default way to run, watch, and coordinate any work that isn't a one-liner in the current shell. It organizes terminals into workspaces (`w1`), tabs (`w1:t1`), and panes (`w1:p1`), recognizes the coding agents running inside panes, and exposes everything through the `herdr` CLI (drive it via the **herdr** skill). Reach for it to parallelize tasks, run servers/tests/builds/watch-loops, or pull output from another pane — don't do workarounds when Herdr fits.
   - Only inspect/control Herdr when running *inside* a Herdr-managed pane: require `HERDR_ENV=1`. If that check fails, say you're not inside Herdr and stop; don't drive an active session from outside.
