@@ -4,29 +4,50 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Usage</title>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<script>
+  // Before first paint, so a light-theme reload does not flash dark.
+  (function () {
+    var t = "system";
+    try { t = localStorage.getItem("usage.theme") || "system"; } catch (e) {}
+    var light = t === "light" || (t === "system" && matchMedia("(prefers-color-scheme: light)").matches);
+    document.documentElement.dataset.theme = light ? "light" : "dark";
+  })();
+</script>
 <link rel="preload" href="/assets/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
 <style>
   @font-face { font-family: "Geist"; src: url("/assets/fonts/Geist-Variable.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
   @font-face { font-family: "Geist Mono"; src: url("/assets/fonts/GeistMono-Variable.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
+  /* Catppuccin: Macchiato when dark, Latte when light. Every colour on the page
+     comes from these variables, so a theme is one block. */
   :root {
-    --bg: #14111b;
-    --raised: #1b1724;
-    --line: #2a2536;
-    --line-2: #221e2d;
-    --text: #efebf8;
-    --muted: #958ea6;
-    --faint: #655e75;
-    --accent: #8b6cf0;
-    --accent-soft: rgba(139, 108, 240, .17);
-    --good: #7fd6a2;
-    --warn: #e0b341;
-    --bad: #ef6b6b;
-    --heat-0: #211c2c; --heat-1: #382d62; --heat-2: #4f3f98; --heat-3: #6e55d1; --heat-4: #a28cff;
+    --bg: #24273a; --raised: #1e2030; --deep: #181926;
+    --line: #363a4f; --line-2: #2e3248;
+    --text: #cad3f5; --muted: #a5adcb; --faint: #6e738d;
+    --accent: #c6a0f6; --accent-soft: rgba(198, 160, 246, .16); --accent-line: rgba(198, 160, 246, .45); --on-accent: #181926;
+    --good: #a6da95; --warn: #eed49f; --bad: #ed8796; --up: #f5a97f; --down: #7dc4e4;
+    --hover: rgba(202, 211, 245, .05);
+    --heat-0: #2e3248; --heat-1: #4a4470; --heat-2: #6c5fa3; --heat-3: #9a80d6; --heat-4: #c6a0f6;
+    --c1: #c6a0f6; --c2: #8aadf4; --c3: #8bd5ca; --c4: #f5a97f; --c5: #eed49f; --c6: #f5bde6; --c7: #a6da95;
+    --t1: #5b6078; --t2: #8087a2; --t3: #a5adcb; --t4: #cad3f5;
     --sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
     --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
     --pad: clamp(18px, 3vw, 56px);
     --hh: 96px;
+    --maxw: 1680px;
     color-scheme: dark;
+  }
+  :root[data-theme="light"] {
+    --bg: #eff1f5; --raised: #e6e9ef; --deep: #dce0e8;
+    --line: #ccd0da; --line-2: #dce0e8;
+    --text: #4c4f69; --muted: #6c6f85; --faint: #9ca0b0;
+    --accent: #8839ef; --accent-soft: rgba(136, 57, 239, .12); --accent-line: rgba(136, 57, 239, .4); --on-accent: #eff1f5;
+    --good: #40a02b; --warn: #df8e1d; --bad: #d20f39; --up: #fe640b; --down: #209fb5;
+    --hover: rgba(76, 79, 105, .06);
+    --heat-0: #dce0e8; --heat-1: #d3bdf5; --heat-2: #b78cf2; --heat-3: #9d5ff0; --heat-4: #8839ef;
+    --c1: #8839ef; --c2: #1e66f5; --c3: #179299; --c4: #fe640b; --c5: #df8e1d; --c6: #ea76cb; --c7: #40a02b;
+    --t1: #bcc0cc; --t2: #9ca0b0; --t3: #7c7f93; --t4: #4c4f69;
+    color-scheme: light;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; background: var(--bg); color: var(--text); }
@@ -36,7 +57,7 @@
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
   code, pre, .mono { font-family: var(--mono); font-size: 12px; }
   ::-webkit-scrollbar { width: 10px; height: 10px; }
-  ::-webkit-scrollbar-thumb { background: #2f2a3d; border-radius: 8px; border: 2px solid var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 8px; border: 2px solid var(--bg); }
   .hide { display: none !important; }
   .muted { color: var(--muted); } .faint { color: var(--faint); } .unp { color: var(--warn); }
   .spacer { flex: 1; }
@@ -45,50 +66,51 @@
   .ai { display: inline-block; width: var(--s, 15px); height: var(--s, 15px); flex: none; background: currentColor;
     -webkit-mask: var(--m) center / contain no-repeat; mask: var(--m) center / contain no-repeat; }
   .ui { flex: none; display: inline-block; vertical-align: -0.15em; }
-  .chip-letter { display: inline-grid; place-items: center; width: var(--s, 15px); height: var(--s, 15px); border-radius: 4px; font-size: 9px; font-weight: 600; flex: none; background: rgba(255,255,255,.08); }
+  .chip-letter { display: inline-grid; place-items: center; width: var(--s, 15px); height: var(--s, 15px); border-radius: 4px; font-size: 9px; font-weight: 600; flex: none; background: var(--hover); }
 
   /* ---- header ------------------------------------------------------------- */
-  .top { position: sticky; top: 0; z-index: 30; background: rgba(20,17,27,.9); backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
-  .row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; padding: 11px var(--pad); }
+  .top { position: sticky; top: 0; z-index: 30; background: color-mix(in srgb, var(--bg) 90%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+  /* Content stops growing at --maxw and centres, so an ultrawide screen gets margins instead of very long rows. */
+  .row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; padding: 11px var(--pad); max-width: var(--maxw); margin: 0 auto; }
   .row.sub { padding-top: 0; padding-bottom: 10px; gap: 8px 12px; }
   .crumbs { display: flex; align-items: center; gap: 4px; color: var(--muted); font-weight: 500; }
   .brand { color: var(--muted); font-weight: 500; margin-right: -6px; }
   .crumbs .sep { color: var(--faint); margin: 0 4px; }
   .pick { position: relative; display: inline-flex; align-items: center; }
   .pick select { appearance: none; background: transparent; border: 0; padding: 3px 18px 3px 4px; color: var(--text); font-weight: 600; cursor: pointer; border-radius: 6px; max-width: 220px; text-overflow: ellipsis; }
-  .pick select:hover { background: rgba(255,255,255,.04); }
-  .pick select option { background: #1e1a29; color: var(--text); font-weight: 400; }
+  .pick select:hover { background: var(--hover); }
+  .pick select option { background: var(--raised); color: var(--text); font-weight: 400; }
   .pick .ui { position: absolute; right: 3px; color: var(--muted); pointer-events: none; }
   .seg { display: inline-flex; background: var(--raised); border: 1px solid var(--line); border-radius: 9px; padding: 2px; gap: 1px; }
-  .seg button { background: transparent; border: 0; border-radius: 7px; padding: 3px 11px; color: var(--muted); font-weight: 500; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+  .seg button { background: transparent; border: 0; border-radius: 7px; padding: 3px 9px; color: var(--muted); font-weight: 500; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
   .seg button:hover { color: var(--text); }
-  .seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--text); box-shadow: inset 0 0 0 1px rgba(139,108,240,.4); }
+  .seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--text); box-shadow: inset 0 0 0 1px var(--accent-line); }
   .seg.sm button { padding: 2px 9px; font-size: 12px; }
   .field { background: var(--raised); border: 1px solid var(--line); border-radius: 9px; padding: 4px 10px; min-width: 0; outline: none; }
-  .field:focus { border-color: rgba(139,108,240,.6); }
+  .field:focus { border-color: var(--accent-line); }
   select.field { appearance: none; cursor: pointer; padding-right: 26px; max-width: 220px; text-overflow: ellipsis;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23958ea6' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     background-repeat: no-repeat; background-position: right 8px center; }
-  select.field option { background: #1e1a29; }
-  select.field.on { border-color: rgba(139,108,240,.6); }
+  select.field option { background: var(--raised); }
+  select.field.on { border-color: var(--accent-line); }
   .search { position: relative; display: inline-flex; align-items: center; }
   .search .ui { position: absolute; left: 9px; color: var(--faint); pointer-events: none; }
   .search input { padding-left: 30px; width: min(300px, 40vw); }
   input[type="date"] { color-scheme: dark; }
   .btn { background: var(--raised); border: 1px solid var(--line); border-radius: 9px; padding: 4px 11px; font-weight: 500; display: inline-flex; align-items: center; gap: 7px; }
-  .btn:hover { border-color: #3a3450; }
-  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn:hover { border-color: var(--faint); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
   .btn.primary:hover { filter: brightness(1.08); }
   .btn.sm { padding: 2px 9px; font-size: 12px; }
   .icon-btn { background: transparent; border: 0; border-radius: 8px; width: 30px; height: 30px; color: var(--muted); display: inline-grid; place-items: center; }
-  .icon-btn:hover { color: var(--text); background: rgba(255,255,255,.05); }
+  .icon-btn:hover { color: var(--text); background: var(--hover); }
   .icon-btn.spin .ui { animation: spin .8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .custom { display: none; align-items: center; gap: 6px; }
   .custom.on { display: inline-flex; }
 
   /* ---- page ----------------------------------------------------------------- */
-  main { padding: 28px var(--pad) 72px; display: grid; gap: 40px; }
+  main { padding: 28px var(--pad) 72px; display: grid; gap: 40px; max-width: var(--maxw); margin: 0 auto; }
   main h2 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: -.005em; display: flex; align-items: center; gap: 10px; }
   h2 .sub { color: var(--faint); font-weight: 400; font-size: 12px; }
   .hero { display: grid; grid-template-columns: minmax(300px, 360px) minmax(0, 1fr); gap: clamp(24px, 4vw, 64px); align-items: start; }
@@ -102,8 +124,8 @@
   .legend .val { font-weight: 600; text-align: right; }
   .legend .meta { grid-column: 1 / -1; color: var(--muted); font-size: 11.5px; padding-left: 16px; }
   .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
-  .delta { display: inline-flex; align-items: center; gap: 2px; font-size: 11px; font-weight: 500; color: var(--muted); background: rgba(255,255,255,.05); border-radius: 6px; padding: 0 6px 0 3px; }
-  .delta.up { color: #e9b08a; } .delta.down { color: #8fc7e8; } .delta.flat { padding-left: 6px; }
+  .delta { display: inline-flex; align-items: center; gap: 2px; font-size: 11px; font-weight: 500; color: var(--muted); background: var(--hover); border-radius: 6px; padding: 0 6px 0 3px; }
+  .delta.up { color: var(--up); } .delta.down { color: var(--down); } .delta.flat { padding-left: 6px; }
   .est { font-size: 9px; color: var(--faint); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; letter-spacing: .06em; margin-left: 4px; }
 
   .charthead { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
@@ -116,7 +138,7 @@
   .keys span { display: inline-flex; align-items: center; gap: 6px; max-width: 360px; }
   .keys b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; }
   .sq { width: 8px; height: 8px; border-radius: 2px; flex: none; }
-  .tip { position: fixed; pointer-events: none; z-index: 60; min-width: 170px; max-width: 340px; background: #0d0a13; border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; box-shadow: 0 10px 30px rgba(0,0,0,.55); font-size: 12px; opacity: 0; transition: opacity .08s; }
+  .tip { position: fixed; pointer-events: none; z-index: 60; min-width: 170px; max-width: 340px; background: var(--deep); border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; box-shadow: 0 10px 30px rgba(0,0,0,.28); font-size: 12px; opacity: 0; transition: opacity .08s; }
   .tip.on { opacity: 1; }
   .tip .t { color: var(--muted); margin-bottom: 4px; }
   .tip .r { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
@@ -141,7 +163,7 @@
   .heat-wrap { overflow-x: auto; }
   .heat svg { display: block; width: 100%; min-width: 760px; max-width: 1240px; height: auto; }
   .heat text { fill: var(--faint); font-size: 10px; font-family: var(--mono); }
-  .heat rect.cell { stroke: rgba(255,255,255,.04); stroke-width: 1; }
+  .heat rect.cell { stroke: var(--bg); stroke-width: 1; }
   .heat rect.cell:hover { stroke: var(--text); }
   .heat-foot { display: flex; align-items: center; gap: 6px; max-width: 1240px; justify-content: flex-end; margin-top: 6px; color: var(--muted); font-size: 11px; }
   .heat-foot i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
@@ -164,7 +186,7 @@
   .nm small { color: var(--faint); font-weight: 400; }
   .under { height: 2px; border-radius: 2px; margin-top: 6px; opacity: .9; }
   td .sub { display: block; color: var(--faint); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  tbody tr:hover { background: rgba(255,255,255,.02); }
+  tbody tr:hover { background: var(--hover); }
   tr.click { cursor: pointer; }
   .pill { font-size: 10.5px; border-radius: 6px; padding: 0 7px; background: var(--raised); border: 1px solid var(--line); color: var(--muted); }
   .share { display: inline-flex; align-items: center; gap: 8px; justify-content: flex-end; }
@@ -182,7 +204,7 @@
   .lim:first-child { border-top: 0; padding-top: 0; }
   @media (max-width: 900px) { .lim { grid-template-columns: 1fr; } }
   .lim h3 { margin: 0; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
-  .lim .plan { font-size: 11px; background: var(--accent-soft); color: #cbbcff; border-radius: 6px; padding: 1px 8px; font-weight: 500; }
+  .lim .plan { font-size: 11px; background: var(--accent-soft); color: var(--accent); border-radius: 6px; padding: 1px 8px; font-weight: 500; }
   .lim .src { color: var(--faint); font-size: 11.5px; margin-top: 6px; }
   .wins { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px 40px; align-content: start; }
   .win .top2 { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
@@ -197,6 +219,7 @@
 
   /* ---- threads --------------------------------------------------------------- */
   main.flush { padding: 0; gap: 0; }
+  @media (min-width: 1700px) { .threads { border-inline: 1px solid var(--line); } }
   .threads { display: grid; grid-template-columns: minmax(340px, 440px) minmax(0, 1fr); height: calc(100vh - var(--hh)); min-height: 480px; }
   @media (max-width: 960px) { .threads { grid-template-columns: 1fr; height: auto; } }
   .tl { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--line); }
@@ -206,7 +229,7 @@
   .tl .bar .search input { width: 100%; }
   .scroll { overflow-y: auto; min-height: 0; flex: 1; }
   .ti { display: grid; grid-template-columns: 22px 1fr auto; gap: 2px 10px; padding: 11px 18px; border-bottom: 1px solid var(--line-2); cursor: pointer; }
-  .ti:hover { background: rgba(255,255,255,.025); }
+  .ti:hover { background: var(--hover); }
   .ti.on { background: var(--accent-soft); box-shadow: inset 2px 0 0 var(--accent); }
   .ti .t { font-weight: 500; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   .ti .m { grid-column: 2 / 4; color: var(--faint); font-size: 11.5px; display: flex; gap: 10px; flex-wrap: wrap; }
@@ -218,15 +241,15 @@
   .facts { display: flex; flex-wrap: wrap; gap: 4px 18px; color: var(--muted); font-size: 12px; align-items: center; }
   .facts b { color: var(--text); font-weight: 500; }
   .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-  .cmd { background: #0d0a13; border: 1px solid var(--line); border-radius: 9px; padding: 8px 8px 8px 12px; display: flex; gap: 10px; align-items: center; }
-  .cmd code { flex: 1; overflow-x: auto; white-space: nowrap; color: #d9d3ea; }
+  .cmd { background: var(--deep); border: 1px solid var(--line); border-radius: 9px; padding: 8px 8px 8px 12px; display: flex; gap: 10px; align-items: center; }
+  .cmd code { flex: 1; overflow-x: auto; white-space: nowrap; color: var(--text); }
   .msgs { padding: 20px var(--pad) 40px 28px; display: grid; gap: 16px; max-width: 980px; }
   .msg { display: grid; gap: 6px; }
   .msg .who { font-size: 11px; color: var(--faint); text-transform: uppercase; letter-spacing: .08em; display: flex; gap: 8px; }
-  .msg.user .body { background: var(--accent-soft); border: 1px solid rgba(139,108,240,.3); border-radius: 12px; padding: 10px 14px; word-break: break-word; }
+  .msg.user .body { background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: 12px; padding: 10px 14px; word-break: break-word; }
   .msg .body { word-break: break-word; }
   .msg .body p { margin: 0 0 8px; white-space: pre-wrap; }
-  .msg .body pre { background: #0d0a13; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; overflow-x: auto; margin: 6px 0; }
+  .msg .body pre { background: var(--deep); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; overflow-x: auto; margin: 6px 0; }
   .msg .body code.i { background: var(--raised); border-radius: 4px; padding: 1px 5px; }
   details.blk { border: 1px solid var(--line); border-radius: 8px; background: var(--raised); }
   details.blk summary { cursor: pointer; padding: 6px 10px; color: var(--muted); font-size: 12px; list-style: none; display: flex; gap: 8px; align-items: center; }
@@ -235,7 +258,47 @@
     -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E") center / contain no-repeat;
     mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E") center / contain no-repeat; }
   details.blk[open] summary::before { transform: rotate(90deg); }
-  details.blk pre { margin: 0; padding: 8px 12px 10px; overflow: auto; white-space: pre-wrap; word-break: break-word; border-top: 1px solid var(--line); color: #cfc8e0; max-height: 360px; }
+  details.blk pre { margin: 0; padding: 8px 12px 10px; overflow: auto; white-space: pre-wrap; word-break: break-word; border-top: 1px solid var(--line); color: var(--muted); max-height: 360px; }
+
+  /* ---- keyboard, palette, help ------------------------------------------------ */
+  .kbd { font-family: var(--mono); font-size: 10px; line-height: 1.5; color: var(--muted); background: var(--raised); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; white-space: nowrap; }
+  .palbtn { color: var(--muted); gap: 7px; padding: 4px 6px 4px 9px; }
+  .ov { position: fixed; inset: 0; z-index: 80; background: rgba(8,6,12,.5); backdrop-filter: blur(3px); display: grid; justify-items: center; align-items: start; padding: 13vh 16px 16px; }
+  .pal { width: min(640px, 100%); background: var(--raised); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 24px 80px rgba(0,0,0,.4); overflow: hidden; display: flex; flex-direction: column; max-height: 70vh; }
+  .pal .in { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); color: var(--faint); }
+  .pal input { flex: 1; background: transparent; border: 0; outline: 0; font-size: 14px; }
+  .pal .list { overflow-y: auto; padding: 6px; }
+  .pal .grp { color: var(--faint); font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; padding: 8px 10px 4px; }
+  .pal .it { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 8px; cursor: pointer; }
+  .pal .it.on { background: var(--accent-soft); }
+  .pal .it .l { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pal .none { padding: 24px; text-align: center; color: var(--muted); }
+  .pal .ft { display: flex; gap: 14px; padding: 8px 14px; border-top: 1px solid var(--line); color: var(--faint); font-size: 11px; align-items: center; }
+  .pal .ft span { display: inline-flex; gap: 5px; align-items: center; }
+  .help { width: min(860px, 100%); padding: 20px 22px; overflow-y: auto; }
+  .help h3 { margin: 0 0 14px; font-size: 15px; font-weight: 600; display: flex; align-items: center; }
+  .help .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 18px 28px; }
+  .help h4 { margin: 0 0 8px; font-size: 10.5px; font-weight: 500; color: var(--faint); text-transform: uppercase; letter-spacing: .08em; }
+  .help .k { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 3px 0; color: var(--muted); }
+  .help .k span:last-child { display: inline-flex; gap: 4px; }
+  .hint { display: inline-flex; gap: 6px; align-items: center; }
+
+  /* ---- models ------------------------------------------------------------------- */
+  .mhead { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .mhead h2 { margin: 0; }
+  .hbars { display: grid; gap: 7px; }
+  .hbar { display: grid; grid-template-columns: minmax(120px, 240px) minmax(0, 1fr) 70px; gap: 10px; align-items: center; font-size: 12px; }
+  .hbar .n { display: flex; align-items: center; gap: 7px; min-width: 0; }
+  .hbar .n b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hbar .tr { height: 8px; border-radius: 4px; background: var(--raised); overflow: hidden; }
+  .hbar .tr i { display: block; height: 100%; border-radius: 4px; background: var(--faint); }
+  .hbar.used .tr i { background: var(--accent); }
+  .hbar .v { text-align: right; font-family: var(--mono); color: var(--muted); }
+  td.pick, th.pick { width: 28px; padding-right: 0; }
+  td.pick input { accent-color: var(--accent); cursor: pointer; }
+  .tag { font-size: 10px; border-radius: 5px; padding: 0 5px; border: 1px solid var(--line); color: var(--muted); font-weight: 400; }
+  .tag.you { color: var(--accent); border-color: var(--accent-line); background: var(--accent-soft); }
+  .none-v { color: var(--faint); }
 </style>
 </head>
 <body>
@@ -251,7 +314,10 @@
     <div class="spacer"></div>
     <div class="seg" id="range" role="group" aria-label="Range"></div>
     <div class="seg" id="view" role="group" aria-label="View"></div>
-    <button class="icon-btn" id="refresh" title="Reload" aria-label="Reload"><span data-icon="refresh" data-size="15"></span></button>
+    <button class="btn palbtn" id="palbtn" title="Command palette" aria-label="Command palette"><span data-icon="command" data-size="13"></span><span class="kbd">Ctrl K</span></button>
+    <button class="icon-btn" id="theme" aria-label="Theme"></button>
+    <button class="icon-btn" id="help" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts"><span data-icon="keyboard" data-size="16"></span></button>
+    <button class="icon-btn" id="refresh" title="Reload (R)" aria-label="Reload"><span data-icon="refresh" data-size="15"></span></button>
   </div>
   <div class="row sub" id="filters">
     <select class="field" id="f-project" aria-label="Project"></select>
@@ -264,6 +330,7 @@
 </header>
 <main id="main"><div class="empty">Loading</div></main>
 <div class="tip" id="tip" role="tooltip"></div>
+<div id="overlay"></div>
 
 <script>
 "use strict";
@@ -281,12 +348,12 @@ const AGENT = {
   cline: { name: "Cline", color: "#e0b341", file: "cline" },
   gemini: { name: "Gemini", color: "#8e9bf2", file: "gemini" },
   copilot: { name: "Copilot", color: "#7aa2f7", file: "githubcopilot" },
-  cursor: { name: "Cursor", color: "#d9d9e3", file: "cursor" },
-  grok: { name: "Grok", color: "#d9d9e3", file: "xai" },
+  cursor: { name: "Cursor", color: "var(--text)", file: "cursor" },
+  grok: { name: "Grok", color: "var(--text)", file: "xai" },
   amp: { name: "Amp", color: "#f08fb0", file: "amp" },
   hermes: { name: "Hermes", color: "#c9a36b", file: "nousresearch" },
   kiro: { name: "Kiro", color: "#9aa5f5", file: "kiro" },
-  commandcode: { name: "Command Code", color: "#d9d9e3", file: "commandcode" },
+  commandcode: { name: "Command Code", color: "var(--text)", file: "commandcode" },
 };
 const agentKey = (n) => String(n || "").toLowerCase().replace(/-code$/, "");
 const agentName = (n) => AGENT[agentKey(n)]?.name ?? n;
@@ -295,6 +362,14 @@ function ai(name, size = 15) {
   const a = AGENT[agentKey(name)], c = agentColor(name);
   if (a) return `<i class="ai" style="--m:url(/assets/icons/${a.file}.svg);--s:${size}px;color:${c}" aria-hidden="true"></i>`;
   return `<i class="chip-letter" style="--s:${size}px;color:${c}" aria-hidden="true">${String(name || "?")[0].toUpperCase()}</i>`;
+}
+// Model vendors, for the Models view. Same icon set, drawn in the text colour.
+const VENDOR_ICON = { anthropic: "claude", openai: "openai", google: "gemini", deepseek: "deepseek", "x-ai": "xai", mistralai: "mistral", "meta-llama": "meta", qwen: "qwen", moonshotai: "moonshot", "z-ai": "zhipu", nvidia: "nvidia", ollama: "ollama", openrouter: "openrouter" };
+const guessVendor = (name) => { const n = String(name).toLowerCase(); if (n.includes("/")) return n.split("/")[0]; return /claude/.test(n) ? "anthropic" : /^(gpt|o\d|codex)/.test(n) ? "openai" : /gemini/.test(n) ? "google" : /deepseek/.test(n) ? "deepseek" : /grok/.test(n) ? "x-ai" : /qwen/.test(n) ? "qwen" : /kimi|moonshot/.test(n) ? "moonshotai" : /glm/.test(n) ? "z-ai" : /llama/.test(n) ? "meta-llama" : /mistral|codestral|devstral/.test(n) ? "mistralai" : ""; };
+function vi(vendor, size = 15) {
+  const f = VENDOR_ICON[vendor];
+  if (f) return `<i class="ai" style="--m:url(/assets/icons/${f}.svg);--s:${size}px;color:var(--text)" aria-hidden="true"></i>`;
+  return `<i class="chip-letter" style="--s:${size}px;color:var(--muted)" aria-hidden="true">${String(vendor || "?")[0].toUpperCase()}</i>`;
 }
 const UI = {
   "chevron-right": '<path d="m9 18 6-6-6-6"/>',
@@ -308,6 +383,11 @@ const UI = {
   "trend-down": '<path d="M7 7l10 10M17 8v9H8"/>',
   copy: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/>',
   check: '<path d="M20 6 9 17l-5-5"/>',
+  keyboard: '<rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M6.5 10h.01M10 10h.01M13.5 10h.01M17 10h.01M7 14h10"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  moon: '<path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/>',
+  monitor: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
+  command: '<path d="M9 6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3z"/>',
 };
 const ui = (n, s = 14) => `<svg class="ui" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${UI[n]}</svg>`;
 document.querySelectorAll("[data-icon]").forEach((el) => { el.outerHTML = ui(el.dataset.icon, Number(el.dataset.size) || 12); });
@@ -322,14 +402,15 @@ const state = {
   host: "all", agent: "all", project: "all", model: "all", q: "",
   group: pref("group", "project"), metric: pref("metric", "cost"), tab: pref("tab", "models"), chart: pref("chart", "lines"),
   sort: {}, shown: 100,
-  data: null, limits: null,
+  data: null, limits: null, theme: pref("theme", "system"),
+  mod: { data: null, scope: "used", q: "", metric: "intelligence", picked: new Set(), sort: null, shown: 60 },
   thr: { q: "", agent: "all", sub: false, list: null, sel: null, detail: null, cmd: null, unavailable: null },
 };
 const save = () => { for (const k of ["view", "range", "group", "metric", "tab", "chart"]) store.setItem("usage." + k, state[k]); };
 
 const RANGES = [["1d", "Today"], ["7d", "7 days"], ["30d", "30 days"], ["90d", "90 days"], ["1y", "1 year"], ["all", "All"], ["custom", "Custom"]];
 const GROUPS = [["project", "Project"], ["agent", "Agent"], ["model", "Model"]];
-const VIEWS = [["cost", "Cost"], ["tokens", "Tokens"], ["messages", "Messages"], ["limits", "Limits"], ["threads", "Threads"]];
+const VIEWS = [["cost", "Cost"], ["tokens", "Tokens"], ["messages", "Messages"], ["models", "Models"], ["limits", "Limits"], ["threads", "Threads"]];
 const METRIC_WORD = { cost: "cost", tokens: "tokens", messages: "messages" };
 
 // ==== formatting ===============================================================
@@ -376,7 +457,7 @@ function costCell(o) {
 }
 function delta(cur, prev, label) {
   if (prev === null || prev === undefined) return "";
-  if (!prev) return cur ? `<span class="delta flat" title="No usage in the previous period">new</span>` : "";
+  if (!prev) return ""; // nothing to compare against, so say nothing
   const ch = ((cur - prev) / prev) * 100, a = Math.abs(ch);
   if (a < 0.5) return `<span class="delta flat" title="${esc(label)}">0%</span>`;
   const txt = a >= 1000 ? ">999" : a >= 10 ? Math.round(a) : a.toFixed(1);
@@ -415,7 +496,16 @@ async function loadUsage(fresh = false) {
   if (fresh) q.set("fresh", "1");
   state.data = await get("/api/usage?" + q, usageCtl.signal);
   stamp();
-  render();
+  if (state.view === "usage") render(); else controls();
+}
+async function loadModels() {
+  const q = new URLSearchParams({ range: state.range });
+  if (state.host !== "all") q.set("host", state.host);
+  if (state.agent !== "all") q.set("harness", state.agent);
+  if (state.range === "custom" && state.from && state.to) { q.set("from", state.from); q.set("to", state.to); }
+  state.mod.data = await get("/api/models?" + q);
+  stamp();
+  if (state.view === "models") render();
 }
 async function loadLimits(fresh = false) {
   state.limits = await get("/api/limits" + (fresh ? "?fresh=1" : ""));
@@ -453,9 +543,9 @@ function fillSelect(el, all, items, current, nameOf = (x) => x) {
   el.classList.toggle("on", el.value !== "all");
 }
 function controls() {
-  const usage = state.view === "usage";
-  $("crumbs").classList.toggle("hide", !usage);
-  $("range").classList.toggle("hide", !usage);
+  const usage = state.view === "usage", scoped = usage || state.view === "models";
+  $("crumbs").classList.toggle("hide", !scoped);
+  $("range").classList.toggle("hide", !scoped);
   $("filters").classList.toggle("hide", !usage);
   $("range").innerHTML = segHTML(RANGES, state.range);
   $("view").innerHTML = segHTML(VIEWS, usage ? state.metric : state.view);
@@ -475,6 +565,7 @@ function render() {
   $("main").classList.toggle("flush", state.view === "threads");
   if (state.view === "limits") return renderLimits();
   if (state.view === "threads") return renderThreads();
+  if (state.view === "models") return renderModels();
   renderUsage();
   controls();
 }
@@ -507,8 +598,8 @@ function renderUsage() {
   }).join("");
 
   const types = m === "cost"
-    ? [["Input", t.costByType.input, "#6d6682"], ["Cache read", t.costByType.cacheRead, "#9189a8"], ["Cache write", t.costByType.cacheWrite, "#bdb6d3"], ["Output", t.costByType.output, "#efebf8"]]
-    : [["Input", t.input, "#6d6682"], ["Cache read", t.cacheRead, "#9189a8"], ["Cache write", t.cacheWrite, "#bdb6d3"], ["Output", t.output, "#efebf8"]];
+    ? [["Input", t.costByType.input, "var(--t1)"], ["Cache read", t.costByType.cacheRead, "var(--t2)"], ["Cache write", t.costByType.cacheWrite, "var(--t3)"], ["Output", t.costByType.output, "var(--t4)"]]
+    : [["Input", t.input, "var(--t1)"], ["Cache read", t.cacheRead, "var(--t2)"], ["Cache write", t.cacheWrite, "var(--t3)"], ["Output", t.output, "var(--t4)"]];
   const typeSum = types.reduce((s, x) => s + x[1], 0) || 1;
   const typeFmt = (v) => (m === "cost" ? money(v) : compact(v));
 
@@ -576,6 +667,7 @@ function renderUsage() {
     <div class="foot"><div class="hosts">${d.hosts.map(hostChip).join("")}</div>
       ${d.meta.warnings.map((w) => `<div class="warn">${esc(w)}</div>`).join("")}
       ${t.unpricedRows ? `<div>* ${plural(t.unpricedRows, "row")} had no price and are left out of the dollar figures. Add rates in <span class="mono">dot_config/usage/prices.json</span>.</div>` : ""}
+      <div class="hint">Press <span class="kbd">?</span> for keyboard shortcuts, <span class="kbd">Ctrl K</span> for commands.</div>
       <div>Reasoning is shown beside output and never added. Windows count back from the newest day in the data (${esc(d.meta.newestDay)}). Prices ${d.meta.priceFetchedAt ? "fetched " + esc(d.meta.priceFetchedAt.slice(0, 10)) : "not cached yet; run <span class='mono'>usage prices update</span>"}.</div></div>`;
 
   drawChart(); drawHeat(); drawTable();
@@ -600,8 +692,8 @@ function insights() {
 }
 
 // ---- day chart ------------------------------------------------------------------
-const PALETTE = ["#8b6cf0", "#4f9ddb", "#3fb8a0", "#e9724c", "#e0b341", "#f08fb0", "#9bcf5f"];
-const OTHER = "#5d5670";
+const PALETTE = [1, 2, 3, 4, 5, 6, 7].map((i) => `var(--c${i})`);
+const OTHER = "var(--faint)";
 const stackColor = (s, i) => (s.key === "Other" && s.other ? OTHER : state.data.meta.group === "agent" ? agentColor(s.key) : PALETTE[i % PALETTE.length]);
 const stackLabel = (s) => (s.key === "Other" && s.other ? `Other (${s.other})` : state.data.meta.group === "project" ? tail(s.key, 2) : state.data.meta.group === "agent" ? agentName(s.key) : s.key);
 
@@ -651,7 +743,7 @@ function drawChart() {
     const idx = ticks === 1 ? 0 : Math.round((i / (ticks - 1)) * (days.length - 1));
     svg += `<text x="${xAt(idx)}" y="${H - 6}" text-anchor="${i === 0 ? "start" : i === ticks - 1 ? "end" : "middle"}">${shortDay(days[idx])}</text>`;
   }
-  svg += `</g><line id="cross" y1="${T}" y2="${T + ph}" stroke="#958ea6" stroke-dasharray="3 3" opacity="0"/>`;
+  svg += `</g><line id="cross" y1="${T}" y2="${T + ph}" stroke="var(--muted)" stroke-dasharray="3 3" opacity="0"/>`;
   if (bars) {
     days.forEach((_, i) => {
       let base = 0;
@@ -942,9 +1034,263 @@ async function copy(text) {
   }
 }
 
+// ==== models ===================================================================
+const price = (v) => (v == null ? '<span class="none-v">-</span>' : v === 0 ? "free" : "$" + (v < 1 ? v.toFixed(v < 0.1 ? 3 : 2) : v.toFixed(2)));
+const num = (v, f = (x) => x) => (v == null ? '<span class="none-v">-</span>' : f(v));
+const MODEL_METRICS = [
+  ["intelligence", "Intelligence index", (r) => r.c?.bench?.intelligence, (v) => v.toFixed(1)],
+  ["coding", "Coding index", (r) => r.c?.bench?.coding, (v) => v.toFixed(1)],
+  ["agentic", "Agentic index", (r) => r.c?.bench?.agentic, (v) => v.toFixed(1)],
+  ["arenaCode", "Design Arena, code Elo", (r) => r.c?.bench?.arenaCode, (v) => Math.round(v)],
+  ["arenaModels", "Design Arena, models Elo", (r) => r.c?.bench?.arenaModels, (v) => Math.round(v)],
+  ["arenaAgents", "Design Arena, agents Elo", (r) => r.c?.bench?.arenaAgents, (v) => Math.round(v)],
+  ["context", "Context window", (r) => r.c?.context, compact],
+  ["maxOutput", "Max output", (r) => r.c?.maxOutput, compact],
+  ["priceOut", "Output price, $ per 1M", (r) => r.c?.price?.output, (v) => "$" + v.toFixed(2)],
+  ["priceIn", "Input price, $ per 1M", (r) => r.c?.price?.input, (v) => "$" + v.toFixed(2)],
+  ["yourTokens", "Your tokens", (r) => r.u?.tokens, compact],
+  ["yourCost", "Your cost", (r) => r.u?.cost, (v) => money(v)],
+  ["perMessage", "Your cost per message", (r) => r.u?.costPerMessage, (v) => money(v, 3)],
+  ["cacheHit", "Your cache hit rate", (r) => (r.u?.cacheHitRate == null ? null : r.u.cacheHitRate * 100), (v) => Math.round(v) + "%"],
+];
+
+function modelRows() {
+  const d = state.mod.data, byId = new Map(d.catalog.map((c) => [c.id, c])), rows = [], usedIds = new Map();
+  for (const u of d.used) {
+    const c = u.catalogId ? byId.get(u.catalogId) : null;
+    if (c) usedIds.set(c.id, (usedIds.get(c.id) ?? 0) + 1);
+    rows.push({ key: "u:" + u.model, name: u.model, vendor: c?.vendor ?? guessVendor(u.model), c, u });
+  }
+  if (state.mod.scope === "all") for (const c of d.catalog) if (!usedIds.has(c.id)) rows.push({ key: "c:" + c.id, name: c.id, vendor: c.vendor, c, u: null });
+  const words = state.mod.q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  return words.length ? rows.filter((r) => words.every((w) => `${r.name} ${r.c?.name ?? ""} ${r.vendor}`.toLowerCase().includes(w))) : rows;
+}
+
+function renderModels() {
+  const main = $("main"), M = state.mod, d = M.data;
+  if (!d) { main.innerHTML = `<div class="empty">Loading the model list</div>`; return; }
+  const rows = modelRows();
+  main.innerHTML = `
+    <section><div class="mhead"><h2>Models</h2>
+      <div class="seg sm" id="mscope">${segHTML([["used", `Used <span class="count">${d.used.length}</span>`], ["all", `All <span class="count">${d.catalog.length}</span>`]], M.scope)}</div>
+      <label class="search">${ui("search", 14)}<input class="field" id="mq" type="search" value="${esc(M.q)}" placeholder="Search models and vendors" autocomplete="off"></label>
+      <span class="spacer"></span><span class="faint" style="font-size:11.5px">${d.fetchedAt ? `${esc(d.source)} · fetched ${ago(d.fetchedAt)}` : ""}</span></div>
+      ${d.note ? `<div class="warn" style="margin-top:10px">${esc(d.note)}</div>` : ""}</section>
+    <section class="two">
+      <div><div class="charthead"><span class="t">Compare</span><span class="spacer"></span>
+        <select class="field" id="mmetric" aria-label="Metric">${MODEL_METRICS.map(([k, l]) => `<option value="${k}" ${k === M.metric ? "selected" : ""}>${l}</option>`).join("")}</select></div>
+        <div id="mbars"></div></div>
+      <div><div class="charthead"><span class="t">Intelligence index against output price</span></div><div class="chart" id="mscatter"></div>
+        <div class="keys"><span><i class="sq" style="background:var(--accent)"></i><b>models you used</b></span><span><i class="sq" style="background:var(--c4)"></i><b>ticked</b></span><span><i class="sq" style="background:var(--faint)"></i><b>everything else</b></span></div></div>
+    </section>
+    <section id="mtable"></section>
+    <div class="foot"><div>Prices are list prices in US dollars per million tokens. Benchmark columns are Artificial Analysis indexes and Design Arena Elo as published in the OpenRouter model list; a dash means the source has no figure. The usage columns follow the range and scope above. Tick rows to compare them.</div></div>`;
+  $("mscope").addEventListener("click", (e) => { const v = e.target.closest("button")?.dataset.v; if (v) { M.scope = v; M.shown = 60; renderModels(); } });
+  const mq = $("mq");
+  mq.addEventListener("input", debounce(() => { M.q = mq.value; M.shown = 60; drawModelTable(); drawModelBars(); }, 200));
+  $("mmetric").addEventListener("change", (e) => { M.metric = e.target.value; drawModelBars(); });
+  drawModelBars(); drawModelScatter(); drawModelTable();
+}
+
+function drawModelBars() {
+  const M = state.mod, [, , val, fmt] = MODEL_METRICS.find((m) => m[0] === M.metric);
+  const all = modelRows();
+  let rows = M.picked.size ? all.filter((r) => M.picked.has(r.key)) : all;
+  rows = rows.map((r) => [r, val(r)]).filter((x) => x[1] != null && Number.isFinite(x[1])).sort((a, b) => b[1] - a[1]).slice(0, 14);
+  const max = Math.max(...rows.map((x) => x[1]), 0) || 1;
+  // Elo sits in a narrow band far from zero, so those bars start at a floor.
+  const floor = M.metric.startsWith("arena") && rows.length ? Math.min(...rows.map((x) => x[1])) - 60 : 0;
+  $("mbars").innerHTML = rows.length ? `<div class="hbars">${rows.map(([r, v]) => `<div class="hbar ${r.u ? "used" : ""}"><span class="n">${vi(r.vendor, 14)}<b title="${esc(r.name)}">${esc(r.name.replace(/^[^/]+\//, ""))}</b></span><span class="tr"><i style="width:${Math.max(1.5, ((v - floor) / (max - floor || 1)) * 100)}%"></i></span><span class="v">${fmt(v)}</span></div>`).join("")}</div>`
+    : `<div class="empty">No model in this list has that figure.</div>`;
+}
+
+function drawModelScatter() {
+  const el = $("mscatter"), M = state.mod, d = M.data;
+  const usedIds = new Set(d.used.map((u) => u.catalogId).filter(Boolean));
+  const pickedIds = new Set(modelRows().filter((r) => M.picked.has(r.key) && r.c).map((r) => r.c.id));
+  const pts = d.catalog.filter((c) => c.bench?.intelligence != null && c.price?.output > 0);
+  if (!pts.length) { el.innerHTML = `<div class="empty">No benchmark data cached.</div>`; return; }
+  const W = Math.max(420, el.clientWidth), H = 280, L = 40, R = 12, T = 10, B = 30, pw = W - L - R, ph = H - T - B;
+  const xs = pts.map((c) => Math.log10(c.price.output)), x0 = Math.floor(Math.min(...xs)), x1 = Math.ceil(Math.max(...xs));
+  const ys = pts.map((c) => c.bench.intelligence), y0 = Math.floor(Math.min(...ys) / 10) * 10, y1 = Math.ceil(Math.max(...ys) / 10) * 10;
+  const X = (c) => L + ((Math.log10(c.price.output) - x0) / (x1 - x0 || 1)) * pw, Y = (c) => T + ph - ((c.bench.intelligence - y0) / (y1 - y0 || 1)) * ph;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Intelligence index against output price"><g class="axis">`;
+  for (let e = x0; e <= x1; e++) { const xx = L + ((e - x0) / (x1 - x0 || 1)) * pw; svg += `<line class="gridline" x1="${xx}" x2="${xx}" y1="${T}" y2="${T + ph}"/><text x="${xx}" y="${H - 12}" text-anchor="middle">$${e < 0 ? (10 ** e).toFixed(-e) : 10 ** e}</text>`; }
+  for (let v = y0; v <= y1; v += 10) { const yy = T + ph - ((v - y0) / (y1 - y0 || 1)) * ph; svg += `<line class="gridline" x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}"/><text x="${L - 6}" y="${yy + 3}" text-anchor="end">${v}</text>`; }
+  svg += `<text x="${W - R}" y="${H - 1}" text-anchor="end">output $ per 1M tokens, log scale</text></g>`;
+  const rank = (c) => (pickedIds.has(c.id) ? 2 : usedIds.has(c.id) ? 1 : 0);
+  for (const c of pts.slice().sort((a, b) => rank(a) - rank(b))) {
+    const k = rank(c);
+    svg += `<circle data-id="${esc(c.id)}" cx="${X(c)}" cy="${Y(c)}" r="${k ? 5 : 3}" fill="${k === 2 ? "var(--c4)" : k ? "var(--accent)" : "var(--faint)"}" opacity="${k ? 1 : 0.55}" stroke="var(--bg)" stroke-width="1"/>`;
+    if (k) svg += `<text x="${X(c) + 8}" y="${Y(c) + 3}" style="fill:var(--text);font-size:10.5px;font-family:var(--sans)" text-anchor="${X(c) > W - 150 ? "end" : "start"}" ${X(c) > W - 150 ? `dx="-16"` : ""}>${esc(c.id.replace(/^[^/]+\//, ""))}</text>`;
+  }
+  el.innerHTML = svg + "</svg>";
+  const byId = new Map(pts.map((c) => [c.id, c]));
+  el.onpointermove = (ev) => {
+    const c = byId.get(ev.target.dataset?.id);
+    if (!c) return hideTip();
+    showTip(`<div class="t">${esc(c.name)}</div><div class="r"><span>Intelligence</span><b class="mono">${c.bench.intelligence.toFixed(1)}</b></div><div class="r"><span>Output</span><b class="mono">$${c.price.output.toFixed(2)}</b></div><div class="r"><span>Input</span><b class="mono">$${(c.price.input ?? 0).toFixed(2)}</b></div><div class="r"><span>Context</span><b class="mono">${c.context ? compact(c.context) : "-"}</b></div>`, ev);
+  };
+  el.onpointerleave = hideTip;
+}
+
+function drawModelTable() {
+  const M = state.mod, card = $("mtable");
+  if (!card) return;
+  const cols = [
+    ["name", "Model", (r) => r.name, true],
+    ["in", "Input", (r) => r.c?.price?.input], ["out", "Output", (r) => r.c?.price?.output], ["cr", "Cache read", (r) => r.c?.price?.cacheRead],
+    ["ctx", "Context", (r) => r.c?.context], ["max", "Max out", (r) => r.c?.maxOutput],
+    ["int", "Intelligence", (r) => r.c?.bench?.intelligence], ["cod", "Coding", (r) => r.c?.bench?.coding], ["agt", "Agentic", (r) => r.c?.bench?.agentic], ["elo", "Code Elo", (r) => r.c?.bench?.arenaCode],
+    ["tok", "Your tokens", (r) => r.u?.tokens], ["cost", "Your cost", (r) => r.u?.cost],
+  ];
+  const [sk, sd] = M.sort ?? ["tok", -1];
+  const col = cols.find((c) => c[0] === sk) ?? cols[0];
+  const rows = modelRows().sort((a, b) => {
+    const x = col[2](a), y = col[2](b);
+    if (x == null && y == null) return (b.u?.tokens ?? 0) - (a.u?.tokens ?? 0);
+    if (x == null) return 1; // missing values last, whichever way the sort runs
+    if (y == null) return -1;
+    return (typeof x === "string" ? x.localeCompare(y) : x - y) * sd;
+  });
+  const shown = rows.slice(0, M.shown);
+  const tags = (r) => `${r.u ? '<span class="tag you">used</span>' : ""}${r.u?.free ? '<span class="tag">free tier</span>' : ""}${r.c?.reasoning ? '<span class="tag">reasoning</span>' : ""}${r.c?.inputs?.includes("image") ? '<span class="tag">vision</span>' : ""}${r.u && !r.c ? '<span class="tag">not in the list</span>' : ""}`;
+  card.innerHTML = rows.length ? `<div class="table-wrap"><table><thead><tr><th class="pick"></th>${cols.map(([k, l, , left]) => `<th class="${left ? "l" : ""}" data-sort="${k}">${l}${k === sk ? ui(sd < 0 ? "arrow-down" : "arrow-up", 11) : ""}</th>`).join("")}</tr></thead>
+    <tbody>${shown.map((r) => `<tr><td class="pick"><input type="checkbox" data-key="${esc(r.key)}" ${M.picked.has(r.key) ? "checked" : ""} aria-label="Compare ${esc(r.name)}"></td>
+      <td class="l name"><div class="nm">${vi(r.vendor, 15)}<span class="t" title="${esc(r.c?.name ?? r.name)}">${esc(r.name)}</span>${tags(r)}</div>${r.c && r.u ? `<span class="sub mono">${esc(r.c.id)}${r.c.created ? " · released " + esc(r.c.created) : ""}</span>` : r.c?.created ? `<span class="sub mono">released ${esc(r.c.created)}</span>` : ""}</td>
+      <td>${price(r.c?.price?.input)}</td><td>${price(r.c?.price?.output)}</td><td class="muted">${price(r.c?.price?.cacheRead)}</td>
+      <td>${num(r.c?.context, compact)}</td><td class="muted">${num(r.c?.maxOutput, compact)}</td>
+      <td>${num(r.c?.bench?.intelligence, (v) => v.toFixed(1))}</td><td>${num(r.c?.bench?.coding, (v) => v.toFixed(1))}</td><td>${num(r.c?.bench?.agentic, (v) => v.toFixed(1))}</td><td class="muted">${num(r.c?.bench?.arenaCode, Math.round)}</td>
+      <td>${num(r.u?.tokens, compact)}</td><td>${r.u ? costCell(r.u) : '<span class="none-v">-</span>'}</td></tr>`).join("")}</tbody></table></div>
+    ${rows.length > shown.length ? `<div class="more"><button class="btn" id="mmore">Show ${Math.min(100, rows.length - shown.length)} more of ${int(rows.length - shown.length)}</button></div>` : ""}` : `<div class="empty">No model matches.</div>`;
+  card.querySelectorAll("th[data-sort]").forEach((th) => th.addEventListener("click", () => { const k = th.dataset.sort; M.sort = [k, k === sk ? -sd : k === "name" ? 1 : -1]; drawModelTable(); }));
+  card.querySelectorAll("td.pick input").forEach((box) => box.addEventListener("change", () => { box.checked ? M.picked.add(box.dataset.key) : M.picked.delete(box.dataset.key); drawModelBars(); drawModelScatter(); }));
+  card.querySelector("#mmore")?.addEventListener("click", () => { M.shown += 100; drawModelTable(); });
+}
+
+// ==== theme ====================================================================
+const THEMES = [["system", "System", "monitor"], ["light", "Latte (light)", "sun"], ["dark", "Macchiato (dark)", "moon"]];
+function applyTheme() {
+  const light = state.theme === "light" || (state.theme === "system" && matchMedia("(prefers-color-scheme: light)").matches);
+  document.documentElement.dataset.theme = light ? "light" : "dark";
+  const cur = THEMES.find((t) => t[0] === state.theme) ?? THEMES[0];
+  $("theme").innerHTML = ui(cur[2], 16);
+  $("theme").title = `Theme: ${cur[1]} (Shift D)`;
+}
+function setTheme(t) { state.theme = t; store.setItem("usage.theme", t); applyTheme(); }
+const cycleTheme = () => setTheme(THEMES[(THEMES.findIndex((t) => t[0] === state.theme) + 1) % THEMES.length][0]);
+matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => { if (state.theme === "system") applyTheme(); });
+
+// ==== keyboard, command palette, help ==========================================
+const overlay = $("overlay");
+const closeOverlay = () => { overlay.innerHTML = ""; };
+const isOpen = () => Boolean(overlay.firstChild);
+const pickView = (v) => { if (["cost", "tokens", "messages"].includes(v)) { state.metric = v; save(); setView("usage"); } else setView(v); };
+const pickRange = (v) => { state.range = v; save(); if (v === "custom" && state.data) { state.from = state.from || state.data.meta.start; state.to = state.to || state.data.meta.end; } controls(); if (v !== "custom" || (state.from && state.to)) reloadUsage(); };
+const TABS = ["models", "sessions", "projects", "agents", "days"];
+function stepTab(n) { if (state.view !== "usage") return; state.tab = TABS[(TABS.indexOf(state.tab) + n + TABS.length) % TABS.length]; state.shown = 100; save(); drawTable(); $("tablecard").scrollIntoView({ block: "nearest" }); }
+function stepThread(n) {
+  const list = state.thr.list?.threads;
+  if (!list?.length) return;
+  const i = list.findIndex((x) => x.id === state.thr.sel), next = list[Math.max(0, Math.min(list.length - 1, i < 0 ? 0 : i + n))];
+  openThread(next.id).then(() => $("tlist")?.querySelector(".ti.on")?.scrollIntoView({ block: "nearest" }));
+}
+function focusSearch() { const el = state.view === "threads" ? $("tq") : state.view === "models" ? $("mq") : $("q"); el?.focus(); el?.select(); }
+function clearFilters() { Object.assign(state, { host: "all", agent: "all", project: "all", model: "all", q: "" }); $("q").value = ""; reloadUsage(); }
+
+// One list drives the shortcuts, the help sheet and the palette, so they cannot drift.
+const SHORTCUTS = [
+  ["Views", "c", "Cost", () => pickView("cost")], ["Views", "t", "Tokens", () => pickView("tokens")], ["Views", "m", "Messages", () => pickView("messages")],
+  ["Views", "o", "Models: prices and benchmarks", () => pickView("models")], ["Views", "l", "Limits", () => pickView("limits")], ["Views", "h", "Threads", () => pickView("threads")],
+  ...RANGES.map(([k, l], i) => ["Range", String(i + 1), `Range: ${l}`, () => pickRange(k)]),
+  ["Usage", "g", "Cycle chart split: project, agent, model", () => { state.group = GROUPS[(GROUPS.findIndex((x) => x[0] === state.group) + 1) % GROUPS.length][0]; save(); reloadUsage(); }],
+  ["Usage", "b", "Toggle lines and bars", () => { state.chart = state.chart === "bars" ? "lines" : "bars"; save(); if (state.view === "usage") render(); }],
+  ["Usage", "]", "Next breakdown tab", () => stepTab(1)], ["Usage", "[", "Previous breakdown tab", () => stepTab(-1)],
+  ["Usage", "e", "Export the breakdown as CSV", () => $("csv")?.click()],
+  ["Usage", "x", "Clear every filter", clearFilters],
+  ["Threads", "j", "Next thread", () => stepThread(1)], ["Threads", "k", "Previous thread", () => stepThread(-1)],
+  ["Threads", "y", "Copy the resume command", () => $("resume")?.click()],
+  ["General", "/", "Focus search", focusSearch], ["General", "r", "Reload data", () => $("refresh").click()],
+  ["General", "Shift D", "Cycle theme: system, Latte, Macchiato", cycleTheme],
+  ["General", "Ctrl K", "Command palette", () => openPalette()], ["General", "?", "This guide", () => openHelp()], ["General", "Esc", "Close a dialog or leave a field", closeOverlay],
+];
+const keyChips = (k) => k.split(" ").map((p) => `<span class="kbd">${esc(p)}</span>`).join("");
+
+function openHelp() {
+  const groups = [...new Set(SHORTCUTS.map((s) => s[0]))];
+  overlay.innerHTML = `<div class="ov" data-close><div class="pal help" role="dialog" aria-label="Keyboard shortcuts"><h3>Keyboard shortcuts<span class="spacer"></span><button class="icon-btn" data-close aria-label="Close">${ui("x", 15)}</button></h3>
+    <div class="cols">${groups.map((g) => `<div><h4>${g}</h4>${SHORTCUTS.filter((s) => s[0] === g).map((s) => `<div class="k"><span>${esc(s[2])}</span><span>${keyChips(s[1])}</span></div>`).join("")}</div>`).join("")}</div></div></div>`;
+}
+
+function paletteItems() {
+  const items = SHORTCUTS.filter((s) => !["Ctrl K", "Esc"].includes(s[1])).map(([g, k, l, run]) => ({ g, l, k, run }));
+  for (const [k, l] of THEMES) items.push({ g: "Theme", l: `Theme: ${l}`, run: () => setTheme(k) });
+  const d = state.data;
+  if (d) {
+    for (const a of d.options.agents) items.push({ g: "Filter", l: `Provider: ${agentName(a)}`, icon: ai(a, 14), run: () => { state.agent = a; pickView(state.view === "models" ? "models" : state.metric); reloadUsage(); } });
+    for (const h of d.options.hosts) items.push({ g: "Filter", l: `Environment: ${h}`, run: () => { state.host = h; reloadUsage(); } });
+    for (const p of d.options.projects) items.push({ g: "Filter", l: `Project: ${tail(p, 3)}`, run: () => { state.project = p; pickView(state.metric); reloadUsage(); } });
+    for (const m of d.options.models) items.push({ g: "Filter", l: `Model: ${m}`, run: () => { state.model = m; pickView(state.metric); reloadUsage(); } });
+  }
+  for (const x of state.thr.list?.threads ?? []) items.push({ g: "Thread", l: x.title || x.preview || "(untitled)", icon: ai(x.harness, 14), run: () => { state.view = "threads"; save(); openThread(x.id); render(); } });
+  return items;
+}
+// Every typed word must appear in the label or group; earlier matches rank higher.
+function paletteFilter(items, text) {
+  const words = text.toLowerCase().split(/\s+/).filter(Boolean);
+  if (!words.length) return items.filter((i) => i.g !== "Filter" && i.g !== "Thread");
+  return items.map((i) => { const hay = `${i.l} ${i.g}`.toLowerCase(); const pos = words.map((w) => hay.indexOf(w)); return pos.includes(-1) ? null : [i, pos.reduce((a, b) => a + b, 0)]; }).filter(Boolean).sort((a, b) => a[1] - b[1]).map((x) => x[0]).slice(0, 60);
+}
+function openPalette() {
+  if (!state.thr.list && !state.thr.unavailable) loadThreads().catch(() => {});
+  if (!state.data) loadUsage().catch(() => {});
+  overlay.innerHTML = `<div class="ov" data-close><div class="pal" role="dialog" aria-label="Command palette"><div class="in">${ui("command", 15)}<input id="palq" placeholder="Type a command, a filter, or a thread title" autocomplete="off" spellcheck="false"></div>
+    <div class="list" id="pallist" role="listbox"></div><div class="ft"><span><span class="kbd">Up</span><span class="kbd">Down</span> move</span><span><span class="kbd">Enter</span> run</span><span><span class="kbd">Esc</span> close</span></div></div></div>`;
+  const input = $("palq"), list = $("pallist");
+  let shown = [], at = 0;
+  const draw = () => {
+    shown = paletteFilter(paletteItems(), input.value);
+    at = Math.min(at, Math.max(0, shown.length - 1));
+    let last = "";
+    list.innerHTML = shown.length ? shown.map((i, n) => `${i.g !== last ? `<div class="grp">${(last = i.g)}</div>` : ""}<div class="it ${n === at ? "on" : ""}" data-n="${n}" role="option" aria-selected="${n === at}">${i.icon ?? ""}<span class="l">${esc(i.l)}</span>${i.k ? keyChips(i.k) : ""}</div>`).join("") : `<div class="none">Nothing matches.</div>`;
+    list.querySelector(".it.on")?.scrollIntoView({ block: "nearest" });
+  };
+  const run = (n) => { const item = shown[n]; if (!item) return; closeOverlay(); item.run(); };
+  input.addEventListener("input", () => { at = 0; draw(); });
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown") { at = Math.min(shown.length - 1, at + 1); draw(); e.preventDefault(); }
+    else if (e.key === "ArrowUp") { at = Math.max(0, at - 1); draw(); e.preventDefault(); }
+    else if (e.key === "Enter") { run(at); e.preventDefault(); }
+  });
+  list.addEventListener("click", (e) => { const it = e.target.closest(".it"); if (it) run(Number(it.dataset.n)); });
+  list.addEventListener("pointermove", (e) => { const it = e.target.closest(".it"); if (it && Number(it.dataset.n) !== at) { at = Number(it.dataset.n); list.querySelectorAll(".it").forEach((el) => el.classList.toggle("on", Number(el.dataset.n) === at)); } });
+  draw();
+  input.focus();
+}
+overlay.addEventListener("click", (e) => { if (e.target.dataset.close !== undefined || e.target.closest("button[data-close]")) closeOverlay(); });
+$("palbtn").addEventListener("click", openPalette);
+$("help").addEventListener("click", openHelp);
+$("theme").addEventListener("click", cycleTheme);
+if (/Mac|iPhone|iPad/.test(navigator.platform)) $("palbtn").querySelector(".kbd").textContent = "Cmd K";
+
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); isOpen() ? closeOverlay() : openPalette(); return; }
+  if (e.key === "Escape") { if (isOpen()) closeOverlay(); else if (document.activeElement?.matches("input, select")) document.activeElement.blur(); return; }
+  // Typing in a field, a held modifier, or an open dialog: the key belongs to that, not to a shortcut.
+  if (isOpen() || e.ctrlKey || e.metaKey || e.altKey || e.target.closest?.("input, select, textarea, [contenteditable]")) return;
+  const key = e.shiftKey && e.key.toLowerCase() === "d" ? "Shift D" : e.key;
+  const hit = SHORTCUTS.find((s) => s[1] === key);
+  if (!hit) return;
+  if (hit[0] === "Threads" && state.view !== "threads") return;
+  if (hit[0] === "Usage" && state.view !== "usage") return;
+  if (hit[0] === "Range" && !["usage", "models"].includes(state.view)) return;
+  e.preventDefault();
+  hit[3]();
+});
+
 // ==== wiring ===================================================================
 const fail = (e) => { if (e.name !== "AbortError") $("main").innerHTML = `<div class="empty">Could not load: ${esc(e.message)}</div>`; };
-const reloadUsage = () => loadUsage().catch(fail);
+const reloadUsage = () => (state.view === "models" ? Promise.all([loadModels(), loadUsage()]).catch(fail) : loadUsage().catch(fail));
 function setView(v) {
   state.view = v; save();
   if (v !== "threads") history.replaceState(null, "", location.pathname);
@@ -952,6 +1298,7 @@ function setView(v) {
   if (v === "limits") loadLimits().catch(fail);
   if (v === "threads" && !state.thr.list) loadThreads().catch(fail);
   if (v === "usage" && !state.data) reloadUsage();
+  if (v === "models") { loadModels().catch(fail); if (!state.data) loadUsage().catch(() => {}); }
 }
 $("view").addEventListener("click", (e) => {
   const v = e.target.closest("button")?.dataset.v;
@@ -969,17 +1316,19 @@ $("q").addEventListener("input", debounce((e) => { state.q = e.target.value; sta
 for (const id of ["from", "to"]) $(id).addEventListener("change", (e) => { state[id] = e.target.value; if (state.from && state.to && state.from <= state.to) { state.range = "custom"; save(); reloadUsage(); } });
 $("refresh").addEventListener("click", async () => {
   const b = $("refresh"); b.classList.add("spin");
-  try { if (state.view === "limits") await loadLimits(true); else if (state.view === "threads") await loadThreads(true); else await loadUsage(true); } catch (e) { fail(e); } finally { b.classList.remove("spin"); }
+  try { if (state.view === "models") await loadModels(); else if (state.view === "limits") await loadLimits(true); else if (state.view === "threads") await loadThreads(true); else await loadUsage(true); } catch (e) { fail(e); } finally { b.classList.remove("spin"); }
 });
 let resizeTimer;
 new ResizeObserver(() => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { document.documentElement.style.setProperty("--hh", $("top").offsetHeight + "px"); if (state.view === "usage" && state.data && $("chart")) drawChart(); }, 120); }).observe(document.body);
 setInterval(() => {
   if (document.hidden) return;
+  if ($("overlay").firstChild) return;
   if (state.view === "usage") reloadUsage();
   else if (state.view === "limits") loadLimits().catch(() => {});
 }, 60000);
 
 if (!["cost", "tokens", "messages"].includes(state.metric)) state.metric = "cost";
+applyTheme();
 const hash = /^#threads\/([\w-]+)$/.exec(location.hash);
 if (hash) { state.view = "threads"; state.thr.sel = hash[1]; openThread(hash[1]); }
 setView(state.view);

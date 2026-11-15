@@ -26,6 +26,7 @@ import { fileURLToPath } from "node:url";
 import { detectLimits } from "./usage-limits.mjs";
 import { listThreads, resumeCommands, sessionIndex, showThread } from "./usage-threads.mjs";
 import { loadPriceCache, refreshPrices, usageDir } from "./usage.mjs";
+import { catalogIsStale, modelsReport, refreshCatalog } from "./usage-models.mjs";
 import { resetSnapshots, summarize } from "./usage-summary.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -38,6 +39,8 @@ const PRICE_TTL_MS = 24 * 60 * 60 * 1000;
 // ------------------------------------------------------------------------------
 // Server
 // ------------------------------------------------------------------------------
+
+let runOffline = false;
 
 function send(res, status, type, body, cache = "no-store") {
   res.writeHead(status, { "Content-Type": type, "Cache-Control": cache });
@@ -86,6 +89,15 @@ function createServer(bound) {
           (error) => send(res, 500, "application/json", JSON.stringify({ error: error.message })),
         );
       }
+      if (url.pathname === "/api/models") {
+        const q = url.searchParams;
+        const filters = Object.fromEntries(["range", "from", "to", "host", "harness", "project"].filter((k) => q.get(k)).map((k) => [k, q.get(k)]));
+        return modelsReport(filters, { offline: runOffline }).then(
+          (body) => send(res, 200, "application/json", JSON.stringify(body)),
+          (error) => send(res, 500, "application/json", JSON.stringify({ error: error.message })),
+        );
+      }
+      if (url.pathname === "/favicon.ico") return serveAsset(res, "/assets/favicon.svg");
       if (url.pathname === "/api/limits") {
         return detectLimits({ fresh: Boolean(url.searchParams.get("fresh")) }).then(
           (body) => send(res, 200, "application/json", JSON.stringify(body)),
@@ -173,7 +185,9 @@ function safeRead(file) {
 }
 
 async function startWeb({ port = DEFAULT_PORT, host = "127.0.0.1", open = true, offline = false } = {}) {
+  runOffline = offline;
   if (!offline) {
+    if (catalogIsStale()) refreshCatalog().catch((error) => console.log(`models: refresh failed (${error.message})`));
     const age = Date.now() - (Date.parse(loadPriceCache()?.fetchedAt) || 0);
     if (age > PRICE_TTL_MS) {
       // Background: the page must not wait on OpenRouter. The next /api/usage
