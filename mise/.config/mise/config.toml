@@ -42,3 +42,4 @@ television = "latest"
 uv = "latest"
 zoxide = "latest"
 opencode = { version = "latest", allow_builds = ["@opencode/cli"] }
+agent-browser = "latest"
