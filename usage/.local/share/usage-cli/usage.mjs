@@ -38,6 +38,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameS
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { atuinSnapshots } from "./usage-atuin.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const COLLECTOR = path.join(SCRIPT_DIR, "dot_config", "herdr-app", "mods", "insights", "collector.mjs");
@@ -237,7 +238,7 @@ function remoteToolDir(home = "~") {
 // (rsync is absent on both VPS boxes). Windows' bsdtar writes a POSIX ustar
 // archive; GNU tar on the far side reads it.
 function pushTool(host) {
-  const local = spawnSync("tar", ["-czf", "-", "-C", SCRIPT_DIR, "usage.mjs", "dot_config/herdr-app/mods/insights"], {
+  const local = spawnSync("tar", ["-czf", "-", "-C", SCRIPT_DIR, "usage.mjs", "usage-atuin.mjs", "usage-env.mjs", "usage-threads.mjs", "dot_config/herdr-app/mods/insights"], {
     encoding: "buffer",
     maxBuffer: 256 * 1024 * 1024,
   });
@@ -549,7 +550,17 @@ function hostSnapshots() {
   for (const note of collapsed) {
     console.warn(`usage: ignoring ${note}; delete it or let the next collect overwrite it`);
   }
-  return [...byContent.values()];
+  const real = [...byContent.values()];
+  // Machines nobody collected still appear in atuin's synced threads (see
+  // usage-atuin.mjs). Threads from a machine that does have a snapshot, captured
+  // since its last collect, join that snapshot instead of listing the host twice.
+  const result = [...real];
+  for (const extra of atuinSnapshots(real, { localName: hostId() })) {
+    const at = result.findIndex((snapshot) => snapshot.data.host === extra.data.host);
+    if (at >= 0) result[at] = { ...result[at], data: { ...result[at].data, rows: [...result[at].data.rows, ...extra.data.rows] } };
+    else result.push(extra);
+  }
+  return result;
 }
 
 // A row is one session's usage in one project on one day. The key has to match

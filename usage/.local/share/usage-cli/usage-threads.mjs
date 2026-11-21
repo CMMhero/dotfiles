@@ -19,6 +19,7 @@
 // ==============================================================================
 
 import { execFile } from "node:child_process";
+import { findTool } from "./usage-env.mjs";
 
 const ID = /^[A-Za-z0-9][A-Za-z0-9_-]{3,63}$/;
 const HARNESS = /^[a-z][a-z0-9-]{1,20}$/;
@@ -32,7 +33,10 @@ const MAX_MESSAGES = 500;
 
 function run(args, timeout = 20_000) {
   return new Promise((resolve, reject) => {
-    execFile("atuin", args, { encoding: "utf8", maxBuffer: MAX_BUFFER, timeout, windowsHide: true }, (error, stdout, stderr) => {
+    // atuin is usually a mise shim, which this process may not have on PATH.
+    const tool = findTool("atuin");
+    if (!tool) return reject(Object.assign(new Error("atuin is not installed or not on PATH"), { missing: true }));
+    execFile(tool.cmd, args, { encoding: "utf8", maxBuffer: MAX_BUFFER, timeout, windowsHide: true, env: tool.env }, (error, stdout, stderr) => {
       if (error) {
         const missing = error.code === "ENOENT";
         reject(Object.assign(new Error(missing ? "atuin is not installed or not on PATH" : (stderr || error.message).trim()), { missing }));
@@ -77,10 +81,9 @@ const folderOf = (cwd) => String(cwd ?? "").split(/[\\/]/).filter(Boolean).at(-1
 // appended, and the one this server runs on is marked.
 let machines = null;
 let localHost;
-async function nameMachines(threads) {
-  if (localHost === undefined) {
-    try { localHost = /host id:\s*(\w+)/.exec(await run(["info"], 10_000))?.[1] ?? null; } catch { localHost = null; }
-  }
+
+// Pure: atuin host id -> { id, base, label, count } from the folders the threads ran in.
+export function labelMachines(threads, localHostId = null) {
   const seen = new Map();
   for (const thread of threads) {
     if (!thread.host) continue;
@@ -102,8 +105,15 @@ async function nameMachines(threads) {
   }
   const dupes = new Map();
   for (const l of labels.values()) dupes.set(l.base, (dupes.get(l.base) ?? 0) + 1);
-  for (const l of labels.values()) l.label = `${l.base}${dupes.get(l.base) > 1 ? ` · ${l.id.slice(-4)}` : ""}${l.id === localHost ? " (this machine)" : ""}`;
-  machines = labels;
+  for (const l of labels.values()) l.label = `${l.base}${dupes.get(l.base) > 1 ? ` · ${l.id.slice(-4)}` : ""}${l.id === localHostId ? " (this machine)" : ""}`;
+  return labels;
+}
+
+async function nameMachines(threads) {
+  if (localHost === undefined) {
+    try { localHost = /host id:\s*(\w+)/.exec(await run(["info"], 10_000))?.[1] ?? null; } catch { localHost = null; }
+  }
+  machines = labelMachines(threads, localHost);
 }
 
 let listCache = null;

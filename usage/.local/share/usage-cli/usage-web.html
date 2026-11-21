@@ -506,10 +506,39 @@ const AGENT = {
 const agentKey = (n) => String(n || "").toLowerCase().replace(/-code$/, "");
 const agentName = (n) => AGENT[agentKey(n)]?.name ?? n;
 const agentColor = (n) => AGENT[agentKey(n)]?.color ?? "#8d869c";
+// Icons beyond the bundled ones are fetched on demand by the server (usage-icons.mjs).
+// Until one is known the name gets a letter chip carrying its candidate slugs, and
+// when /api/icons/ensure answers the chips are swapped in place, so nothing re-renders.
+const ICONS = { have: new Set(), asked: new Set(), queue: new Set(), timer: null };
+const iconSlugs = (name) => {
+  const raw = String(name || "").toLowerCase(), out = [];
+  for (const part of [raw, raw.split(/[-_/ .]/)[0], raw.replace(/-code$/, "")]) { const s = part.replace(/[^a-z0-9]/g, ""); if (s.length >= 3 && !out.includes(s)) out.push(s); }
+  return out;
+};
+const iconHave = (name) => iconSlugs(name).find((s) => ICONS.have.has(s));
+const maskIcon = (slug, size, color) => `<i class="ai" style="--m:url(/assets/icons/${slug}.svg);--s:${size}px;color:${color}" aria-hidden="true"></i>`;
+function paintIcons() {
+  document.querySelectorAll(".chip-letter[data-ic]").forEach((el) => {
+    const slug = el.dataset.ic.split(" ").find((s) => ICONS.have.has(s));
+    if (slug) el.outerHTML = maskIcon(slug, el.dataset.size, el.dataset.color);
+  });
+}
+async function fetchIcons(path) {
+  try { const r = await fetch(path); if (r.ok) { (await r.json()).available.forEach((s) => ICONS.have.add(s)); paintIcons(); } } catch { /* offline: the letter chips stay */ }
+}
+function dynIcon(name, size, color) {
+  const have = iconHave(name);
+  if (have) return maskIcon(have, size, color);
+  const slugs = iconSlugs(name);
+  const fresh = slugs.filter((s) => !ICONS.asked.has(s));
+  fresh.forEach((s) => { ICONS.asked.add(s); ICONS.queue.add(s); });
+  if (fresh.length && !ICONS.timer) ICONS.timer = setTimeout(() => { const names = [...ICONS.queue].join(","); ICONS.queue.clear(); ICONS.timer = null; fetchIcons("/api/icons/ensure?names=" + encodeURIComponent(names)); }, 250);
+  return `<i class="chip-letter" data-ic="${slugs.join(" ")}" data-size="${size}" data-color="${esc(color)}" style="--s:${size}px;color:${color === "var(--text)" ? "var(--muted)" : color}" aria-hidden="true">${esc(String(name || "?")[0].toUpperCase())}</i>`;
+}
 function ai(name, size = 15) {
   const a = AGENT[agentKey(name)], c = agentColor(name);
   if (a) return `<i class="ai" style="--m:url(/assets/icons/${a.file}.svg);--s:${size}px;color:${c}" aria-hidden="true"></i>`;
-  return `<i class="chip-letter" style="--s:${size}px;color:${c}" aria-hidden="true">${String(name || "?")[0].toUpperCase()}</i>`;
+  return dynIcon(name, size, c);
 }
 // Model vendors, for the Models view. Same icon set, drawn in the text colour.
 const VENDOR_ICON = { anthropic: "claude", openai: "openai", google: "gemini", deepseek: "deepseek", "x-ai": "xai", mistralai: "mistral", "meta-llama": "meta", qwen: "qwen", moonshotai: "moonshot", "z-ai": "zhipu", nvidia: "nvidia", ollama: "ollama", openrouter: "openrouter" };
@@ -517,7 +546,7 @@ const guessVendor = (name) => { const n = String(name).toLowerCase(); if (n.incl
 function vi(vendor, size = 15) {
   const f = VENDOR_ICON[vendor];
   if (f) return `<i class="ai" style="--m:url(/assets/icons/${f}.svg);--s:${size}px;color:var(--text)" aria-hidden="true"></i>`;
-  return `<i class="chip-letter" style="--s:${size}px;color:var(--muted)" aria-hidden="true">${String(vendor || "?")[0].toUpperCase()}</i>`;
+  return dynIcon(vendor, size, "var(--text)");
 }
 // The provider that served a model, as the transcripts name it, and how this
 // machine pays for it (from /api/usage's billing map).
@@ -526,7 +555,7 @@ const providerName = (p) => PROVIDER[p]?.[0] ?? (p || "unknown");
 function pi(p, size = 15) {
   const f = PROVIDER[p]?.[1];
   if (f) return `<i class="ai" style="--m:url(/assets/icons/${f}.svg);--s:${size}px;color:var(--text)" aria-hidden="true"></i>`;
-  return `<i class="chip-letter" style="--s:${size}px;color:var(--muted)" aria-hidden="true">${String(p || "?")[0].toUpperCase()}</i>`;
+  return dynIcon(p, size, "var(--text)");
 }
 const billing = (agent, provider) => state.data?.billing?.[`${agent}|${provider}`] ?? null;
 const billTag = (agent, provider) => { const b = billing(agent, provider); return b ? `<span class="tag ${b.kind === "subscription" ? "you" : ""}">${esc(b.label)}</span>` : ""; };
@@ -1169,13 +1198,18 @@ function renderLimits() {
 
   // Default: each distinct provider once, tagged with the machines that hold it.
   // A machine picked from the dropdown shows only what that machine reports.
-  const cards = one ? (one.ok ? one.providers.map((p) => limitCard(p)) : []) : (L.unique ?? L.providers).map((p) => limitCard(p, multi && p.hosts ? `<div class="onhosts">on ${p.hosts.map((h) => `<b>${esc(h)}</b>`).join(", ")}</div>` : ""));
+  // A card with no meter and no figure has nothing to say, so it is left out and named
+  // in the footer. One that failed (expired login, error) stays: it says what to fix.
+  const hasData = (p) => p.windows?.length || p.facts?.length || p.status === "expired" || p.status === "error";
+  const pool = one ? (one.ok ? one.providers : []) : (L.unique ?? L.providers);
+  const shown = pool.filter(hasData), quiet = [...new Set(pool.filter((p) => !hasData(p)).map((p) => p.name))];
+  const cards = shown.map((p) => limitCard(p, !one && multi && p.hosts ? `<div class="onhosts">on ${p.hosts.map((h) => `<b>${esc(h)}</b>`).join(", ")}</div>` : ""));
   const down = (one ? [one] : hosts).filter((h) => !h.ok);
   const bar = multi ? `<div class="lbar"><label for="lhost">Machine</label><select class="field ${one ? "on" : ""}" id="lhost" aria-label="Machine">
       <option value="all">All machines, each provider once</option>${hosts.map((h) => `<option value="${esc(h.host)}" ${h.host === state.limHost ? "selected" : ""}>${esc(h.host)}${h.local ? " (this machine)" : ""}${h.ok ? "" : " (unreachable)"}</option>`).join("")}</select></div>` : "";
-  const empty = !cards.length && !down.length ? `<div class="empty">No agent or provider with limits was found${one ? ` on ${esc(one.host)}` : " on this machine"}.<br>Checked: ${L.checked.map(esc).join(", ")}.</div>` : "";
+  const empty = !cards.length && !down.length ? `<div class="empty">No agent or provider with limit data was found${one ? ` on ${esc(one.host)}` : " on this machine"}.${quiet.length ? `<br>Nothing to show yet for ${quiet.map(esc).join(", ")}.` : ""}</div>` : "";
   main.innerHTML = `${bar}${cards.length ? `<div class="lims">${cards.join("")}</div>` : ""}${empty}${down.map((h) => `<div class="empty">${esc(h.note)}</div>`).join("")}
-    <div class="foot"><div>Limits are the provider's own counters, so one account shows the same figure on every machine that uses it. By default each distinct provider appears once with the machines that hold it; pick a machine to see only its own. Other machines are read over ssh (<code>USAGE_REMOTE_HOSTS</code>) by running this check there, so their logins and keys never leave them. Providers reached with an API key are read with the key your agents already store; it is sent only to that provider.</div></div>`;
+    <div class="foot">${quiet.length && cards.length ? `<div>Hidden, no data: ${quiet.map(esc).join(", ")}.</div>` : ""}<div>Limits are the provider's own counters, so one account shows the same figure on every machine that uses it. By default each distinct provider appears once with the machines that hold it; pick a machine to see only its own. Other machines are read over ssh (<code>USAGE_REMOTE_HOSTS</code>) by running this check there, so their logins and keys never leave them. Providers reached with an API key are read with the key your agents already store; it is sent only to that provider.</div></div>`;
   $("lhost")?.addEventListener("change", (e) => { state.limHost = e.target.value; store.setItem("usage.limHost", state.limHost); renderLimits(); });
 }
 
@@ -1849,6 +1883,7 @@ if (!["cost", "tokens", "messages"].includes(state.metric)) state.metric = "cost
 applyTheme();
 const hash = /^#threads\/([\w-]+)$/.exec(location.hash);
 if (hash) { state.view = "threads"; state.thr.sel = hash[1]; openThread(hash[1]); }
+fetchIcons("/api/icons");
 setView(state.view);
 </script>
 </body>

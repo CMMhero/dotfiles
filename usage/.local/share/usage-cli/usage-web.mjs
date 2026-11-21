@@ -27,6 +27,7 @@ import { detectBilling } from "./usage-billing.mjs";
 import { detectLimits } from "./usage-limits.mjs";
 import { listThreads, resumeCommands, sessionIndex, showThread } from "./usage-threads.mjs";
 import { loadPriceCache, refreshPrices, usageDir } from "./usage.mjs";
+import { ensureIcons, listIcons, readIcon } from "./usage-icons.mjs";
 import { installedPort } from "./usage-web-service.mjs";
 import { catalogIsStale, modelsReport, refreshCatalog } from "./usage-models.mjs";
 import { resetSnapshots, summarize } from "./usage-summary.mjs";
@@ -52,6 +53,12 @@ function send(res, status, type, body, cache = "no-store") {
 // Static files under usage-web-assets only. The resolved path has to stay inside
 // the folder, so `/assets/../../.ssh/config` cannot walk out of it.
 function serveAsset(res, pathname) {
+  // Icons not in the bundle may be in the download cache (usage-icons.mjs).
+  const icon = /^\/assets\/icons\/([a-z0-9-]{1,40})\.svg$/.exec(pathname);
+  if (icon) {
+    const file = readIcon(icon[1]);
+    return file ? send(res, 200, "image/svg+xml", file, "public, max-age=86400") : send(res, 404, "text/plain", "not found");
+  }
   const target = path.resolve(ASSETS, decodeURIComponent(pathname.slice("/assets/".length)));
   const type = MIME[path.extname(target).toLowerCase()];
   if (!target.startsWith(ASSETS + path.sep) || !type) return send(res, 404, "text/plain", "not found");
@@ -96,6 +103,14 @@ function createServer(bound) {
         const filters = Object.fromEntries(["range", "from", "to", "host", "harness", "project"].filter((k) => q.get(k)).map((k) => [k, q.get(k)]));
         return modelsReport(filters, { offline: runOffline, fresh: Boolean(q.get("fresh")) }).then(
           (body) => send(res, 200, "application/json", JSON.stringify(body)),
+          (error) => send(res, 500, "application/json", JSON.stringify({ error: error.message })),
+        );
+      }
+      if (url.pathname === "/api/icons") return send(res, 200, "application/json", JSON.stringify({ available: listIcons() }));
+      if (url.pathname === "/api/icons/ensure") {
+        const names = (url.searchParams.get("names") ?? "").split(",").map((n) => n.trim().toLowerCase()).filter(Boolean);
+        return ensureIcons(names, { offline: runOffline }).then(
+          (available) => send(res, 200, "application/json", JSON.stringify({ available })),
           (error) => send(res, 500, "application/json", JSON.stringify({ error: error.message })),
         );
       }

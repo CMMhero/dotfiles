@@ -43,6 +43,8 @@ import { spawn } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { findTool, toolEnv } from "./usage-env.mjs";
+import { agentDetectors } from "./usage-limits-agents.mjs";
 import { findKeys, keyDetectors } from "./usage-limits-keys.mjs";
 
 const CLAUDE_USAGE_URL = "https://api.anthropic.com/api/oauth/usage";
@@ -160,7 +162,7 @@ async function claudeUserAgent(home, env) {
   if (!claudeVersion) {
     claudeVersion = "2.1.0"; // any recent version is accepted; used when claude cannot be run
     try {
-      const out = (await run("claude", ["--version"], { env: agentEnv(home, env), timeout: 10_000 })).toString();
+      const out = (await run("claude", ["--version"], { env: toolEnv(home, env), timeout: 10_000 })).toString();
       claudeVersion = /\d+\.\d+\.\d+/.exec(out)?.[0] ?? claudeVersion;
     } catch { /* keep the fallback */ }
   }
@@ -265,11 +267,85 @@ export function parseCodexRateLimits(limits, recordedAt, now = Date.now()) {
   return windows;
 }
 
-function codexLimits(home) {
+// Live: Codex's own app server answers `account/rateLimits/read` with the current
+// counters, the same call its /status makes with its own login. Nothing is read or
+// sent from here but JSON lines over a pipe, and the figure is current instead of
+// "as of the last turn".
+function codexLiveRead(home, env, timeoutMs = 20_000) {
+  const tool = findTool("codex", { home, env });
+  if (!tool) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    let done = false, buf = "";
+    const child = spawn(tool.cmd, ["app-server"], { env: tool.env, stdio: ["pipe", "pipe", "ignore"], windowsHide: true });
+    const finish = (value) => { if (done) return; done = true; clearTimeout(timer); try { child.kill(); } catch { /* already gone */ } resolve(value); };
+    const timer = setTimeout(() => finish(null), timeoutMs);
+    const send = (o) => { try { child.stdin.write(JSON.stringify(o) + "\n"); } catch { /* the exit handler resolves */ } };
+    child.on("error", () => finish(null));
+    child.on("exit", () => finish(null));
+    child.stdin.on("error", () => {});
+    child.stdout.on("data", (chunk) => {
+      buf += chunk;
+      let i;
+      while ((i = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, i);
+        buf = buf.slice(i + 1);
+        let message;
+        try { message = JSON.parse(line); } catch { continue; }
+        if (message.id === 1) { send({ method: "initialized" }); send({ id: 2, method: "account/rateLimits/read" }); }
+        else if (message.id === 2) finish(message.result ?? null);
+      }
+    });
+    send({ id: 1, method: "initialize", params: { clientInfo: { name: "usage-dashboard", version: "1" } } });
+  });
+}
+
+const capital = (v) => (v ? String(v)[0].toUpperCase() + String(v).slice(1) : null);
+
+// { rateLimits, rateLimitsByLimitId } -> windows. Each limit id is its own meter
+// ("codex", and others such as a model-specific one); the main one keeps plain labels.
+export function parseCodexLive(result) {
+  const byId = result?.rateLimitsByLimitId && Object.keys(result.rateLimitsByLimitId).length ? result.rateLimitsByLimitId : { codex: result?.rateLimits };
+  const windows = [];
+  const facts = [];
+  let plan = null;
+  for (const [id, snap] of Object.entries(byId)) {
+    if (!snap) continue;
+    plan ??= capital(snap.planType);
+    const main = id === "codex" || !snap.limitName;
+    for (const slot of ["primary", "secondary"]) {
+      const w = snap[slot];
+      if (!w || typeof w.usedPercent !== "number") continue;
+      const minutes = w.windowDurationMins ?? null;
+      const resetsAt = typeof w.resetsAt === "number" ? new Date(w.resetsAt * 1000).toISOString() : null;
+      const label = minutes ? codexLabel(minutes) : humanize(slot);
+      windows.push({
+        id: `${id}-${slot}`,
+        label: main ? label : `${snap.limitName ?? id}, ${label}`,
+        percent: w.usedPercent, resetsAt, windowMs: minutes ? minutes * 60_000 : null,
+        stale: resetsAt ? Date.parse(resetsAt) < Date.now() : false,
+      });
+    }
+    if (snap.credits?.hasCredits && snap.credits.balance != null) facts.push({ label: "Credits", value: String(snap.credits.balance) });
+    else if (snap.credits?.unlimited) facts.push({ label: "Credits", value: "Unlimited" });
+  }
+  return { windows, facts, plan };
+}
+
+async function codexLimits(home, env = process.env) {
   const root = path.join(home, ".codex");
   if (!existsSync(root)) return null;
   const base = { id: "codex", name: "Codex", windows: [], source: "latest Codex session log", asOf: null };
 
+  const live = await codexLiveRead(home, env);
+  if (live) {
+    const parsed = parseCodexLive(live);
+    if (parsed.windows.length) {
+      return { ...base, source: "Codex app server", plan: parsed.plan, status: "ok", windows: parsed.windows, facts: parsed.facts.length ? parsed.facts : undefined, asOf: new Date().toISOString(), note: null };
+    }
+  }
+
+  // Fallback: the newest session log, as old as the last Codex turn. Used when this
+  // Codex has no app server (an old version) or is not signed in.
   for (const file of newestRollouts(path.join(root, "sessions"), 25)) {
     let text;
     try {
@@ -293,11 +369,11 @@ function codexLimits(home) {
       const allStale = windows.every((w) => w.stale);
       return {
         ...base, plan, status: "ok", windows, asOf: record.timestamp ?? null,
-        note: allStale ? "Every window has reset since the last Codex turn. Run Codex to refresh these." : "As of the last Codex turn, not live.",
+        note: allStale ? "Every window has reset since the last Codex turn. Run Codex to refresh these." : "As of the last Codex turn, not live (Codex could not be asked for its current limits).",
       };
     }
   }
-  return { ...base, status: "ok", note: "Codex is installed but no session has recorded a rate limit yet." };
+  return { ...base, status: "ok", note: "Codex is installed but no limit has been recorded yet." };
 }
 
 // ------------------------------------------------------------------------------
@@ -329,17 +405,8 @@ export function parseAntigravityUsage(body) {
   return windows;
 }
 
-// agy and claude are usually mise or vite+ shims, which a service or an ssh command
-// does not have on PATH.
-function agentEnv(home, env) {
-  const extra = [path.join(home, ".local", "share", "mise", "shims"), path.join(home, ".local", "bin"), path.join(home, ".local", "share", "vite-plus", "bin")];
-  if (env.LOCALAPPDATA) extra.push(path.join(env.LOCALAPPDATA, "mise", "shims"));
-  const key = Object.keys(env).find((k) => k.toLowerCase() === "path") ?? "PATH"; // "Path" on Windows
-  return { ...env, [key]: [...extra, env[key] ?? ""].join(path.delimiter) };
-}
-
 async function findAgy(home, env) {
-  const withPath = agentEnv(home, env);
+  const withPath = toolEnv(home, env);
   for (const name of ["agy"]) {
     try {
       await run(name, ["--version"], { env: withPath, timeout: 10_000 });
@@ -379,15 +446,19 @@ async function detectLocalLimits({ home = os.homedir(), fresh = false, fetchImpl
   const keys = findKeys({ home, env });
   const detectors = [
     ["claude", () => claudeLimits(home, fetchImpl, env)],
-    ["codex", async () => codexLimits(home)],
+    ["codex", () => codexLimits(home, env)],
     ["antigravity", () => antigravityLimits(home, env)],
     ...keyDetectors.map(([id, run]) => [id, () => run(keys, fetchImpl)]),
+    ...agentDetectors.map(([id, run]) => [id, () => run({ home, env, fetchImpl, keys })]),
   ];
-  for (const [id, run] of detectors) {
-    const result = await cached(id, fresh, run).catch((error) => ({
-      id, name: id, status: "error", windows: [], note: error.message, asOf: null, source: "",
-    }));
-    if (result) providers.push(result);
+  // Detectors run side by side: several wait on a network or a child process, and
+  // one slow service must not hold up the rest.
+  const results = await Promise.all(detectors.map(([id, run]) => cached(id, fresh, run).catch((error) => ({
+    id, name: id, status: "error", windows: [], note: error.message, asOf: null, source: "",
+  }))));
+  for (const result of results) {
+    if (Array.isArray(result)) providers.push(...result);
+    else if (result) providers.push(result);
   }
   return { generatedAt: new Date().toISOString(), host: os.hostname(), providers, checked: detectors.map(([id]) => id) };
 }
@@ -433,7 +504,7 @@ function run(cmd, args, { input, timeout = 30_000, env, cwd } = {}) {
 }
 
 async function remoteLimits(host) {
-  const archive = await run("tar", ["-czf", "-", "-C", SELF_DIR, "usage-limits.mjs", "usage-limits-keys.mjs"]);
+  const archive = await run("tar", ["-czf", "-", "-C", SELF_DIR, "usage-limits.mjs", "usage-limits-keys.mjs", "usage-limits-agents.mjs", "usage-env.mjs"]);
   // The login shell on these boxes is fish, which rejects `N=$(...)` and `[ ] || { }`
   // ("Unsupported use of '='"). So the work is handed to sh, quoted once for
   // whatever shell receives it. vite+ owns node here and a non-login ssh PATH
