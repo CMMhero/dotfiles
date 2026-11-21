@@ -53,7 +53,7 @@ function readThreads() {
   const tool = findTool("atuin");
   if (tool) {
     try {
-      const run = (args) => execFileSync(tool.cmd, args, { env: tool.env, encoding: "utf8", timeout: 30_000, maxBuffer: 512 * 1024 * 1024, windowsHide: true, stdio: ["ignore", "pipe", "ignore"] });
+      const run = (args) => execFileSync(tool.cmd, args, { env: tool.env, encoding: "utf8", timeout: 30_000, maxBuffer: 512 * 1024 * 1024, windowsHide: true, shell: tool.shell, stdio: ["ignore", "pipe", "ignore"] });
       const threads = JSON.parse(run(["threads", "list", "--style", "json"]));
       let localHost = null;
       try { localHost = /host id:\s*(\w+)/.exec(run(["info"]))?.[1] ?? null; } catch { /* the local machine just goes unmarked */ }
@@ -87,8 +87,16 @@ export function atuinSnapshots(snapshots, { localName = null, threadsInfo = read
   const { threads, localHost } = threadsInfo;
   const known = knownSessions(snapshots);
   const labels = labelMachines(threads, localHost);
-  const byHost = new Map();
+  // The same session can be captured on two machines (resumed elsewhere). One thread
+  // per session id, the one with the most tokens, so it is counted once.
+  const totalOf = (t) => ["input", "output", "cache_read", "cache_write"].reduce((n, k) => n + (Number(t.tokens?.[k]) || 0), 0);
+  const bySession = new Map();
   for (const t of threads) {
+    const best = bySession.get(t.session_id);
+    if (!best || totalOf(t) > totalOf(best)) bySession.set(t.session_id, t);
+  }
+  const byHost = new Map();
+  for (const t of bySession.values()) {
     const tokens = t.tokens ?? {};
     const input = Number(tokens.input) || 0, output = Number(tokens.output) || 0;
     const cacheRead = Number(tokens.cache_read) || 0, cacheWrite = Number(tokens.cache_write) || 0;

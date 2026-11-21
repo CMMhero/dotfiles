@@ -440,6 +440,7 @@
     <div class="seg" id="view" role="group" aria-label="View"></div>
     <div class="spacer"></div>
     <span class="faint mono stamp" id="stamp" aria-live="off"></span>
+    <select class="field" id="cur" aria-label="Currency" title="Show prices in"></select>
     <button class="btn palbtn" id="palbtn" title="Command palette" aria-label="Command palette"><span data-icon="command" data-size="13"></span><span class="kbd">Ctrl K</span></button>
     <button class="icon-btn" id="theme" aria-label="Theme"></button>
     <button class="icon-btn" id="help" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts"><span data-icon="keyboard" data-size="16"></span></button>
@@ -506,34 +507,54 @@ const AGENT = {
 const agentKey = (n) => String(n || "").toLowerCase().replace(/-code$/, "");
 const agentName = (n) => AGENT[agentKey(n)]?.name ?? n;
 const agentColor = (n) => AGENT[agentKey(n)]?.color ?? "#8d869c";
-// Icons beyond the bundled ones are fetched on demand by the server (usage-icons.mjs).
-// Until one is known the name gets a letter chip carrying its candidate slugs, and
+// Icons beyond the bundled ones are fetched on demand by the server (usage-icons.mjs),
+// which also matches a brand name to the icon that carries it ("xiaomi" -> "xiaomimimo").
+// Until an icon is known the name gets a letter chip carrying its candidate names, and
 // when /api/icons/ensure answers the chips are swapped in place, so nothing re-renders.
-const ICONS = { have: new Set(), asked: new Set(), queue: new Set(), timer: null };
+// A name can be a list, tried in order (vendor, a hint from the model name, then the
+// provider that served it); the first one with an icon wins.
+const ICONS = { have: new Set(), alias: {}, asked: new Set(), queue: new Set(), timer: null };
 const iconSlugs = (name) => {
   const raw = String(name || "").toLowerCase(), out = [];
-  for (const part of [raw, raw.split(/[-_/ .]/)[0], raw.replace(/-code$/, "")]) { const s = part.replace(/[^a-z0-9]/g, ""); if (s.length >= 3 && !out.includes(s)) out.push(s); }
+  for (const part of [raw, raw.split(/[-_/ .]/)[0], raw.replace(/-code$/, "")]) { const s = part.replace(/[^a-z0-9]/g, ""); if (s.length >= 2 && !out.includes(s)) out.push(s); }
   return out;
 };
-const iconHave = (name) => iconSlugs(name).find((s) => ICONS.have.has(s));
+const iconCandidates = (names) => [...new Set((Array.isArray(names) ? names : [names]).flatMap(iconSlugs))];
+const iconHave = (names) => { for (const c of iconCandidates(names)) { const slug = ICONS.alias[c] ?? c; if (ICONS.have.has(slug)) return slug; } return null; };
 const maskIcon = (slug, size, color) => `<i class="ai" style="--m:url(/assets/icons/${slug}.svg);--s:${size}px;color:${color}" aria-hidden="true"></i>`;
 function paintIcons() {
   document.querySelectorAll(".chip-letter[data-ic]").forEach((el) => {
-    const slug = el.dataset.ic.split(" ").find((s) => ICONS.have.has(s));
+    const slug = iconHave(el.dataset.ic.split(" "));
     if (slug) el.outerHTML = maskIcon(slug, el.dataset.size, el.dataset.color);
   });
 }
 async function fetchIcons(path) {
-  try { const r = await fetch(path); if (r.ok) { (await r.json()).available.forEach((s) => ICONS.have.add(s)); paintIcons(); } } catch { /* offline: the letter chips stay */ }
+  try {
+    const r = await fetch(path);
+    if (!r.ok) return;
+    const body = await r.json();
+    body.available.forEach((s) => ICONS.have.add(s));
+    Object.assign(ICONS.alias, body.resolved ?? {});
+    paintIcons();
+  } catch { /* offline: the letter chips stay */ }
 }
-function dynIcon(name, size, color) {
-  const have = iconHave(name);
+// The server takes up to 24 names a call, so a long queue goes out in batches.
+function flushIcons() {
+  ICONS.timer = null;
+  const list = [...ICONS.queue].slice(0, 24);
+  list.forEach((s) => ICONS.queue.delete(s));
+  if (list.length) fetchIcons("/api/icons/ensure?names=" + encodeURIComponent(list.join(",")));
+  if (ICONS.queue.size) ICONS.timer = setTimeout(flushIcons, 300);
+}
+function dynIcon(names, size, color) {
+  const have = iconHave(names);
   if (have) return maskIcon(have, size, color);
-  const slugs = iconSlugs(name);
-  const fresh = slugs.filter((s) => !ICONS.asked.has(s));
+  const cands = iconCandidates(names);
+  const fresh = cands.filter((s) => !ICONS.asked.has(s));
   fresh.forEach((s) => { ICONS.asked.add(s); ICONS.queue.add(s); });
-  if (fresh.length && !ICONS.timer) ICONS.timer = setTimeout(() => { const names = [...ICONS.queue].join(","); ICONS.queue.clear(); ICONS.timer = null; fetchIcons("/api/icons/ensure?names=" + encodeURIComponent(names)); }, 250);
-  return `<i class="chip-letter" data-ic="${slugs.join(" ")}" data-size="${size}" data-color="${esc(color)}" style="--s:${size}px;color:${color === "var(--text)" ? "var(--muted)" : color}" aria-hidden="true">${esc(String(name || "?")[0].toUpperCase())}</i>`;
+  if (fresh.length && !ICONS.timer) ICONS.timer = setTimeout(flushIcons, 250);
+  const first = (Array.isArray(names) ? names : [names]).find(Boolean);
+  return `<i class="chip-letter" data-ic="${cands.join(" ")}" data-size="${size}" data-color="${esc(color)}" style="--s:${size}px;color:${color === "var(--text)" ? "var(--muted)" : color}" aria-hidden="true">${esc(String(first || "?")[0].toUpperCase())}</i>`;
 }
 function ai(name, size = 15) {
   const a = AGENT[agentKey(name)], c = agentColor(name);
@@ -543,10 +564,15 @@ function ai(name, size = 15) {
 // Model vendors, for the Models view. Same icon set, drawn in the text colour.
 const VENDOR_ICON = { anthropic: "claude", openai: "openai", google: "gemini", deepseek: "deepseek", "x-ai": "xai", mistralai: "mistral", "meta-llama": "meta", qwen: "qwen", moonshotai: "moonshot", "z-ai": "zhipu", nvidia: "nvidia", ollama: "ollama", openrouter: "openrouter" };
 const guessVendor = (name) => { const n = String(name).toLowerCase(); if (n.includes("/")) return n.split("/")[0]; return /claude/.test(n) ? "anthropic" : /^(gpt|o\d|codex)/.test(n) ? "openai" : /gemini/.test(n) ? "google" : /deepseek/.test(n) ? "deepseek" : /grok/.test(n) ? "x-ai" : /qwen/.test(n) ? "qwen" : /kimi|moonshot/.test(n) ? "moonshotai" : /glm/.test(n) ? "z-ai" : /llama/.test(n) ? "meta-llama" : /mistral|codestral|devstral/.test(n) ? "mistralai" : ""; };
-function vi(vendor, size = 15) {
+// Model families whose id says more than the vendor field does.
+const NAME_HINTS = [[/mimo/i, "xiaomimimo"], [/muse/i, "meta"], [/kimi/i, "kimi"], [/glm/i, "zhipu"], [/grok/i, "grok"], [/qwen/i, "qwen"], [/deepseek/i, "deepseek"], [/gemini|gemma/i, "gemini"], [/claude/i, "claude"], [/gpt|codex|^o\d/i, "openai"], [/llama/i, "meta"], [/mistral|codestral|devstral/i, "mistral"], [/minimax/i, "minimax"], [/longcat/i, "longcat"], [/step-?\d/i, "stepfun"]];
+function vi(vendor, size = 15, row = null) {
   const f = VENDOR_ICON[vendor];
   if (f) return `<i class="ai" style="--m:url(/assets/icons/${f}.svg);--s:${size}px;color:var(--text)" aria-hidden="true"></i>`;
-  return dynIcon(vendor, size, "var(--text)");
+  // No vendor, or one with no icon: what the model name suggests, then whoever served it.
+  const hints = NAME_HINTS.filter(([re]) => re.test(String(row?.name ?? ""))).map(([, h]) => h);
+  const agents = (row?.u?.agents ?? []).map((a) => AGENT[agentKey(a)]?.file).filter(Boolean);
+  return dynIcon([vendor, ...hints, ...(row?.u?.providers ?? []), ...agents], size, "var(--text)");
 }
 // The provider that served a model, as the transcripts name it, and how this
 // machine pays for it (from /api/usage's billing map).
@@ -596,7 +622,7 @@ const state = {
   host: "all", agent: "all", project: "all", model: "all", q: "",
   group: pref("group", "project"), metric: pref("metric", "cost"), tab: pref("tab", "models"), chart: pref("chart", "lines"),
   sort: {}, shown: 100,
-  data: null, limits: null, limHost: pref("limHost", "all"), theme: pref("theme", "system"),
+  data: null, limits: null, limHost: pref("limHost", "all"), cur: pref("cur", "USD"), fx: null, theme: pref("theme", "system"),
   mod: { data: null, scope: "used", q: "", metric: "intelligence", picked: new Set(), sort: null, shown: 60 },
   thr: { q: "", agent: "all", host: "all", model: "all", project: "all", days: "0", limit: 200, mode: "resume", sub: false, list: null, sel: null, detail: null, cmd: null, unavailable: null },
 };
@@ -618,8 +644,24 @@ const compact = (n) => {
   return String(Math.round(n));
 };
 const int = (n) => Number(n || 0).toLocaleString("en-US");
-const money = (n, d = 2) => "$" + Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
-const axisMoney = (n) => (n >= 1000 ? "$" + (n / 1000).toFixed(n % 1000 ? 1 : 0) + "K" : "$" + (n >= 10 ? Math.round(n) : n.toFixed(n ? 1 : 0)));
+// Every figure arrives in US dollars. The page can show them in another currency,
+// multiplied by the latest USD rate from /api/rates (usage-rates.mjs).
+const CURRENCIES = { USD: ["$", "en-US", 2], IDR: ["Rp\u00a0", "id-ID", 0], EUR: ["\u20ac", "de-DE", 2], GBP: ["\u00a3", "en-GB", 2], SGD: ["S$", "en-SG", 2], MYR: ["RM\u00a0", "ms-MY", 2], JPY: ["\u00a5", "ja-JP", 0], AUD: ["A$", "en-AU", 2] };
+const fxActive = () => state.cur !== "USD" && state.fx?.rates?.[state.cur] ? state.cur : "USD";
+const fxRate = () => (fxActive() === "USD" ? 1 : state.fx.rates[state.cur]);
+const curSym = () => CURRENCIES[fxActive()][0].trim();
+function money(n, d = 2) {
+  const cur = fxActive(), [sym, loc, native] = CURRENCIES[cur], v = Number(n || 0) * fxRate();
+  // A currency with no minor unit (rupiah, yen) shows whole numbers; per-message costs stay readable.
+  const digits = cur === "USD" ? d : native === 0 ? 0 : Math.min(d, native);
+  return sym + v.toLocaleString(loc, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
+function axisMoney(n) {
+  const cur = fxActive();
+  if (cur === "USD") return n >= 1000 ? "$" + (n / 1000).toFixed(n % 1000 ? 1 : 0) + "K" : "$" + (n >= 10 ? Math.round(n) : n.toFixed(n ? 1 : 0));
+  const [sym, loc] = CURRENCIES[cur];
+  return sym + new Intl.NumberFormat(loc, { notation: "compact", maximumFractionDigits: 1 }).format(n * fxRate());
+}
 const plural = (n, w) => `${int(n)} ${w}${n === 1 ? "" : "s"}`;
 const pct = (a, b) => (b ? (a / b) * 100 : 0);
 const pctText = (v) => (v > 0 && v < 0.1 ? "<0.1%" : v.toFixed(v >= 10 ? 0 : 1) + "%");
@@ -871,7 +913,7 @@ function renderUsage() {
           ${stat("Tokens / session", t.tokensPerSession == null ? "-" : compact(t.tokensPerSession), dl(t.tokensPerSession, p?.tokensPerSession))}
           ${stat('Cost / session<span class="est">EST.</span>', t.costPerSession == null ? "-" : money(t.costPerSession), dl(t.costPerSession, p?.costPerSession))}
           ${stat('Cost / message<span class="est">EST.</span>', t.costPerMessage == null ? "-" : money(t.costPerMessage), dl(t.costPerMessage, p?.costPerMessage))}
-          ${stat('$ / 1K output<span class="est">EST.</span>', t.costPer1kOutput == null ? "-" : money(t.costPer1kOutput), dl(t.costPer1kOutput, p?.costPer1kOutput))}
+          ${stat(`${curSym()} / 1K output<span class="est">EST.</span>`, t.costPer1kOutput == null ? "-" : money(t.costPer1kOutput), dl(t.costPer1kOutput, p?.costPer1kOutput))}
         </div>
       </div>
     </section>
@@ -1198,18 +1240,23 @@ function renderLimits() {
 
   // Default: each distinct provider once, tagged with the machines that hold it.
   // A machine picked from the dropdown shows only what that machine reports.
-  // A card with no meter and no figure has nothing to say, so it is left out and named
-  // in the footer. One that failed (expired login, error) stays: it says what to fix.
-  const hasData = (p) => p.windows?.length || p.facts?.length || p.status === "expired" || p.status === "error";
+  // A card with no meter and no figure has nothing to draw, whatever the reason (no
+  // sessions yet, no public endpoint, a refused login), so it is left out. They are
+  // named in the footer, with what to do when that is a login, so nothing vanishes silently.
+  const hasData = (p) => p.windows?.length || p.facts?.length;
   const pool = one ? (one.ok ? one.providers : []) : (L.unique ?? L.providers);
-  const shown = pool.filter(hasData), quiet = [...new Set(pool.filter((p) => !hasData(p)).map((p) => p.name))];
+  const shown = pool.filter(hasData);
+  const quiet = [...new Map(pool.filter((p) => !hasData(p)).map((p) => [p.name, p.status === "expired" ? `${p.name} (sign in again)` : p.name])).values()];
   const cards = shown.map((p) => limitCard(p, !one && multi && p.hosts ? `<div class="onhosts">on ${p.hosts.map((h) => `<b>${esc(h)}</b>`).join(", ")}</div>` : ""));
-  const down = (one ? [one] : hosts).filter((h) => !h.ok);
+  // An unreachable machine is a line in the footer when viewing all of them, and the
+  // reason itself when it is the one picked.
+  const down = one ? [one].filter((h) => !h.ok) : [];
+  const away = one ? [] : hosts.filter((h) => !h.ok).map((h) => h.host);
   const bar = multi ? `<div class="lbar"><label for="lhost">Machine</label><select class="field ${one ? "on" : ""}" id="lhost" aria-label="Machine">
       <option value="all">All machines, each provider once</option>${hosts.map((h) => `<option value="${esc(h.host)}" ${h.host === state.limHost ? "selected" : ""}>${esc(h.host)}${h.local ? " (this machine)" : ""}${h.ok ? "" : " (unreachable)"}</option>`).join("")}</select></div>` : "";
-  const empty = !cards.length && !down.length ? `<div class="empty">No agent or provider with limit data was found${one ? ` on ${esc(one.host)}` : " on this machine"}.${quiet.length ? `<br>Nothing to show yet for ${quiet.map(esc).join(", ")}.` : ""}</div>` : "";
+  const empty = !cards.length && !down.length ? `<div class="empty">No agent or provider with limit data was found${one ? ` on ${esc(one.host)}` : " on this machine"}.</div>` : "";
   main.innerHTML = `${bar}${cards.length ? `<div class="lims">${cards.join("")}</div>` : ""}${empty}${down.map((h) => `<div class="empty">${esc(h.note)}</div>`).join("")}
-    <div class="foot">${quiet.length && cards.length ? `<div>Hidden, no data: ${quiet.map(esc).join(", ")}.</div>` : ""}<div>Limits are the provider's own counters, so one account shows the same figure on every machine that uses it. By default each distinct provider appears once with the machines that hold it; pick a machine to see only its own. Other machines are read over ssh (<code>USAGE_REMOTE_HOSTS</code>) by running this check there, so their logins and keys never leave them. Providers reached with an API key are read with the key your agents already store; it is sent only to that provider.</div></div>`;
+    <div class="foot">${quiet.length ? `<div>Hidden, no data: ${quiet.map(esc).join(", ")}.</div>` : ""}${away.length ? `<div>Could not reach: ${away.map(esc).join(", ")}. Pick one in the Machine menu for the reason.</div>` : ""}<div>Limits are the provider's own counters, so one account shows the same figure on every machine that uses it. By default each distinct provider appears once with the machines that hold it; pick a machine to see only its own. Other machines are read over ssh (<code>USAGE_REMOTE_HOSTS</code>) by running this check there, so their logins and keys never leave them. Providers reached with an API key are read with the key your agents already store; it is sent only to that provider.</div></div>`;
   $("lhost")?.addEventListener("change", (e) => { state.limHost = e.target.value; store.setItem("usage.limHost", state.limHost); renderLimits(); });
 }
 
@@ -1498,7 +1545,7 @@ async function copy(text) {
 }
 
 // ==== models ===================================================================
-const price = (v) => (v == null ? '<span class="none-v">-</span>' : v === 0 ? "free" : "$" + (v < 1 ? v.toFixed(v < 0.1 ? 3 : 2) : v.toFixed(2)));
+const price = (v) => (v == null ? '<span class="none-v">-</span>' : v === 0 ? "free" : fxActive() === "USD" ? "$" + (v < 1 ? v.toFixed(v < 0.1 ? 3 : 2) : v.toFixed(2)) : money(v, 2));
 const num = (v, f = (x) => x) => (v == null ? '<span class="none-v">-</span>' : f(v));
 const MODEL_METRICS = [
   ["intelligence", "Intelligence index", (r) => r.c?.bench?.intelligence, (v) => v.toFixed(1)],
@@ -1509,8 +1556,8 @@ const MODEL_METRICS = [
   ["arenaAgents", "Design Arena, agents Elo", (r) => r.c?.bench?.arenaAgents, (v) => Math.round(v)],
   ["context", "Context window", (r) => r.c?.context, compact],
   ["maxOutput", "Max output", (r) => r.c?.maxOutput, compact],
-  ["priceOut", "Output price, $ per 1M", (r) => r.c?.price?.output, (v) => "$" + v.toFixed(2)],
-  ["priceIn", "Input price, $ per 1M", (r) => r.c?.price?.input, (v) => "$" + v.toFixed(2)],
+  ["priceOut", "Output price, {cur} per 1M", (r) => r.c?.price?.output, (v) => money(v)],
+  ["priceIn", "Input price, {cur} per 1M", (r) => r.c?.price?.input, (v) => money(v)],
   ["yourTokens", "Your tokens", (r) => r.u?.tokens, compact],
   ["yourCost", "Your cost", (r) => r.u?.cost, (v) => money(v)],
   ["perMessage", "Your cost per message", (r) => r.u?.costPerMessage, (v) => money(v, 3)],
@@ -1542,7 +1589,7 @@ function renderModels() {
       ${d.note ? `<div class="warn" style="margin-top:10px">${esc(d.note)}</div>` : ""}</section>
     <section class="two">
       <div><div class="charthead"><span class="t">Compare</span><span class="spacer"></span>
-        <select class="field" id="mmetric" aria-label="Metric">${MODEL_METRICS.map(([k, l]) => `<option value="${k}" ${k === M.metric ? "selected" : ""}>${l}</option>`).join("")}</select></div>
+        <select class="field" id="mmetric" aria-label="Metric">${MODEL_METRICS.map(([k, l]) => `<option value="${k}" ${k === M.metric ? "selected" : ""}>${l.replace("{cur}", fxActive())}</option>`).join("")}</select></div>
         <div id="mbars"></div></div>
       <div><div class="charthead"><span class="t">Intelligence index against output price</span></div><div class="chart" id="mscatter"></div>
         <div class="keys"><span><i class="sq" style="background:var(--accent)"></i><b>models you used</b></span><span><i class="sq" style="background:var(--c4)"></i><b>ticked</b></span><span><i class="sq" style="background:var(--faint)"></i><b>everything else</b></span></div></div>
@@ -1561,7 +1608,7 @@ function renderModels() {
 // value in each row marked. "low" rows (prices, cost) are won by the smaller number.
 const H2H_MAX = 5;
 const H2H_ROWS = [
-  ["Price, $ per 1M tokens", [
+  ["Price, {cur} per 1M tokens", [
     ["Input", (r) => r.c?.price?.input, (v) => price(v), "low"],
     ["Output", (r) => r.c?.price?.output, (v) => price(v), "low"],
     ["Cache read", (r) => r.c?.price?.cacheRead, (v) => price(v), "low"],
@@ -1612,12 +1659,12 @@ function drawModelHead() {
       if (decided && leaders.length === 1) wins[leaders[0]] += 1;
       lines.push(`<tr><td>${label}</td>${vals.map((v, i) => `<td class="${decided && leaders.includes(i) ? "best" : ""}">${v == null ? '<span class="none-v">-</span>' : fmt(v)}</td>`).join("")}</tr>`);
     }
-    if (lines.length) body.push(`<tr class="grp"><td colspan="${cols.length + 1}">${group}</td></tr>`, ...lines);
+    if (lines.length) body.push(`<tr class="grp"><td colspan="${cols.length + 1}">${group.replace("{cur}", fxActive())}</td></tr>`, ...lines);
   }
   const flag = (label, test) => `<tr><td>${label}</td>${cols.map((r) => `<td>${test(r) ? "yes" : '<span class="none-v">no</span>'}</td>`).join("")}</tr>`;
   const most = Math.max(...wins), soleLeader = most > 0 && wins.filter((w) => w === most).length === 1;
   el.innerHTML = `${head}<div class="h2h"><table>
-    <thead><tr><th></th>${cols.map((r) => `<th><div class="nm">${vi(r.vendor, 15)}<span class="t" title="${esc(r.c?.name ?? r.name)}">${esc(r.name.replace(/^[^/]+\//, ""))}</span></div>${r.c?.created ? `<span class="sub mono">released ${esc(r.c.created)}</span>` : ""}</th>`).join("")}</tr></thead>
+    <thead><tr><th></th>${cols.map((r) => `<th><div class="nm">${vi(r.vendor, 15, r)}<span class="t" title="${esc(r.c?.name ?? r.name)}">${esc(r.name.replace(/^[^/]+\//, ""))}</span></div>${r.c?.created ? `<span class="sub mono">released ${esc(r.c.created)}</span>` : ""}</th>`).join("")}</tr></thead>
     <tbody>
       <tr class="tally"><td>Rows won</td>${wins.map((w) => `<td class="${soleLeader && w === most ? "best" : ""}">${w}</td>`).join("")}</tr>
       ${body.join("")}
@@ -1642,7 +1689,7 @@ function drawModelBars() {
   const max = Math.max(...rows.map((x) => x[1]), 0) || 1;
   // Elo sits in a narrow band far from zero, so those bars start at a floor.
   const floor = M.metric.startsWith("arena") && rows.length ? Math.min(...rows.map((x) => x[1])) - 60 : 0;
-  $("mbars").innerHTML = rows.length ? `<div class="hbars">${rows.map(([r, v]) => `<div class="hbar ${r.u ? "used" : ""}"><span class="n">${vi(r.vendor, 14)}<b title="${esc(r.name)}">${esc(r.name.replace(/^[^/]+\//, ""))}</b></span><span class="tr"><i style="width:${Math.max(1.5, ((v - floor) / (max - floor || 1)) * 100)}%"></i></span><span class="v">${fmt(v)}</span></div>`).join("")}</div>`
+  $("mbars").innerHTML = rows.length ? `<div class="hbars">${rows.map(([r, v]) => `<div class="hbar ${r.u ? "used" : ""}"><span class="n">${vi(r.vendor, 14, r)}<b title="${esc(r.name)}">${esc(r.name.replace(/^[^/]+\//, ""))}</b></span><span class="tr"><i style="width:${Math.max(1.5, ((v - floor) / (max - floor || 1)) * 100)}%"></i></span><span class="v">${fmt(v)}</span></div>`).join("")}</div>`
     : `<div class="empty">No model in this list has that figure.</div>`;
 }
 
@@ -1659,7 +1706,7 @@ function drawModelScatter() {
   let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Intelligence index against output price"><g class="axis">`;
   for (let e = x0; e <= x1; e++) { const xx = L + ((e - x0) / (x1 - x0 || 1)) * pw; svg += `<line class="gridline" x1="${xx}" x2="${xx}" y1="${T}" y2="${T + ph}"/><text x="${xx}" y="${H - 12}" text-anchor="middle">$${e < 0 ? (10 ** e).toFixed(-e) : 10 ** e}</text>`; }
   for (let v = y0; v <= y1; v += 10) { const yy = T + ph - ((v - y0) / (y1 - y0 || 1)) * ph; svg += `<line class="gridline" x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}"/><text x="${L - 6}" y="${yy + 3}" text-anchor="end">${v}</text>`; }
-  svg += `<text x="${W - R}" y="${H - 1}" text-anchor="end">output $ per 1M tokens, log scale</text></g>`;
+  svg += `<text x="${W - R}" y="${H - 1}" text-anchor="end">output USD per 1M tokens, log scale</text></g>`;
   const rank = (c) => (pickedIds.has(c.id) ? 2 : usedIds.has(c.id) ? 1 : 0);
   for (const c of pts.slice().sort((a, b) => rank(a) - rank(b))) {
     const k = rank(c);
@@ -1671,7 +1718,7 @@ function drawModelScatter() {
   el.onpointermove = (ev) => {
     const c = byId.get(ev.target.dataset?.id);
     if (!c) return hideTip();
-    showTip(`<div class="t">${esc(c.name)}</div><div class="r"><span>Intelligence</span><b class="mono">${c.bench.intelligence.toFixed(1)}</b></div><div class="r"><span>Output</span><b class="mono">$${c.price.output.toFixed(2)}</b></div><div class="r"><span>Input</span><b class="mono">$${(c.price.input ?? 0).toFixed(2)}</b></div><div class="r"><span>Context</span><b class="mono">${c.context ? compact(c.context) : "-"}</b></div>`, ev);
+    showTip(`<div class="t">${esc(c.name)}</div><div class="r"><span>Intelligence</span><b class="mono">${c.bench.intelligence.toFixed(1)}</b></div><div class="r"><span>Output</span><b class="mono">${money(c.price.output)}</b></div><div class="r"><span>Input</span><b class="mono">${money(c.price.input ?? 0)}</b></div><div class="r"><span>Context</span><b class="mono">${c.context ? compact(c.context) : "-"}</b></div>`, ev);
   };
   el.onpointerleave = hideTip;
 }
@@ -1699,7 +1746,7 @@ function drawModelTable() {
   const tags = (r) => `${r.u ? '<span class="tag you">used</span>' : ""}${r.u?.free ? '<span class="tag">free tier</span>' : ""}${r.c?.reasoning ? '<span class="tag">reasoning</span>' : ""}${r.c?.inputs?.includes("image") ? '<span class="tag">vision</span>' : ""}${r.u && !r.c ? '<span class="tag">not in the list</span>' : ""}${(r.u?.providers ?? []).map((p) => `<span class="tag">via ${esc(providerName(p))}</span>`).join("")}`;
   card.innerHTML = rows.length ? `<div class="table-wrap"><table><thead><tr><th class="sel"></th>${cols.map(([k, l, , left]) => `<th class="${left ? "l" : ""}" data-sort="${k}">${l}${k === sk ? ui(sd < 0 ? "arrow-down" : "arrow-up", 11) : ""}</th>`).join("")}</tr></thead>
     <tbody>${shown.map((r) => `<tr><td class="sel"><input type="checkbox" data-key="${esc(r.key)}" ${M.picked.has(r.key) ? "checked" : ""} aria-label="Compare ${esc(r.name)}"></td>
-      <td class="l name"><div class="nm">${vi(r.vendor, 15)}<span class="t" title="${esc(r.c?.name ?? r.name)}">${esc(r.name)}</span>${tags(r)}</div>${r.c && r.u ? `<span class="sub mono">${esc(r.c.id)}${r.c.created ? " · released " + esc(r.c.created) : ""}</span>` : r.c?.created ? `<span class="sub mono">released ${esc(r.c.created)}</span>` : ""}</td>
+      <td class="l name"><div class="nm">${vi(r.vendor, 15, r)}<span class="t" title="${esc(r.c?.name ?? r.name)}">${esc(r.name)}</span>${tags(r)}</div>${r.c && r.u ? `<span class="sub mono">${esc(r.c.id)}${r.c.created ? " · released " + esc(r.c.created) : ""}</span>` : r.c?.created ? `<span class="sub mono">released ${esc(r.c.created)}</span>` : ""}</td>
       <td>${price(r.c?.price?.input)}</td><td>${price(r.c?.price?.output)}</td><td class="muted">${price(r.c?.price?.cacheRead)}</td>
       <td>${num(r.c?.context, compact)}</td><td class="muted">${num(r.c?.maxOutput, compact)}</td>
       <td>${num(r.c?.bench?.intelligence, (v) => v.toFixed(1))}</td><td>${num(r.c?.bench?.coding, (v) => v.toFixed(1))}</td><td>${num(r.c?.bench?.agentic, (v) => v.toFixed(1))}</td><td class="muted">${num(r.c?.bench?.arenaCode, Math.round)}</td>
@@ -1883,6 +1930,35 @@ if (!["cost", "tokens", "messages"].includes(state.metric)) state.metric = "cost
 applyTheme();
 const hash = /^#threads\/([\w-]+)$/.exec(location.hash);
 if (hash) { state.view = "threads"; state.thr.sel = hash[1]; openThread(hash[1]); }
+// ---- currency -------------------------------------------------------------------
+// Prices are USD underneath. The select re-renders the page in another currency using
+// the latest rate the server has (hourly refresh; the source publishes daily).
+async function loadRates() {
+  try {
+    const r = await fetch("/api/rates");
+    state.fx = r.ok ? await r.json() : null;
+  } catch { state.fx = null; }
+  fxNote();
+}
+function fxNote() {
+  const sel = $("cur"); if (!sel) return;
+  const rate = state.fx?.rates?.[state.cur];
+  sel.classList.toggle("on", state.cur !== "USD");
+  if (state.cur === "USD") sel.title = "Show prices in another currency";
+  else if (!rate) sel.title = `No ${state.cur} rate available yet, showing US dollars`;
+  else sel.title = `1 USD = ${CURRENCIES[state.cur][0]}${rate.toLocaleString(CURRENCIES[state.cur][1], { maximumFractionDigits: 2 })} \u00b7 ${state.fx.source}, ${new Date(state.fx.asOf).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}${state.fx.stale ? " (saved copy, offline)" : ""}`;
+}
+$("cur").innerHTML = Object.keys(CURRENCIES).map((c) => `<option value="${c}">${c}</option>`).join("");
+if (!CURRENCIES[state.cur]) state.cur = "USD";
+$("cur").value = state.cur;
+$("cur").addEventListener("change", async (e) => {
+  state.cur = e.target.value; store.setItem("usage.cur", state.cur);
+  if (state.cur !== "USD" && !state.fx) await loadRates();
+  fxNote(); render();
+});
+if (state.cur !== "USD") loadRates().then(render);
+setInterval(() => { if (state.cur !== "USD" && !document.hidden) loadRates().then(render); }, 30 * 60 * 1000);
+
 fetchIcons("/api/icons");
 setView(state.view);
 </script>

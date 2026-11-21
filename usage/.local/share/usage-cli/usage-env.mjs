@@ -44,7 +44,7 @@ export function toolEnv(home = os.homedir(), env = process.env) {
 const found = new Map(); // name -> { cmd, env } once a lookup has succeeded
 
 /**
- * { cmd, env } to run `name` with, or null when it cannot be found. Tries PATH
+ * { cmd, env, shell? } to run `name` with, or null when it cannot be found. Tries PATH
  * plus the usual folders, then `mise which`. A success is remembered; a miss is
  * looked up again next time, because the user may install the tool meanwhile.
  */
@@ -55,7 +55,10 @@ export function findTool(name, { home = os.homedir(), env = process.env } = {}) 
   let hit = null;
   const direct = probe(name);
   if (direct.error?.code !== "ENOENT") hit = { cmd: name, env: withDirs };
-  else {
+  else if (process.platform === "win32" && spawnSync(name, ["--version"], { env: withDirs, timeout: 10_000, windowsHide: true, stdio: "ignore", shell: true }).status === 0) {
+    // npm and vite+ install .cmd shims on Windows, which only a shell can start.
+    hit = { cmd: name, env: withDirs, shell: true };
+  } else {
     const mise = spawnSync("mise", ["which", name], { env: withDirs, encoding: "utf8", timeout: 10_000, windowsHide: true });
     const located = mise.status === 0 ? mise.stdout.trim().split(/\r?\n/)[0] : "";
     if (located && probe(located).error?.code !== "ENOENT") hit = { cmd: located, env: withDirs };

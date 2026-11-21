@@ -28,6 +28,7 @@ import { detectLimits } from "./usage-limits.mjs";
 import { listThreads, resumeCommands, sessionIndex, showThread } from "./usage-threads.mjs";
 import { loadPriceCache, refreshPrices, usageDir } from "./usage.mjs";
 import { ensureIcons, listIcons, readIcon } from "./usage-icons.mjs";
+import { usdRates } from "./usage-rates.mjs";
 import { installedPort } from "./usage-web-service.mjs";
 import { catalogIsStale, modelsReport, refreshCatalog } from "./usage-models.mjs";
 import { resetSnapshots, summarize } from "./usage-summary.mjs";
@@ -106,11 +107,17 @@ function createServer(bound) {
           (error) => send(res, 500, "application/json", JSON.stringify({ error: error.message })),
         );
       }
+      if (url.pathname === "/api/rates") {
+        return usdRates({ offline: runOffline }).then(
+          (rates) => send(res, rates ? 200 : 503, "application/json", JSON.stringify(rates ?? { error: "no exchange rate has been fetched yet" })),
+          (error) => send(res, 500, "application/json", JSON.stringify({ error: error.message })),
+        );
+      }
       if (url.pathname === "/api/icons") return send(res, 200, "application/json", JSON.stringify({ available: listIcons() }));
       if (url.pathname === "/api/icons/ensure") {
         const names = (url.searchParams.get("names") ?? "").split(",").map((n) => n.trim().toLowerCase()).filter(Boolean);
         return ensureIcons(names, { offline: runOffline }).then(
-          (available) => send(res, 200, "application/json", JSON.stringify({ available })),
+          (found) => send(res, 200, "application/json", JSON.stringify(found)),
           (error) => send(res, 500, "application/json", JSON.stringify({ error: error.message })),
         );
       }

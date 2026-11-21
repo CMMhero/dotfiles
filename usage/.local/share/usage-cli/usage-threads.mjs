@@ -36,7 +36,7 @@ function run(args, timeout = 20_000) {
     // atuin is usually a mise shim, which this process may not have on PATH.
     const tool = findTool("atuin");
     if (!tool) return reject(Object.assign(new Error("atuin is not installed or not on PATH"), { missing: true }));
-    execFile(tool.cmd, args, { encoding: "utf8", maxBuffer: MAX_BUFFER, timeout, windowsHide: true, env: tool.env }, (error, stdout, stderr) => {
+    execFile(tool.cmd, args, { encoding: "utf8", maxBuffer: MAX_BUFFER, timeout, windowsHide: true, env: tool.env, shell: tool.shell }, (error, stdout, stderr) => {
       if (error) {
         const missing = error.code === "ENOENT";
         reject(Object.assign(new Error(missing ? "atuin is not installed or not on PATH" : (stderr || error.message).trim()), { missing }));

@@ -7,12 +7,17 @@
 // served like a bundled one. The mono "currentColor" icons are used, so the page
 // colours them the same way.
 //
+// A name is matched to an icon in three steps: the alias table below (vendor names
+// that differ from the icon's, like "xiaomi" for "xiaomimimo"), the exact icon name,
+// then a prefix match against the full upstream index ("opencodezen" -> "opencode",
+// "xiaomi" -> "xiaomimimo"). The index is fetched once a day and kept beside the cache.
+//
 // The cache holds nothing the page cannot rebuild, so it lives with the machine's
 // own caches and is never synced: %LOCALAPPDATA%\usage\icons on Windows,
 // $XDG_CACHE_HOME/usage/icons (default ~/.cache/usage/icons) elsewhere.
 // ==============================================================================
 
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -22,6 +27,64 @@ const SOURCE = "https://raw.githubusercontent.com/lobehub/lobe-icons/master/pack
 const SLUG = /^[a-z0-9]{3,40}$/;
 const MISS_TTL_MS = 60 * 60 * 1000;
 const MAX_BYTES = 64 * 1024;
+
+
+// Vendor and provider names as models and transcripts spell them (letters and
+// digits only) -> the icon that carries that brand.
+const ALIASES = {
+  xiaomi: "xiaomimimo", mimo: "xiaomimimo", xiaomimimo: "xiaomimimo",
+  metallama: "meta", llama: "meta", muse: "meta", musespark: "meta", metaai: "meta",
+  mistralai: "mistral", moonshotai: "moonshot", kimi: "kimi", moonshot: "moonshot",
+  zai: "zai", zhipu: "zhipu", thudm: "zhipu", glm: "zhipu", zhipuai: "zhipu",
+  xai: "xai", grok: "grok", openaicodex: "openai", codex: "codex", gpt: "openai",
+  opencodezen: "opencode", opencodego: "opencode", zen: "opencode",
+  anthropic: "anthropic", google: "gemini", googleai: "gemini", gemma: "gemma",
+  amazon: "aws", amazonbedrock: "bedrock", azureopenai: "azure", microsoft: "microsoft",
+  stepfun: "stepfun", stepfunai: "stepfun", arceeai: "arcee", nousresearch: "nousresearch",
+  deepseekai: "deepseek", qwen: "qwen", alibaba: "alibaba", tencent: "tencent", baidu: "baidu",
+  meituan: "longcat", longcat: "longcat", inclusionai: "ling", ant: "antgroup", bytedance: "bytedance", bytedanceseed: "bytedance",
+  nvidia: "nvidia", ibm: "ibm", ibmgranite: "ibm", liquid: "liquid", inception: "inception", cohere: "cohere",
+  perplexity: "perplexity", minimax: "minimax", openrouter: "openrouter", commandcode: "commandcode",
+};
+
+const INDEX_FILE = (cacheDir) => path.join(cacheDir, "index.json");
+const INDEX_TTL_MS = 24 * 60 * 60 * 1000;
+const NOT_MONO = /-(color|text|brand|avatar|brand-color|text-cn)$/;
+
+// Every icon name upstream has, from the package listing on a CDN, cached for a day.
+async function upstreamIndex(cacheDir, fetchImpl) {
+  try {
+    const file = INDEX_FILE(cacheDir);
+    if (Date.now() - statSync(file).mtimeMs < INDEX_TTL_MS) return JSON.parse(readFileSync(file, "utf8"));
+  } catch { /* none yet, or stale */ }
+  try {
+    // The listing needs a concrete version, so the latest one is looked up first.
+    const meta = await (await fetchImpl("https://data.jsdelivr.com/v1/packages/npm/@lobehub/icons-static-svg", { signal: AbortSignal.timeout(8_000) })).json();
+    const version = meta.tags?.latest ?? meta.versions?.[0]?.version;
+    const response = await fetchImpl(`https://data.jsdelivr.com/v1/packages/npm/@lobehub/icons-static-svg@${version}?structure=flat`, { signal: AbortSignal.timeout(8_000) });
+    const files = (await response.json()).files ?? [];
+    const names = files.map((f) => /^\/icons\/([a-z0-9-]+)\.svg$/.exec(f.name)?.[1]).filter((n) => n && !NOT_MONO.test(n));
+    if (names.length > 50) {
+      mkdirSync(cacheDir, { recursive: true });
+      writeFileSync(INDEX_FILE(cacheDir), JSON.stringify(names));
+      return names;
+    }
+  } catch { /* offline: what is on disk is the index */ }
+  return null;
+}
+
+// candidate (letters and digits) -> an icon name, or null.
+export function resolveSlug(candidate, known) {
+  const c = String(candidate).toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (c.length < 3) return null;
+  const names = new Set(known);
+  if (ALIASES[c] && (names.has(ALIASES[c]) || known.length === 0)) return ALIASES[c];
+  if (names.has(c)) return c;
+  const list = [...names].filter((n) => !n.includes("-"));
+  const longer = list.filter((n) => c.length >= 5 && n.startsWith(c)).sort((a, b) => a.length - b.length)[0]; // "xiaomi" -> "xiaomimimo"
+  if (longer) return longer;
+  return list.filter((n) => n.length >= 4 && c.startsWith(n)).sort((a, b) => b.length - a.length)[0] ?? null; // "opencodezen" -> "opencode"
+}
 
 const misses = new Map(); // slug -> when it was not found, so a missing icon is not asked for again for an hour
 
@@ -81,14 +144,23 @@ async function fetchIcon(slug, cacheDir, fetchImpl) {
 }
 
 /**
- * Makes sure the named icons are on disk when they exist upstream, and returns the
- * full list of available slugs. At most 24 names a call, each fetched once.
+ * Resolves each name (letters and digits) to an icon, fetching the ones that are
+ * missing, and returns { available, resolved } where resolved maps a name to the
+ * icon that stands for it. At most 24 names a call.
  */
 export async function ensureIcons(names, { offline = false, cacheDir = iconCacheDir(), fetchImpl = fetch } = {}) {
-  if (!offline) {
-    const have = new Set(listIcons(cacheDir));
-    const wanted = [...new Set(names)].filter((n) => SLUG.test(n) && !have.has(n)).slice(0, 24);
-    await Promise.all(wanted.map((slug) => fetchIcon(slug, cacheDir, fetchImpl)));
+  const wanted = [...new Set(names.map((n) => String(n).toLowerCase().replace(/[^a-z0-9]/g, "")))].filter((n) => n.length >= 3).slice(0, 24);
+  const local = listIcons(cacheDir);
+  const index = offline ? null : await upstreamIndex(cacheDir, fetchImpl);
+  const known = [...new Set([...local, ...(index ?? [])])];
+  const resolved = {};
+  for (const name of wanted) {
+    const slug = resolveSlug(name, known);
+    if (slug) resolved[name] = slug;
   }
-  return listIcons(cacheDir);
+  if (!offline) {
+    const have = new Set(local);
+    await Promise.all([...new Set(Object.values(resolved))].filter((slug) => !have.has(slug) && /^[a-z0-9]{3,40}$/.test(slug)).map((slug) => fetchIcon(slug, cacheDir, fetchImpl)));
+  }
+  return { available: listIcons(cacheDir), resolved };
 }

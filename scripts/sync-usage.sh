@@ -32,7 +32,7 @@ INSIGHTS=dot_config/herdr-app/mods/insights
 FILES=(
   usage.mjs usage-tui.mjs usage-web.mjs usage-web.html
   usage-limits.mjs usage-limits-keys.mjs usage-threads.mjs usage-summary.mjs usage-models.mjs usage-billing.mjs
-  usage-web-service.mjs usage-icons.mjs usage-env.mjs usage-atuin.mjs usage-limits-agents.mjs
+  usage-web-service.mjs usage-icons.mjs usage-env.mjs usage-atuin.mjs usage-limits-agents.mjs usage-rates.mjs
   dot_config/usage/prices.json
   "$INSIGHTS/collector.mjs"
 )

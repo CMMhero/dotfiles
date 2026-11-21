@@ -43,7 +43,7 @@ import { spawn } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { findTool, toolEnv } from "./usage-env.mjs";
+import { findTool } from "./usage-env.mjs";
 import { agentDetectors } from "./usage-limits-agents.mjs";
 import { findKeys, keyDetectors } from "./usage-limits-keys.mjs";
 
@@ -52,6 +52,7 @@ const CACHE_TTL_MS = 60_000;
 const FRESH_FLOOR_MS = 10_000; // a refresh button must not hammer the provider
 
 const cache = new Map();
+const FALLBACK_MAX_AGE_MS = 24 * 3_600_000; // how old a log-derived figure may be before it is dropped
 
 async function cached(id, fresh, produce) {
   const hit = cache.get(id);
@@ -161,10 +162,13 @@ let claudeVersion = null;
 async function claudeUserAgent(home, env) {
   if (!claudeVersion) {
     claudeVersion = "2.1.0"; // any recent version is accepted; used when claude cannot be run
-    try {
-      const out = (await run("claude", ["--version"], { env: toolEnv(home, env), timeout: 10_000 })).toString();
-      claudeVersion = /\d+\.\d+\.\d+/.exec(out)?.[0] ?? claudeVersion;
-    } catch { /* keep the fallback */ }
+    const tool = findTool("claude", { home, env });
+    if (tool) {
+      try {
+        const out = (await run(tool.cmd, ["--version"], { env: tool.env, shell: tool.shell, timeout: 10_000 })).toString();
+        claudeVersion = /\d+\.\d+\.\d+/.exec(out)?.[0] ?? claudeVersion;
+      } catch { /* keep the fallback */ }
+    }
   }
   return `claude-code/${claudeVersion}`;
 }
@@ -276,7 +280,7 @@ function codexLiveRead(home, env, timeoutMs = 20_000) {
   if (!tool) return Promise.resolve(null);
   return new Promise((resolve) => {
     let done = false, buf = "";
-    const child = spawn(tool.cmd, ["app-server"], { env: tool.env, stdio: ["pipe", "pipe", "ignore"], windowsHide: true });
+    const child = spawn(tool.cmd, ["app-server"], { env: tool.env, stdio: ["pipe", "pipe", "ignore"], windowsHide: true, shell: tool.shell });
     const finish = (value) => { if (done) return; done = true; clearTimeout(timer); try { child.kill(); } catch { /* already gone */ } resolve(value); };
     const timer = setTimeout(() => finish(null), timeoutMs);
     const send = (o) => { try { child.stdin.write(JSON.stringify(o) + "\n"); } catch { /* the exit handler resolves */ } };
@@ -336,7 +340,7 @@ async function codexLimits(home, env = process.env) {
   if (!existsSync(root)) return null;
   const base = { id: "codex", name: "Codex", windows: [], source: "latest Codex session log", asOf: null };
 
-  const live = await codexLiveRead(home, env);
+  const live = env.USAGE_CODEX_LIVE === "0" ? null : await codexLiveRead(home, env); // USAGE_CODEX_LIVE=0 forces the log fallback
   if (live) {
     const parsed = parseCodexLive(live);
     if (parsed.windows.length) {
@@ -363,13 +367,15 @@ async function codexLimits(home, env = process.env) {
         continue; // first line of a tail is usually cut in half
       }
       const limits = record?.payload?.rate_limits ?? record?.rate_limits;
-      const windows = parseCodexRateLimits(limits, record.timestamp);
+      // A figure from an old turn says nothing about now. Anything older than a day is
+      // ignored, and so is every window that has reset since (its percentage is dead).
+      if (Date.now() - Date.parse(record.timestamp) > FALLBACK_MAX_AGE_MS) return { ...base, status: "ok", note: "No recent Codex activity to read limits from." };
+      const windows = parseCodexRateLimits(limits, record.timestamp).filter((w) => !w.stale);
       if (!windows.length) continue;
       const plan = limits.plan_type ? String(limits.plan_type)[0].toUpperCase() + String(limits.plan_type).slice(1) : null;
-      const allStale = windows.every((w) => w.stale);
       return {
         ...base, plan, status: "ok", windows, asOf: record.timestamp ?? null,
-        note: allStale ? "Every window has reset since the last Codex turn. Run Codex to refresh these." : "As of the last Codex turn, not live (Codex could not be asked for its current limits).",
+        note: "As of the last Codex turn, not live (Codex could not be asked for its current limits).",
       };
     }
   }
@@ -405,30 +411,13 @@ export function parseAntigravityUsage(body) {
   return windows;
 }
 
-async function findAgy(home, env) {
-  const withPath = toolEnv(home, env);
-  for (const name of ["agy"]) {
-    try {
-      await run(name, ["--version"], { env: withPath, timeout: 10_000 });
-      return { cmd: name, env: withPath };
-    } catch (error) {
-      if (error.code !== "ENOENT") return { cmd: name, env: withPath }; // it exists, it just failed
-    }
-  }
-  try {
-    const located = (await run("mise", ["which", "agy"], { env: withPath, timeout: 10_000 })).toString().trim().split(/\r?\n/)[0];
-    if (located) return { cmd: located, env: withPath };
-  } catch { /* mise absent or agy not installed through it */ }
-  return null;
-}
-
 async function antigravityLimits(home, env) {
   if (!existsSync(path.join(home, ".gemini", "antigravity-cli"))) return null;
   const base = { id: "antigravity", name: "Antigravity", windows: [], source: "agy /usage", asOf: null };
-  const agy = await findAgy(home, env);
+  const agy = findTool("agy", { home, env });
   if (!agy) return { ...base, status: "error", note: "Antigravity data is here but the agy command was not found on PATH." };
   try {
-    const stdout = await run(agy.cmd, ["-p", "/usage", "--output-format", "json"], { env: agy.env, cwd: home, timeout: 30_000 });
+    const stdout = await run(agy.cmd, ["-p", "/usage", "--output-format", "json"], { env: agy.env, shell: agy.shell, cwd: home, timeout: 30_000 });
     const body = JSON.parse(stdout.toString());
     const windows = parseAntigravityUsage(body);
     if (windows.length) return { ...base, status: "ok", windows, asOf: new Date().toISOString(), note: null };
@@ -456,9 +445,11 @@ async function detectLocalLimits({ home = os.homedir(), fresh = false, fetchImpl
   const results = await Promise.all(detectors.map(([id, run]) => cached(id, fresh, run).catch((error) => ({
     id, name: id, status: "error", windows: [], note: error.message, asOf: null, source: "",
   }))));
+  // A window that has already reset reports a percentage that no longer exists.
+  const alive = (p) => ({ ...p, windows: (p.windows ?? []).filter((w) => !w.stale) });
   for (const result of results) {
-    if (Array.isArray(result)) providers.push(...result);
-    else if (result) providers.push(result);
+    if (Array.isArray(result)) providers.push(...result.map(alive));
+    else if (result) providers.push(alive(result));
   }
   return { generatedAt: new Date().toISOString(), host: os.hostname(), providers, checked: detectors.map(([id]) => id) };
 }
@@ -485,9 +476,9 @@ export function readableError(text) {
   return lines.slice(0, 2).join(" | ").slice(0, 240);
 }
 
-function run(cmd, args, { input, timeout = 30_000, env, cwd } = {}) {
+function run(cmd, args, { input, timeout = 30_000, env, cwd, shell } = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn(cmd, args, { stdio: ["pipe", "pipe", "pipe"], windowsHide: true, env, cwd });
+    const child = spawn(cmd, args, { stdio: ["pipe", "pipe", "pipe"], windowsHide: true, env, cwd, shell });
     const out = [], err = [];
     const timer = setTimeout(() => { child.kill(); reject(new Error(`timed out after ${timeout / 1000}s`)); }, timeout);
     child.stdout.on("data", (c) => out.push(c));
