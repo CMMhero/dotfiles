@@ -27,7 +27,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { detectBilling } from "./usage-billing.mjs";
 import { detectLimits } from "./usage-limits.mjs";
-import { listThreads, resumeCommands, openThreadFolder, revealFile, sessionIndex, showThread, threadFile, threadImage, threadRepo } from "./usage-threads.mjs";
+import { listThreads, resumeCommands, openThreadFolder, revealFile, sessionIndex, showThread, threadFile, threadImage, threadRaw, threadRepo } from "./usage-threads.mjs";
 import { loadPriceCache, refreshPrices, usageDir } from "./usage.mjs";
 import { ensureIcons, listIcons, readIcon } from "./usage-icons.mjs";
 import { usdRates } from "./usage-rates.mjs";
@@ -220,7 +220,24 @@ function serveThreads(res, url) {
   const q = url.searchParams;
   const json = (status, body) => send(res, status, "application/json", JSON.stringify(body));
   if (url.pathname === "/api/threads/file") {
-    threadFile(q.get("id") ?? "", q.get("path") ?? "", { host: q.get("host") ?? "" }).then((body) => json(200, body), (error) => json(error.status ?? 400, { error: error.message, hosts: error.hosts, tried: error.tried }));
+    threadFile(q.get("id") ?? "", q.get("path") ?? "", { host: q.get("host") ?? "" }).then((body) => json(200, body), (error) => json(error.status ?? 400, { error: error.message, hosts: error.hosts, tried: error.tried, hint: error.hint }));
+    return;
+  }
+  if (url.pathname === "/api/threads/raw") {
+    // The bytes of a file the thread names: played by the viewer, or downloaded. Byte ranges are answered, so audio and video can seek.
+    threadRaw(q.get("id") ?? "", q.get("path") ?? "", { host: q.get("host") ?? "" }).then(({ type, data, name }) => {
+      const headers = { "Content-Type": type, "Accept-Ranges": "bytes", "Cache-Control": "private, max-age=300", "X-Content-Type-Options": "nosniff", "Content-Disposition": `${q.get("dl") === "1" ? "attachment" : "inline"}; filename*=UTF-8''${encodeURIComponent(name)}` };
+      if (type === "image/svg+xml") headers["Content-Security-Policy"] = "sandbox";
+      const range = /^bytes=(\d*)-(\d*)$/.exec(res.req.headers.range ?? "");
+      if (range && (range[1] || range[2])) {
+        const start = range[1] ? Number(range[1]) : Math.max(0, data.length - Number(range[2])), end = range[1] && range[2] ? Math.min(Number(range[2]), data.length - 1) : data.length - 1;
+        if (start > end || start >= data.length) { res.writeHead(416, { "Content-Range": `bytes */${data.length}` }); return res.end(); }
+        res.writeHead(206, { ...headers, "Content-Range": `bytes ${start}-${end}/${data.length}`, "Content-Length": end - start + 1 });
+        return res.end(data.subarray(start, end + 1));
+      }
+      res.writeHead(200, { ...headers, "Content-Length": data.length });
+      res.end(data);
+    }, (error) => json(error.status ?? 400, { error: error.message, hosts: error.hosts, tried: error.tried, hint: error.hint }));
     return;
   }
   if (url.pathname === "/api/threads/repo") {

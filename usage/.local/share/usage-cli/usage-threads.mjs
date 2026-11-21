@@ -434,8 +434,8 @@ git -C "$p" remote get-url origin 2>/dev/null
 echo ---
 git -C "$p" rev-parse --abbrev-ref HEAD 2>/dev/null
 exit 0`;
-const runRemote = (host, kind, script, timeout = 25_000) =>
-  capture("ssh", [...SSH_OPTS, host, kind === "windows" ? psCommand(script) : `echo ${b64(script)} | base64 -d | sh`], { timeout });
+const runRemote = (host, kind, script, timeout = 25_000, maxBuffer = 16 * 1024 * 1024) =>
+  capture("ssh", [...SSH_OPTS, host, kind === "windows" ? psCommand(script) : `echo ${b64(script)} | base64 -d | sh`], { timeout, maxBuffer });
 
 const winners = new Map();   // atuin host id -> ssh host that had that machine's files
 const remoteCache = new Map(); // "host|path|limit" -> { at, value }
@@ -443,7 +443,7 @@ const REMOTE_TTL_MS = 60_000;
 
 // Ask the candidate hosts which has the thing; `ask(host, kind)` resolves with a value or rejects. The
 // host that answered last time for this machine goes first, and the others follow in the same instant.
-async function fromAnyHost(entry, ask) {
+async function fromAnyHost(entry, ask, given = "") {
   const machine = entry.session?.host ?? "";
   const all = await sshCandidates();
   const pref = winners.get(machine);
@@ -459,27 +459,34 @@ async function fromAnyHost(entry, ask) {
     if (machine) winners.set(machine, host);
     return { host, value };
   } catch (e) {
-    throw fail("that is not on this machine, and none of the other machines have it", 404, { hosts: all, tried: (e.errors ?? []).map((x) => x.message).slice(0, 8) });
+    const kindsSeen = all.map((h) => kinds.get(h)?.kind).filter((k) => typeof k === "string");
+    const windowsPath = /^[A-Za-z]:[\\/]/.test(given ?? "");
+    const hint = windowsPath && !kindsSeen.includes("windows")
+      ? "This is a Windows path and none of the machines asked is a Windows PC. Add that PC's ssh alias to USAGE_REMOTE_HOSTS (comma separated), or run `usage web` on the PC itself."
+      : "If the machine this thread ran on is not in that list, add its ssh alias to USAGE_REMOTE_HOSTS (comma separated) and restart `usage web`.";
+    throw fail("that is not on this machine, and none of the other machines have it", 404, { hosts: all, tried: (e.errors ?? []).map((x) => x.message).slice(0, 8), hint });
   }
 }
 
 async function readRemote(entry, given, limit, only = "") {
   const ask = async (host, kind) => {
+    let last = null;
     for (const target of kind === "windows" ? pathVariants(given, kind) : given.startsWith("~/") ? [given] : pathVariants(given, kind)) {
       const key = `${host}|${target}|${limit}`, hit = remoteCache.get(key);
       if (hit && Date.now() - hit.at < REMOTE_TTL_MS) return hit.value;
       try {
-        const [size, data = ""] = (await runRemote(host, kind, readScript(kind, target, limit))).toString().trim().split(/\r?\n/);
+        const [size, data = ""] = (await runRemote(host, kind, readScript(kind, target, limit), 60_000, Math.max(16 * 1024 * 1024, Math.ceil(limit * 1.4) + 4096))).toString().trim().split(/\r?\n/);
         const value = { path: target, size: Number(size), buf: Buffer.from(data.trim(), "base64") };
         remoteCache.set(key, { at: Date.now(), value });
         if (remoteCache.size > 24) remoteCache.delete(remoteCache.keys().next().value);
         return value;
-      } catch { /* not at that spelling */ }
+      } catch (e) { last = e; }
     }
-    throw new Error(`${host}: no such file`);
+    // Exit code 3 is the script saying "no such file"; anything else is ssh or the host failing.
+    throw new Error(`${host}: ${!last ? "no spelling of that path fits this host" : last.code === 3 ? "not found" : last.code === 255 ? `ssh failed (${last.message})` : `failed (${last.message})`}`);
   };
   if (only) return { host: only, value: await ask(only, await kindOf(only)) };
-  return fromAnyHost(entry, ask);
+  return fromAnyHost(entry, ask, given);
 }
 
 // ---- images --------------------------------------------------------------------------
@@ -545,7 +552,7 @@ const looksBinary = (buf) => buf.subarray(0, 8192).includes(0);
 
 function capture(cmd, args, { timeout = 20_000, maxBuffer = 16 * 1024 * 1024 } = {}) {
   return new Promise((resolve, reject) => {
-    execFile(cmd, args, { encoding: "buffer", timeout, maxBuffer, windowsHide: true }, (error, stdout, stderr) => (error ? reject(fail(String(stderr).trim().split("\n").pop() || error.message, 502)) : resolve(stdout)));
+    execFile(cmd, args, { encoding: "buffer", timeout, maxBuffer, windowsHide: true }, (error, stdout, stderr) => (error ? reject(fail(String(stderr).trim().split("\n").pop() || error.message, 502, { code: error.code })) : resolve(stdout)));
   });
 }
 
@@ -557,24 +564,60 @@ async function guard(id, file) {
   return resolved;
 }
 
+
+// Files the browser can play or show itself are streamed from /api/threads/raw; the rest can be downloaded.
+const MEDIA = {
+  ".pdf": ["pdf", "application/pdf"],
+  ".mp3": ["audio", "audio/mpeg"], ".wav": ["audio", "audio/wav"], ".ogg": ["audio", "audio/ogg"], ".oga": ["audio", "audio/ogg"], ".opus": ["audio", "audio/ogg"], ".m4a": ["audio", "audio/mp4"], ".flac": ["audio", "audio/flac"], ".aac": ["audio", "audio/aac"],
+  ".mp4": ["video", "video/mp4"], ".m4v": ["video", "video/mp4"], ".webm": ["video", "video/webm"], ".mov": ["video", "video/quicktime"], ".ogv": ["video", "video/ogg"], ".mkv": ["video", "video/x-matroska"],
+};
+const MEDIA_LOCAL_LIMIT = 300 * 1024 * 1024;
+const MEDIA_REMOTE_LIMIT = 24 * 1024 * 1024;
+const extOf = (p) => (/\.[A-Za-z0-9]+$/.exec(p)?.[0] ?? "").toLowerCase();
+
+// The bytes of a file a thread mentions, for the viewer's players and download button.
+export async function threadRaw(id, file, { host = "" } = {}) {
+  const resolved = await guard(id, file), ext = extOf(resolved), entry = await loadEntry(id), given = normSpelling(file);
+  const type = MEDIA[ext]?.[1] ?? IMAGE_TYPES[ext] ?? "application/octet-stream";
+  const name = (given.split(/[\\/]/).filter(Boolean).pop() || "file");
+  if (host) {
+    if (!(await sshCandidates()).includes(host)) throw fail("not one of the configured hosts", 400);
+    const { value } = await readRemote(entry, given, MEDIA_REMOTE_LIMIT, host);
+    if (value.size > MEDIA_REMOTE_LIMIT) throw fail(`too large to fetch from another machine (${Math.round(value.size / 1048576)} MB, limit ${MEDIA_REMOTE_LIMIT / 1048576} MB)`, 413);
+    return { type, data: value.buf, name };
+  }
+  for (const here of await localPaths(file)) {
+    const info = await stat(here).catch(() => null);
+    if (!info?.isFile()) continue;
+    if (info.size > MEDIA_LOCAL_LIMIT) throw fail("too large to serve", 413);
+    return { type, data: await readFile(here), name };
+  }
+  const { host: via, value } = await readRemote(entry, given, MEDIA_REMOTE_LIMIT);
+  if (value.size > MEDIA_REMOTE_LIMIT) throw fail(`too large to fetch from another machine (${Math.round(value.size / 1048576)} MB, limit ${MEDIA_REMOTE_LIMIT / 1048576} MB)`, 413);
+  return { type, data: value.buf, name, via };
+}
+
 export async function threadFile(id, file, { host = "" } = {}) {
   const resolved = await guard(id, file), ext = (/\.[A-Za-z0-9]+$/.exec(resolved)?.[0] ?? "").toLowerCase();
   const entry = await loadEntry(id), given = normSpelling(file);
   const image = IMAGE_TYPES[ext];
   const viaRemote = ({ host: via, value }) => {
+    const media = MEDIA[ext];
+    if (media) return { path: value.path, via, kind: media[0], size: value.size, ext, rawHost: via };
     if (image) return { path: value.path, via, kind: "image", size: value.size, dataUrl: value.buf.length && value.size <= IMAGE_LIMIT ? `data:${image};base64,${value.buf.toString("base64")}` : null, ext };
     if (looksBinary(value.buf)) return { path: value.path, via, kind: "binary", size: value.size, ext };
     return { path: value.path, via, kind: "text", size: value.size, text: value.buf.subarray(0, TEXT_LIMIT).toString("utf8"), truncated: value.size > TEXT_LIMIT, ext };
   };
   if (host) {
     if (!(await sshCandidates()).includes(host)) throw fail("not one of the configured hosts", 400);
-    return viaRemote(await readRemote(entry, given, image ? IMAGE_LIMIT : TEXT_LIMIT, host));
+    return viaRemote(await readRemote(entry, given, MEDIA[ext] ? 1 : image ? IMAGE_LIMIT : TEXT_LIMIT, host));
   }
   for (const here of await localPaths(file)) {
     const info = await stat(here).catch(() => null);
     if (!info?.isFile()) continue;
     const base = { path: here, via: "this machine", size: info.size, mtime: info.mtime.toISOString(), ext };
     if (image) return { ...base, kind: "image" };
+    if (MEDIA[ext]) return { ...base, kind: MEDIA[ext][0] };
     const handle = await open(here, "r");
     try {
       const buf = Buffer.alloc(Math.min(info.size, TEXT_LIMIT + 1));
@@ -585,7 +628,7 @@ export async function threadFile(id, file, { host = "" } = {}) {
     } finally { await handle.close(); }
   }
   // Not here: ask the other machines, all at once. 404 (with the hosts) only if none has it.
-  return viaRemote(await readRemote(entry, given, image ? IMAGE_LIMIT : TEXT_LIMIT));
+  return viaRemote(await readRemote(entry, given, MEDIA[ext] ? 1 : image ? IMAGE_LIMIT : TEXT_LIMIT));
 }
 
 // Show the file in the system file manager (selected, where the platform can). Only a file that exists
@@ -646,7 +689,7 @@ export async function threadRepo(id, recordedBranch = "") {
       }
       throw new Error(`${host}: no such folder`);
     };
-    const got = await fromAnyHost(entry, ask);
+    const got = await fromAnyHost(entry, ask, given);
     via = got.host; cwd = got.value.target; remote = got.value.remote; branch = got.value.branch;
   }
   const web = webUrlOf(remote), name = web ? web.split("/").slice(-2).join("/") : "";

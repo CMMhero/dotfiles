@@ -968,6 +968,30 @@
   .aqo li.dim { opacity: .55; } .aq.multi .aqo li .tick { border-radius: 5px; }
   .aqo li .chosen { color: var(--accent); font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; align-self: center; }
   .aqo li.other b { font-weight: 500; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+  /* ---- long lines wrap, previews are numbered ------------------------------------------------------ */
+  .code pre, .gl, details.step pre, pre.plain { white-space: pre-wrap; overflow-wrap: anywhere; word-break: normal; }
+  .gl { overflow-x: visible; }
+  .code pre { overflow-x: hidden; }
+  .nl { display: block; padding-left: calc(var(--gw, 3ch) + 14px); text-indent: calc(-1 * (var(--gw, 3ch) + 14px)); min-height: 1.55em; }
+  .nl::before { content: attr(data-n); display: inline-block; width: var(--gw, 3ch); margin-right: 14px; text-align: right; text-indent: 0; color: var(--faint); opacity: .75; user-select: none; font-variant-numeric: tabular-nums; }
+  .gap { display: block; color: var(--faint); font-style: italic; padding-left: calc(4ch + 14px); }
+
+  /* ---- viewer: players, tables, pages, and a readable "not found" ------------------------------------ */
+  .fvpdf, .fvhtml { width: 100%; height: calc(100vh - 190px); min-height: 360px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+  .fvmedia { display: grid; place-items: center; padding: 16px 0; } .fvmedia audio { width: 100%; } .fvmedia video { max-width: 100%; max-height: calc(100vh - 220px); border-radius: 10px; background: #000; }
+  .fvtabs { margin-bottom: 10px; }
+  .fvtable { overflow: auto; max-height: calc(100vh - 230px); border: 1px solid var(--line); border-radius: 10px; }
+  .fvtable table { border-collapse: separate; border-spacing: 0; font-size: 12.5px; width: max-content; min-width: 100%; }
+  .fvtable th, .fvtable td { padding: 6px 12px; border-bottom: 1px solid var(--line-2); text-align: left; white-space: nowrap; max-width: 360px; overflow: hidden; text-overflow: ellipsis; }
+  .fvtable thead th { position: sticky; top: 0; background: var(--raised); font-weight: 600; z-index: 1; } .fvtable .idx { color: var(--faint); text-align: right; width: 1%; }
+  .fvwhy { display: flex; gap: 12px; text-align: left; align-items: flex-start; max-width: 560px; margin: 0 auto; } .fvwhy > .ui { flex: none; color: var(--warn); margin-top: 2px; } .fvwhy p { margin: 6px 0 0; color: var(--muted); }
+  .fvtried { margin: 16px auto 0; max-width: 560px; text-align: left; font-size: 12.5px; }
+  .fvtried ul { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; }
+  .fvtried li { display: grid; grid-template-columns: minmax(90px, 160px) 1fr; gap: 10px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--raised); }
+  .fvtried li b { font-family: var(--mono); font-weight: 500; overflow: hidden; text-overflow: ellipsis; } .fvtried li span { color: var(--muted); overflow-wrap: anywhere; }
+  /* a tool call's table never pushes past its card */
+  details.tool .tb { grid-template-columns: minmax(0, 1fr); } .kvb, .kvv, .kr > * { min-width: 0; } .kvb .code { max-width: 100%; }
 </style>
 </head>
 <body>
@@ -1130,6 +1154,7 @@ const UI = {
   refresh: '<path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
   download: '<path d="M12 3v12m0 0-4-4m4 4 4-4M4 21h16"/>',
+  'alert-circle': '<circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/>',
   "arrow-up": '<path d="M12 19V5M5 12l7-7 7 7"/>',
   "arrow-down": '<path d="M12 5v14M19 12l-7 7-7-7"/>',
   "trend-up": '<path d="M7 17 17 7M8 7h9v9"/>',
@@ -1303,7 +1328,7 @@ const get = async (url, signal) => {
   try {
     const res = await fetch(url, { signal });
     const body = await res.json();
-    if (!res.ok || body.error) throw Object.assign(new Error(body.error || res.statusText), { status: res.status, hosts: body.hosts, tried: body.tried });
+    if (!res.ok || body.error) throw Object.assign(new Error(body.error || res.statusText), { status: res.status, hosts: body.hosts, tried: body.tried, hint: body.hint });
     return body;
   } finally {
     document.body.classList.toggle("busy", --inFlight > 0);
@@ -2227,25 +2252,43 @@ function hlDiff(code, given = "") {
 }
 // File content as tools print it, with a gutter of line numbers ("12:code", "   12→code", "12\tcode"):
 // the numbers stay dim and the code beside them is highlighted.
+// One numbered line. The number is drawn by CSS (data-n), so selecting and copying never picks it up, and a long
+// line wraps under its own text instead of under the number.
+const nlRow = (no, html, digits) => `<span class="nl" data-n="${no}" style="--gw:${digits}ch">${html}</span>`;
+// Splits highlighted html into lines, closing the spans a line leaves open and opening them again on the next.
+function numberLines(html, start = 1) {
+  const lines = []; const open = []; let cur = "";
+  for (const part of html.split(/(<\/?span[^>]*>|\n)/)) {
+    if (part === "\n") { lines.push(cur + "</span>".repeat(open.length)); cur = open.join(""); continue; }
+    if (/^<span/.test(part)) open.push(part); else if (part === "</span>") open.pop();
+    cur += part;
+  }
+  if (cur.replace(/<[^>]*>/g, "") || !lines.length) lines.push(cur + "</span>".repeat(open.length));
+  const digits = String(start + lines.length - 1).length;
+  return lines.map((l, i) => nlRow(start + i, l, digits)).join("");
+}
 function hlNumbered(text, lang) {
   const lines = text.split("\n"), re = /^(\s*\d+)([:→|\t]\s?|\s{2,})/;
   const hits = lines.filter((l) => re.test(l)).length;
   if (hits < Math.max(2, lines.length * 0.6)) return null;
-  return lines.map((l) => { const m = re.exec(l); return m ? `<span class="tk-ln">${esc(m[0])}</span>${hlCode(l.slice(m[0].length), lang)}` : hlCode(l, lang); }).join("\n");
+  const nums = lines.map((l) => /^\s*(\d+)/.exec(l)?.[1]), digits = Math.max(2, ...nums.filter(Boolean).map((n) => n.length));
+  return lines.map((l, i) => { const m = re.exec(l); return m ? nlRow(Number(nums[i]), hlCode(l.slice(m[0].length), lang), digits) : `<span class="gap">${hlCode(l, lang)}</span>`; }).join("");
 }
 const guessLang = (code) => (/^\s*[{[]/.test(code) && /[}\]]\s*$/.test(code) ? "json" : /^(diff --git|@@ |--- a\/|\*\*\* Begin Patch|\+\+\+ )/m.test(code) ? "diff" : /^\s*(\$ |#!\/)/.test(code) ? "sh" : /^\s*<(!DOCTYPE|html|div|svg)\b/i.test(code) ? "html" : "");
 // `info` is the fence's language word; `hint` is a language to use when there is none (a diff's file).
-function codeBlock(code, info = "", hint = "") {
+function codeBlock(code, info = "", hint = "", numbered = false) {
   const raw = String(info).trim().split(/[\s{]/)[0].toLowerCase(), lang = raw === "text" ? "" : LANGS[raw] ?? (raw ? "" : guessLang(code));
   const label = raw || lang || "";
   const previewable = lang === "html" && (raw === "html" || raw === "svg");
-  const body = lang === "diff" ? hlDiff(code, hint) : hlCode(code, lang);
+  let body = lang === "diff" ? hlDiff(code, hint) : hlCode(code, lang);
+  if (numbered && lang !== "diff") body = numberLines(body);
   return `<div class="code"><div class="ch"><span class="cl">${esc(label || "text")}</span><span class="spacer"></span>${previewable ? '<button type="button" class="cc" data-prev>Preview</button>' : ""}<button type="button" class="cc ic" data-copy aria-label="Copy code" title="Copy">${ui("copy", 13)}</button></div><pre><code>${body}</code></pre></div>`;
 }
 document.addEventListener("click", (e) => {
   const copy = e.target.closest("[data-copy]"), prev = e.target.closest("[data-prev]");
   if (copy) {
-    const text = copy.closest(".code").querySelector("code").textContent;
+    const codeEl = copy.closest(".code").querySelector("code"), rows = [...codeEl.children].filter((c) => c.matches(".nl"));
+    const text = rows.length ? rows.map((r) => r.textContent).join("\n") : codeEl.textContent;
     navigator.clipboard?.writeText(text).then(() => { const was = copy.innerHTML; copy.innerHTML = ui("check", 13); copy.classList.add("ok"); setTimeout(() => { copy.innerHTML = was; copy.classList.remove("ok"); }, 1300); }).catch(() => {});
   } else if (prev) {
     const box = prev.closest(".code"), on = box.classList.toggle("previewing");
@@ -2456,7 +2499,7 @@ const TOOL_META = { shell: ["terminal", "Shell"], read: ["eye", "Read"], write: 
   ask: ["help-circle", "Question"], agent: ["bot", "Agent"], web: ["globe", "Web"], skill: ["wand", "Skill"], mcp: ["plug", "MCP"], wait: ["clock", "Wait"], message: ["send", "Message"], stop: ["square", "Stop"], tool: ["wrench", "Tool"] };
 const pick = (a, ...keys) => { for (const k of keys) if (a?.[k] != null && a[k] !== "") return a[k]; return undefined; };
 const base = (p) => String(p ?? "").split(/[\\/]/).filter(Boolean).slice(-2).join("/");
-const one = (v, n = 150) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, n);
+const one = (v, n = 150) => stripAnsi(String(v ?? "")).replace(/\s+/g, " ").trim().slice(0, n);
 const extLang = (p) => LANGS[String(p ?? "").split(".").pop().toLowerCase()] ?? "";
 function diffText(oldS, newS) {
   const o = String(oldS ?? "").split("\n"), n = String(newS ?? "").split("\n");
@@ -2493,6 +2536,90 @@ function ansiHtml(text) {
   out += esc(text.slice(at)); close();
   return out.replace(/https?:\/\/[^\s<>"')\]]+/g, (u) => `<a href="${u}" target="_blank" rel="noopener noreferrer">${u}</a>`);
 }
+// Output captured from a real terminal carries its control codes: colours, but also "erase the line",
+// "move up", "hide the cursor" and the window title. A tiny terminal replays them onto a grid of cells, so a
+// spinner that redraws itself ends as the one line it left on screen, and nothing shows as a box or "[?25l".
+const stripAnsi = (t) => String(t ?? "").replace(/\u001b[\]PX^_][^\u0007\u001b]*(?:\u0007|\u001b\\)?/g, "").replace(/\u001b\[[0-9;:?<=>]*[ -\/]*[@-~]/g, "").replace(/\u001b[()*+][\x20-\x7e]/g, "").replace(/\u001b[78=>Mc]/g, "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001a\u001c-\u001f]/g, "");
+const ANSI_BG = { 40: "#6c7086", 41: "var(--bad)", 42: "var(--good)", 43: "var(--warn)", 44: "var(--c2)", 45: "var(--c6)", 46: "var(--c3)", 47: "var(--text)" };
+function termScreen(text) {
+  const rows = [[]]; let r = 0, c = 0, cur = null, saved = [0, 0];
+  const st = { fg: null, bg: null, b: false, d: false, i: false, u: false, inv: false };
+  const snap = () => { cur = { ...st }; }; snap();
+  const rowAt = (n) => { while (rows.length <= n) rows.push([]); return rows[n]; };
+  const put = (ch) => { const row = rowAt(r); while (row.length < c) row.push({ ch: " ", st: null }); row[c] = { ch, st: cur }; c += 1; };
+  const color = (codes, i) => {
+    if (codes[i + 1] === 5) { const n = codes[i + 2] ?? 0; return [n < 16 ? (ANSI_FG[n < 8 ? 30 + n : 82 + n] ?? null) : `hsl(${(n * 47) % 360} 55% 62%)`, 2]; }
+    if (codes[i + 1] === 2) return [`rgb(${codes[i + 2] ?? 0},${codes[i + 3] ?? 0},${codes[i + 4] ?? 0})`, 4];
+    return [null, 0];
+  };
+  const sgr = (params) => {
+    const codes = params === "" ? [0] : params.split(/[;:]/).map((x) => Number(x) || 0);
+    for (let i = 0; i < codes.length; i++) {
+      const k = codes[i];
+      if (k === 0) Object.assign(st, { fg: null, bg: null, b: false, d: false, i: false, u: false, inv: false });
+      else if (k === 1) st.b = true; else if (k === 2) st.d = true; else if (k === 3) st.i = true; else if (k === 4) st.u = true; else if (k === 7) st.inv = true;
+      else if (k === 22) { st.b = false; st.d = false; } else if (k === 23) st.i = false; else if (k === 24) st.u = false; else if (k === 27) st.inv = false;
+      else if (k === 39) st.fg = null; else if (k === 49) st.bg = null;
+      else if (ANSI_FG[k]) st.fg = ANSI_FG[k];
+      else if (ANSI_BG[k] || ANSI_BG[k - 60]) st.bg = ANSI_BG[k] ?? ANSI_BG[k - 60];
+      else if (k === 38 || k === 48) { const [col, used] = color(codes, i); if (k === 38) st.fg = col; else st.bg = col; i += used; }
+    }
+    snap();
+  };
+  const chars = Array.from(String(text));
+  for (let i = 0; i < chars.length; i++) {
+    const ch = chars[i];
+    if (ch === "\u001b") {
+      const n = chars[i + 1];
+      if (n === "[") {
+        let j = i + 2, params = "";
+        while (j < chars.length && /[0-9;:?<=>]/.test(chars[j])) params += chars[j++];
+        while (j < chars.length && /[ -\/]/.test(chars[j])) j++;
+        const fin = chars[j] ?? ""; i = j;
+        const priv = /^[?<=>]/.test(params), nums = params.replace(/^[?<=>]/, "").split(";").map((x) => parseInt(x, 10));
+        const n1 = Number.isFinite(nums[0]) && nums[0] > 0 ? nums[0] : 1;
+        if (priv) continue;
+        if (fin === "m") sgr(params);
+        else if (fin === "A") r = Math.max(0, r - n1); else if (fin === "B") r += n1;
+        else if (fin === "C") c += n1; else if (fin === "D") c = Math.max(0, c - n1);
+        else if (fin === "E") { r += n1; c = 0; } else if (fin === "F") { r = Math.max(0, r - n1); c = 0; }
+        else if (fin === "G") c = Math.max(0, n1 - 1); else if (fin === "d") r = Math.max(0, n1 - 1);
+        else if (fin === "H" || fin === "f") { r = Math.max(0, (Number.isFinite(nums[0]) && nums[0] > 0 ? nums[0] : 1) - 1); c = Math.max(0, (Number.isFinite(nums[1]) && nums[1] > 0 ? nums[1] : 1) - 1); }
+        else if (fin === "K") { const m = Number.isFinite(nums[0]) ? nums[0] : 0, row = rowAt(r); if (m === 0) row.length = Math.min(row.length, c); else if (m === 1) { for (let x = 0; x <= c; x++) row[x] = { ch: " ", st: null }; } else rows[r] = []; }
+        else if (fin === "J") { const m = Number.isFinite(nums[0]) ? nums[0] : 0; if (m === 0) { rowAt(r).length = Math.min(rowAt(r).length, c); rows.length = r + 1; } else if (m === 1) { for (let y = 0; y < r; y++) rows[y] = []; for (let x = 0; x <= c; x++) rowAt(r)[x] = { ch: " ", st: null }; } else { rows.length = 0; rows.push([]); } }
+        else if (fin === "P") rowAt(r).splice(c, n1); else if (fin === "X") { const row = rowAt(r); for (let x = c; x < c + n1; x++) if (x < row.length) row[x] = { ch: " ", st: null }; }
+        else if (fin === "@") rowAt(r).splice(c, 0, ...Array.from({ length: n1 }, () => ({ ch: " ", st: null })));
+        else if (fin === "s") saved = [r, c]; else if (fin === "u") [r, c] = saved;
+        continue;
+      }
+      if (n === "]" || n === "P" || n === "X" || n === "^" || n === "_") { let j = i + 2; while (j < chars.length && chars[j] !== "\u0007" && !(chars[j] === "\u001b" && chars[j + 1] === "\\")) j++; i = chars[j] === "\u001b" ? j + 1 : j; continue; }
+      if (n === "(" || n === ")" || n === "*" || n === "+") { i += 2; continue; }
+      if (n === "7") saved = [r, c]; else if (n === "8") [r, c] = saved; else if (n === "M") r = Math.max(0, r - 1);
+      i += 1; continue;
+    }
+    if (ch === "\r") c = 0;
+    else if (ch === "\n") { r += 1; c = 0; rowAt(r); }
+    else if (ch === "\b") c = Math.max(0, c - 1);
+    else if (ch === "\t") c = (c | 7) + 1;
+    else if (ch < " " || ch === "\u007f") continue;
+    else put(ch);
+  }
+  // Rows to html: runs of cells that share a style become one span, trailing blanks are dropped.
+  const css = (x) => {
+    if (!x) return "";
+    const fg = x.inv ? (x.bg ?? "var(--bg)") : x.fg, bg = x.inv ? (x.fg ?? "var(--text)") : x.bg;
+    return [fg ? `color:${fg}` : "", bg ? `background:${x.inv ? bg : `color-mix(in srgb, ${bg} 28%, transparent)`}` : "", x.b ? "font-weight:600" : "", x.d ? "opacity:.65" : "", x.i ? "font-style:italic" : "", x.u ? "text-decoration:underline" : ""].filter(Boolean).join(";");
+  };
+  while (rows.length > 1 && !rows.at(-1).some((x) => x && x.ch !== " ")) rows.pop();
+  const lines = rows.map((row) => {
+    let end = row.length; while (end > 0 && (!row[end - 1] || (row[end - 1].ch === " " && !row[end - 1].st?.bg))) end--;
+    let out = "", run = "", last = undefined;
+    const flush = () => { if (!run) return; const style = css(last); out += style ? `<span style="${style}">${esc(run)}</span>` : esc(run); run = ""; };
+    for (let x = 0; x < end; x++) { const cell = row[x] ?? { ch: " ", st: null }; if (cell.st !== last) { flush(); last = cell.st; } run += cell.ch; }
+    flush(); return out;
+  });
+  return lines.join("\n").replace(/https?:\/\/[^\s<>"')\]]+/g, (u) => `<a href="${u}" target="_blank" rel="noopener noreferrer">${u}</a>`);
+}
 const plainBlock = (html, label = "") => `<div class="code out"><div class="ch"><span class="cl">${esc(label || "output")}</span><span class="spacer"></span><button type="button" class="cc ic" data-copy aria-label="Copy output" title="Copy">${ui("copy", 13)}</button></div><pre><code>${html}</code></pre></div>`;
 
 // "[src/app.tsx#D787]" then "35:  return (" ... : a file read or an edit's context, line numbers kept as a
@@ -2507,11 +2634,11 @@ function fileView(text) {
     if (!n) { if (row.trim()) out.push(`<span class="gap">${esc(row)}</span>`); continue; }
     const no = Number(n[2]);
     if (prev != null && no > prev + 1) out.push(`<span class="gap">⋯ ${no - prev - 1} lines</span>`);
-    out.push(`<span class="ln"><span class="tk-ln">${esc(String(no).padStart(4))}  </span>${lang ? hlCode(n[4], lang) : esc(n[4])}</span>`);
+    out.push(nlRow(no, lang ? hlCode(n[4], lang) : esc(n[4]), 4));
     prev = no; shown += 1;
   }
   if (!shown) return null;
-  return `<div class="res"><div class="rl">${pathChip(path)}${m[2] ? `<span class="faint mono"> #${esc(m[2])}</span>` : ""} <span class="faint">${shown} lines</span></div><div class="code out"><pre><code>${out.join("\n")}</code></pre></div></div>`;
+  return `<div class="res"><div class="rl">${pathChip(path)}${m[2] ? `<span class="faint mono"> #${esc(m[2])}</span>` : ""} <span class="faint">${shown} lines</span></div><div class="code out"><pre><code>${out.join("")}</code></pre></div></div>`;
 }
 // The plan tool's own summary ("Remaining items (5): ... Overall: 2/7 done ... Phase: - [x] item") as a
 // progress bar and phases with ticked items.
@@ -2635,9 +2762,9 @@ function resultBlock(res, hintLang = "", kind = "") {
     if (file) return file;
     if (plan) return `<div class="res">${plan}</div>`;
   }
-  const sh = shellWrapper(raw.replace(/\u001b\[[0-9;]*m/g, ""));
+  const sh = shellWrapper(stripAnsi(raw));
   const text = sh ? sh.body : raw, chips = sh ? sh.chips : "";
-  const plain = text.replace(/\u001b\[[0-9;]*m/g, "");
+  const plain = stripAnsi(text);
   if (/^\s*[{[]/.test(plain)) {
     try { return wrap(codeBlock(JSON.stringify(JSON.parse(plain), null, 2), "json"), chips); } catch { /* clipped or not JSON: still coloured as JSON when it reads like it */ }
     if (/^\s*[{[]\s*["\w{\[]/.test(plain) && /"[^"\n]*"\s*:/.test(plain.slice(0, 600))) return wrap(codeBlock(plain, "json"), chips);
@@ -2652,11 +2779,12 @@ function resultBlock(res, hintLang = "", kind = "") {
   // A page, a document or a file printed by a command: read as markdown for a web fetch, as its own language otherwise.
   if (!res.isError && kind === "web" && looksMarkdown(plain) && !/^\s*</.test(plain)) return wrap(`<div class="wb">${md(plain)}</div>`, chips);
   const lang = hintLang || sniffLang(plain);
-  if (!res.isError && lang && lang !== "text" && plain.split("\n").length > 2) return wrap(codeBlock(plain, lang), chips);
+  if (!res.isError && kind === "read") return wrap(codeBlock(plain, lang || "text", "", true), chips);
+  if (!res.isError && lang && lang !== "text" && plain.split("\n").length > 2) return wrap(codeBlock(plain, lang, "", Boolean(hintLang)), chips);
   // Anything else is terminal output: keep its colours if it has them, otherwise read it as git, build
   // or test output, and turn a trailing exit status into a chip.
-  const coloured = /\u001b\[/.test(text), ex = sh || coloured ? null : exitStatus(plain), body = ex ? ex.body : plain;
-  const html = coloured ? ansiHtml(text) : termHtml(body);
+  const coloured = /\u001b|\r(?!\n)/.test(text), ex = sh || coloured ? null : exitStatus(plain), body = ex ? ex.body : plain;
+  const html = coloured ? termScreen(text) : termHtml(body);
   return wrap(plainBlock(html), chips + (ex ? `<div class="rchips">${ex.chip}</div>` : ""));
 }
 function todoBody(a) {
@@ -2674,6 +2802,9 @@ function parseAnswers(text, qs) {
   if (!raw || !qs.length) return null;
   const keyOf = (q) => [q.question, q.header, q.id, q.key].filter(Boolean).map((x) => String(x).trim().toLowerCase());
   const answers = new Map();   // question index -> answer string(s)
+  // "User provided custom input: ..." is a typed answer, not a pick.
+  const typed = /^User provided custom input:\s*([\s\S]*)$/i.exec(raw);
+  if (typed && qs.length === 1) return [{ picked: [], other: typed[1].trim() }];
   const place = (key, val) => {
     const k = String(key).trim().toLowerCase();
     let i = qs.findIndex((q) => keyOf(q).includes(k));
@@ -2685,7 +2816,18 @@ function parseAnswers(text, qs) {
     if (map && typeof map === "object" && !Array.isArray(map)) for (const [k, v] of Object.entries(map)) place(k, v?.answers ?? v?.answer ?? v?.value ?? v);
   } catch { /* not JSON */ }
   if (!answers.size) for (const m of raw.matchAll(/"((?:[^"\\]|\\.)*)"\s*=\s*"((?:[^"\\]|\\.)*)"/g)) place(m[1].replace(/\\"/g, '"'), m[2].replace(/\\"/g, '"'));
-  if (!answers.size && qs.length === 1) answers.set(0, [raw.replace(/^(?:User has answered your questions?:|User selected:|Selected:|Answer:)\s*/i, "").replace(/\.?\s*You can now continue.*$/s, "").replace(/^"|"$/g, "")]);
+  // oh-my-pi and others: "User answers:" then one "id: choice" line per question (the id is the question's id or header)
+  if (!answers.size) {
+    const rows = raw.replace(/^User answers?:?\s*/i, "").split("\n").map((l) => /^\s*([^:\n]{1,60}):\s+(.+)$/.exec(l)).filter(Boolean);
+    for (const m of rows) place(m[1], m[2]);
+    // ids that match nothing (q1, 0, a name nobody wrote down): one line per question, in order
+    if (answers.size < Math.min(rows.length, qs.length) || (!answers.size && rows.length === qs.length)) { answers.clear(); rows.slice(0, qs.length).forEach((m, i) => answers.set(i, [m[2]])); }
+  }
+  if (!answers.size && qs.length === 1) answers.set(0, [raw.replace(/^(?:User has answered your questions?:|User answers?:|User selected:|Selected:|Answer:)\s*/i, "").replace(/\.?\s*You can now continue.*$/s, "").replace(/^"|"$/g, "")]);
+  if (!answers.size) {
+    const hit = qs.map((q) => (q.options ?? []).map((o) => String(o.label ?? o).trim()).filter((l) => l && raw.toLowerCase().includes(l.toLowerCase())));
+    if (hit.every((h) => h.length)) hit.forEach((h, i) => answers.set(i, h));
+  }
   if (!answers.size) return null;
   return qs.map((q, i) => {
     const given = answers.get(i);
@@ -2817,6 +2959,23 @@ function closeFile() {
   fv.classList.add("out"); clearTimeout(fvTimer);
   fvTimer = setTimeout(() => fv.remove(), reduced() ? 0 : 200);
 }
+// A CSV or TSV as a table (quotes, doubled quotes and line breaks inside a cell are honoured; first 500 rows).
+function csvTable(text, sep) {
+  const rows = []; let row = [], cell = "", q = false;
+  for (let i = 0; i < text.length && rows.length <= 500; i += 1) {
+    const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i += 1; } else q = false; } else cell += c; }
+    else if (c === '"') q = true;
+    else if (c === sep) { row.push(cell); cell = ""; }
+    else if (c === "\n" || c === "\r") { if (c === "\r" && text[i + 1] === "\n") i += 1; row.push(cell); rows.push(row); row = []; cell = ""; }
+    else cell += c;
+  }
+  if (cell || row.length) { row.push(cell); rows.push(row); }
+  if (!rows.length) return '<div class="empty">Empty file.</div>';
+  const width = Math.max(...rows.map((r) => r.length));
+  const head = rows[0], rest = rows.slice(1);
+  return `<div class="fvtable"><table><thead><tr><th class="idx"></th>${Array.from({ length: width }, (_, i) => `<th>${esc(head[i] ?? "")}</th>`).join("")}</tr></thead><tbody>${rest.map((r, n) => `<tr><td class="idx">${n + 1}</td>${Array.from({ length: width }, (_, i) => `<td>${esc(r[i] ?? "")}</td>`).join("")}</tr>`).join("")}</tbody></table>${rows.length > 500 ? '<div class="note">Showing the first 500 rows.</div>' : ""}</div>`;
+}
 async function openFile(file, host = "") {
   $("fv")?.remove();
   const id = state.thr.sel, name = file.split(/[\\/]/).filter(Boolean).pop() || file;
@@ -2834,16 +2993,30 @@ async function openFile(file, host = "") {
     if (r.kind === "image") {
       const src = r.dataUrl ?? `/api/threads/image?id=${encodeURIComponent(id)}&path=${encodeURIComponent(file)}`;
       body.innerHTML = `<div class="fvimg"><img class="mdimg" src="${esc(src)}" alt="${esc(name)}" data-name="${esc(name)}"></div>`;
-    } else if (r.kind === "binary") body.innerHTML = `<div class="empty">A binary file${r.size != null ? " of " + esc(fmtBytes(r.size)) : ""}. It is not shown as text.</div>`;
-    else {
-      const md = r.ext === ".md" || r.ext === ".markdown";
-      body.innerHTML = (r.truncated ? `<div class="note">Showing the first ${esc(fmtBytes(r.text.length))}.</div>` : "") + (md ? `<div class="body fvmd">${renderText(r.text, "assistant")}</div>` : codeBlock(r.text, (r.ext || "").slice(1)));
+    } else if (["pdf", "audio", "video"].includes(r.kind)) {
+      const src = `/api/threads/raw?id=${encodeURIComponent(id)}&path=${encodeURIComponent(file)}${r.rawHost ? "&host=" + encodeURIComponent(r.rawHost) : host ? "&host=" + encodeURIComponent(host) : ""}`;
+      body.innerHTML = r.kind === "pdf" ? `<iframe class="fvpdf" src="${esc(src)}" title="${esc(name)}"></iframe>` : r.kind === "audio" ? `<div class="fvmedia"><audio controls preload="metadata" src="${esc(src)}"></audio></div>` : `<div class="fvmedia"><video controls preload="metadata" src="${esc(src)}"></video></div>`;
+      act.insertAdjacentHTML("afterbegin", `<a class="btn sm" href="${esc(src)}&dl=1" download="${esc(name)}">${ui("download", 12)}Download</a>`);
+    } else if (r.kind === "binary") {
+      const src = `/api/threads/raw?id=${encodeURIComponent(id)}&path=${encodeURIComponent(file)}${host ? "&host=" + encodeURIComponent(host) : ""}&dl=1`;
+      body.innerHTML = `<div class="empty"><div>${esc(name)} is a binary file${r.size != null ? " of " + esc(fmtBytes(r.size)) : ""}, so there is nothing to show as text.</div><div class="fvhosts"><a class="btn sm" href="${esc(src)}" download="${esc(name)}">${ui("download", 12)}Download it</a></div></div>`;
+    } else {
+      const ext = (r.ext || "").slice(1), md = ext === "md" || ext === "markdown", sep = ext === "csv" ? "," : ext === "tsv" ? "\t" : "", web = ext === "html" || ext === "htm";
+      const note = r.truncated ? `<div class="note">Showing the first ${esc(fmtBytes(r.text.length))}.</div>` : "";
+      const code = () => codeBlock(r.text, ext, "", true);
+      if (md) body.innerHTML = note + `<div class="body fvmd">${renderText(r.text, "assistant")}</div>`;
+      else if (sep || web) {
+        // A table or a rendered page, with the source one click away.
+        const views = { view: sep ? csvTable(r.text, sep) : `<iframe class="fvhtml" sandbox="" referrerpolicy="no-referrer" srcdoc="${esc(r.text)}" title="${esc(name)}"></iframe>`, source: code() };
+        body.innerHTML = note + `<div class="seg sm fvtabs" role="group"><button data-fvview="view" aria-pressed="true">${sep ? "Table" : "Page"}</button><button data-fvview="source" aria-pressed="false">Source</button></div><div id="fvview">${views.view}</div>`;
+        body.onclick = (ev) => { const b = ev.target.closest("[data-fvview]"); if (!b) return; body.querySelectorAll("[data-fvview]").forEach((x) => x.setAttribute("aria-pressed", String(x === b))); $("fvview").innerHTML = views[b.dataset.fvview]; };
+      } else body.innerHTML = note + code();
     }
   } catch (e) {
     const hosts = e.hosts ?? [];
     act.innerHTML = copy;
-    const tried = (e.tried ?? []).map((t) => `<li>${esc(t)}</li>`).join("");
-    body.innerHTML = `<div class="empty"><div>${esc(e.message)}.</div>${tried ? `<div class="fvtried faint">Asked ${hosts.length} other ${hosts.length === 1 ? "machine" : "machines"} over ssh:<ul>${tried}</ul></div>` : ""}${hosts.length ? `<div class="fvhosts">Try one by hand: ${hosts.map((h) => `<button type="button" class="btn sm" data-host="${esc(h)}">${esc(h)}</button>`).join("")}</div>` : ""}</div>`;
+    const tried = (e.tried ?? []).map((t) => { const [h, ...rest] = String(t).split(": "), why = rest.join(": "); return `<li><b>${esc(h)}</b><span class="${/not found/.test(why) ? "" : "t-warn"}">${esc(why)}</span></li>`; }).join("");
+    body.innerHTML = `<div class="empty"><div class="fvwhy">${ui("alert-circle", 18)}<div><b>${esc(e.message)}.</b>${e.hint ? `<p>${esc(e.hint)}</p>` : ""}</div></div>${tried ? `<div class="fvtried"><div class="faint">Asked ${hosts.length} other ${hosts.length === 1 ? "machine" : "machines"} over ssh</div><ul>${tried}</ul></div>` : ""}${hosts.length ? `<div class="fvhosts">Try one by hand: ${hosts.map((h) => `<button type="button" class="btn sm" data-host="${esc(h)}">${esc(h)}</button>`).join("")}</div>` : ""}</div>`;
   }
   fv.onclick = (ev) => {
     if (ev.target.closest("[data-fvclose]")) closeFile();
