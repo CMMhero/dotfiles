@@ -121,7 +121,7 @@
   
 
   /* ---- page ----------------------------------------------------------------- */
-  main { padding: 28px var(--pad) 72px; display: grid; gap: 40px; align-content: start; max-width: var(--maxw); margin: 0 auto; min-height: calc(100vh - var(--hh)); }
+  main { padding: 28px var(--pad) 72px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 40px; align-content: start; max-width: var(--maxw); margin: 0 auto; min-height: calc(100vh - var(--hh)); }
   main.enter > * { animation: enter .16s ease-out; }
   @keyframes enter { from { opacity: 0; } to { opacity: 1; } }
   /* Space is held before the content arrives and when it changes, so nothing below
@@ -148,7 +148,7 @@
   main h2 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: -.005em; display: flex; align-items: center; gap: 10px; }
   h2 .sub { color: var(--faint); font-weight: 400; font-size: 12px; }
   .hero { display: grid; grid-template-columns: minmax(300px, 360px) minmax(0, 1fr); gap: clamp(24px, 4vw, 64px); align-items: start; }
-  @media (max-width: 900px) { .hero { grid-template-columns: 1fr; } }
+  @media (max-width: 900px) { .hero { grid-template-columns: minmax(0, 1fr); } .hero > * { min-width: 0; } }
   .big { font-size: 44px; font-weight: 600; letter-spacing: -.03em; line-height: 1.05; }
   .bigsub { color: var(--muted); font-size: 12px; margin-top: 6px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .legend { list-style: none; margin: 22px 0 0; padding: 0; display: grid; gap: 16px; }
@@ -280,7 +280,6 @@
   .threads { width: 100%; display: grid; grid-template-columns: 320px minmax(0, 1fr) 340px; height: calc(100vh - var(--hh) - 36px); min-height: 480px; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
   /* Narrower: the panel moves under the conversation, so resume stays reachable. */
   @media (max-width: 1280px) { .threads { grid-template-columns: 300px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; } .tl { grid-row: 1 / 3; } .tside { grid-column: 2; padding: 0 28px 12px; max-height: 42vh; } }
-  @media (max-width: 820px) { .threads { grid-template-columns: 1fr; height: auto; } .tl { max-height: 46vh; } .td { height: 80vh; } }
   .scroll { overflow-y: auto; min-height: 0; flex: 1; scrollbar-gutter: stable; }
   .tl { display: flex; flex-direction: column; min-height: 0; background: var(--raised); border-right: 1px solid var(--line); }
   .tl .bar { display: flex; gap: 8px; padding: 12px 12px 10px; flex-wrap: wrap; align-items: center; }
@@ -342,7 +341,7 @@
   details summary > .ui:last-child { color: var(--faint); transition: transform .12s; }
   details[open] > summary > .ui:last-child { transform: rotate(90deg); }
   details.step pre { margin: 4px 0 8px 22px; padding: 10px 12px; background: var(--deep); border: 1px solid var(--line); border-radius: 10px; overflow: auto; max-height: 340px; white-space: pre-wrap; word-break: break-word; color: var(--muted); font-size: 12px; line-height: 1.5; }
-  details.run > .steps { margin: 2px 0 4px 12px; padding-left: 12px; border-left: 1px solid var(--line); }
+  details.run > .steps { margin: 2px 0 4px 0; padding-left: 0; }
   .files { background: var(--raised); border: 1px solid var(--line); border-radius: 12px; padding: 8px 14px; }
   .files .fh { display: flex; gap: 10px; align-items: center; padding: 4px 0 6px; font-size: 13px; }
   .add { color: var(--c2); } .del { color: var(--up); }
@@ -363,6 +362,10 @@
   .tside button:disabled, .tside select:disabled { opacity: .5; cursor: default; }
   .tside .f .v.link { background: transparent; border: 0; padding: 0; cursor: pointer; color: var(--muted); font-weight: 400; }
   .tside .f .v.link:hover:not(:disabled) { color: var(--accent); }
+  .tside .f a.v.link { text-decoration: none; transition: color var(--t-fast); }
+  .tside .f a.v.link[href], .tside .f a.v.link[role="link"]:not([aria-disabled]) { cursor: pointer; }
+  .tside .f a.v.link[href]:hover, .tside .f a.v.link:not([aria-disabled]):hover { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+  .tside .f a.v.link[aria-disabled] { color: var(--text); cursor: default; }
   .tside .btn.ghost { justify-self: start; padding-left: 0; }
   .tside hr { border: 0; border-top: 1px solid var(--line); margin: 2px -16px; }
   .tside .f { display: grid; grid-template-columns: 16px 82px minmax(0, 1fr); gap: 10px; align-items: center; color: var(--muted); }
@@ -477,7 +480,7 @@
   .tl .search .wait { position: absolute; right: 10px; top: 50%; width: 13px; height: 13px; margin-top: -6.5px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--accent); opacity: 0; transition: opacity var(--t-fast); pointer-events: none; }
   .tl .search.busy .wait { opacity: 1; animation: spin .8s linear infinite; }
   .ti { content-visibility: auto; contain-intrinsic-size: auto 76px; }
-  .conv > .say, .conv > .bubble, .conv > details.run, .conv > .steps { content-visibility: auto; contain-intrinsic-size: auto 80px; }
+  .conv > .turn, .conv > details.run, .conv > .steps { content-visibility: auto; contain-intrinsic-size: auto 80px; }
   .tail button { font: inherit; }
   .tail button:hover { background: var(--hover); }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -525,13 +528,397 @@
     transition: opacity .18s var(--ease), transform .2s var(--ease), visibility 0s linear .2s; }
   .top > .custom.on { opacity: 1; transform: none; visibility: visible; pointer-events: auto; transition-delay: 0s; }
   .top > .custom .cl { color: var(--muted); font-size: 12px; font-weight: 500; margin-right: 2px; }
-  .top > .custom::before { content: ""; position: absolute; right: 38px; top: -6px; width: 10px; height: 10px; background: var(--raised); border-left: 1px solid var(--line); border-top: 1px solid var(--line); transform: rotate(45deg); border-radius: 2px 0 0 0; }
+  .top > .custom { flex-wrap: wrap; max-width: calc(100vw - 16px); }
+  .top > .custom::before { content: ""; position: absolute; left: var(--ax, calc(100% - 44px)); margin-left: -5px; top: -6px; width: 10px; height: 10px; background: var(--raised); border-left: 1px solid var(--line); border-top: 1px solid var(--line); transform: rotate(45deg); border-radius: 2px 0 0 0; }
 
   /* ---- jump buttons --------------------------------------------------------------- */
   .jumps { position: absolute; right: 22px; bottom: 18px; z-index: 3; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
   .jumps .jump { position: static; pointer-events: none; }
   .jumps .jump.on { pointer-events: auto; }
-  .jump.busy .ui { animation: spin .8s linear infinite; }
+  .jump.busy .ui { animation: pulse 1.1s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .3; } }
+
+  /* ---- transitions, round three ---------------------------------------------------- */
+  /* A change of theme fades every colour over a third of a second. The class is on the root
+     only while it happens, so it cannot fight the page's own transitions the rest of the time. */
+  html.theming *, html.theming *::before, html.theming *::after {
+    transition: background-color .38s var(--ease), color .38s var(--ease), border-color .38s var(--ease), fill .38s var(--ease), stroke .38s var(--ease), box-shadow .38s var(--ease) !important; }
+  /* A real cross-fade between the old page and the new one (View Transitions). The header
+     is its own layer, so it holds still while what is under it changes. */
+  .top { view-transition-name: top; }
+  ::view-transition-old(root), ::view-transition-new(root) { animation-duration: .28s; animation-timing-function: var(--ease); }
+  ::view-transition-group(top) { animation-duration: .28s; animation-timing-function: var(--ease); }
+  ::view-transition-old(top), ::view-transition-new(top) { animation-duration: .28s; }
+  /* Bars, segments and meters grow in when they are drawn, charts draw their line, and
+     the filled area fades up, so new numbers arrive instead of appearing. */
+  @keyframes grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+  @keyframes growy { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+  @keyframes drawline { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+  @keyframes areain { from { opacity: 0; } }
+  .hbar > i > b, .win .more .r i b, .meter > i, .stack > i, .tl .m i b, .tside .m i b { transform-origin: left center; animation: grow .7s var(--ease) both; }
+  svg path.line { stroke-dasharray: 1; animation: drawline .9s var(--ease) both; }
+  svg path.area { animation: areain .8s var(--ease) both; }
+  svg rect.bar { transform-box: fill-box; transform-origin: center bottom; animation: growy .55s var(--ease) both; }
+
+  /* ---- provider breakdown, folded ---------------------------------------------------- */
+  .via-btn { grid-column: 1 / -1; justify-self: start; margin: 1px 0 0 16px; background: none; border: 0; padding: 2px 4px 2px 0; color: var(--faint); font: inherit; font-size: 11.5px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; border-radius: 6px; }
+  .via-btn:hover { color: var(--text); }
+  .via-btn .ui { transition: transform .22s var(--ease); }
+  .via-btn[aria-expanded="true"] .ui { transform: rotate(90deg); }
+  .via-wrap { grid-column: 1 / -1; display: grid; grid-template-rows: 0fr; opacity: 0; padding-left: 16px; transition: grid-template-rows .28s var(--ease), opacity .22s var(--ease); }
+  .via-wrap.open { grid-template-rows: 1fr; opacity: 1; }
+  .via-in { overflow: hidden; min-height: 0; color: var(--faint); font-size: 11.5px; line-height: 1.75; }
+
+  /* ---- select and date picker, drawn by the app --------------------------------------- */
+  /* The native <select> and <input type="date"> stay in the page, hidden, as the source of truth
+     (value, change events, programmatic updates). What you see and click is drawn here, so it
+     takes the app's colours, radii and motion in every browser and on every OS. */
+  .xs-native { position: absolute !important; width: 1px; height: 1px; opacity: 0; pointer-events: none; overflow: hidden; clip: rect(0 0 0 0); margin: 0 !important; padding: 0 !important; border: 0 !important; }
+  .xs { position: relative; display: inline-grid; grid-auto-flow: column; align-items: center; gap: 8px; font: inherit; color: var(--text); cursor: pointer; text-align: left; max-width: 100%;
+    background: var(--raised); border: 1px solid var(--line); border-radius: 9px; padding: 4px 8px 4px 10px; min-height: 28px; outline: none; }
+  .xs:hover { border-color: var(--faint); }
+  .xs:focus-visible, .xs[aria-expanded="true"] { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .xs.on { border-color: var(--accent-line); }
+  .xs:disabled { opacity: .5; cursor: default; }
+  .xs .xl { display: grid; min-width: 0; text-align: left; }
+  /* The widest label is laid out invisibly under the current one, so the button keeps one width
+     whatever is picked and nothing around it shifts. */
+  .xs .xl > span { grid-area: 1 / 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .xs .xl .sz { visibility: hidden; height: 0; }
+  .xs .xl .cur { align-self: center; }
+  .xs > .ui { color: var(--muted); flex: none; transition: transform .2s var(--ease); }
+  .xs[aria-expanded="true"] > .ui { transform: rotate(180deg); }
+  .xs.field { max-width: 190px; }
+  .xs-pick { background: transparent; border-color: transparent; font-weight: 600; padding: 3px 6px 3px 4px; min-height: 0; border-radius: 6px; max-width: 240px; }
+  .xs-pick:hover { background: var(--hover); border-color: transparent; }
+  .pick > .ui { display: none; }
+  .lbar .xs { max-width: 320px; }
+  .tside .modes .xs { border: 0; background: transparent; border-radius: 7px; color: var(--muted); font-weight: 500; justify-content: center; padding: 0 6px; min-height: 28px; }
+  .tside .modes .xs.on { background: var(--accent-soft); color: var(--text); box-shadow: inset 0 0 0 1px var(--accent-line); }
+  .xs-pop { position: fixed; z-index: 90; min-width: 160px; max-width: min(380px, calc(100vw - 16px)); display: flex; flex-direction: column; overflow: hidden;
+    background: var(--raised); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 18px 50px rgba(0,0,0,.34);
+    animation: xsin .16s var(--ease) both; transform-origin: var(--ox, 50%) var(--oy, 0); }
+  .xs-pop.out { animation: xsout .12s ease-in both; pointer-events: none; }
+  @keyframes xsin { from { opacity: 0; transform: translateY(-5px) scale(.98); } to { opacity: 1; transform: none; } }
+  @keyframes xsout { to { opacity: 0; transform: translateY(-3px) scale(.985); } }
+  .xs-q { margin: 6px 6px 2px; padding: 6px 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; color: var(--text); font: inherit; outline: none; }
+  .xs-q:focus { border-color: var(--accent-line); }
+  .xs-list { overflow-y: auto; padding: 5px; max-height: min(320px, 50vh); overscroll-behavior: contain; }
+  .xs-it { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 8px; cursor: pointer; color: var(--text); transition: background-color .08s; }
+  .xs-it .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .xs-it .ck { width: 14px; flex: none; color: var(--accent); opacity: 0; }
+  .xs-it[aria-selected="true"] .ck { opacity: 1; }
+  .xs-it.act { background: var(--hover); }
+  .xs-it[aria-selected="true"] { font-weight: 600; }
+  .xs-it .n { color: var(--faint); font-size: 11.5px; font-weight: 400; flex: none; }
+  .xs-grp { color: var(--faint); font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; padding: 8px 10px 3px; }
+  .xs-none { padding: 14px; text-align: center; color: var(--muted); }
+  .xs-pop.sheet { left: 8px !important; right: 8px; top: auto !important; bottom: 8px; width: auto; max-width: none; border-radius: 16px; animation: sheetin .22s var(--ease) both; }
+  @keyframes sheetin { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+  .xs-scrim { position: fixed; inset: 0; z-index: 89; background: rgba(8,6,12,.35); animation: ovin .18s var(--ease) both; }
+  .xs-scrim.out { animation: ovout .12s ease-in both; }
+
+  .cal { width: 288px; padding: 10px; }
+  .cal-h { display: flex; align-items: center; gap: 4px; margin-bottom: 8px; }
+  .cal-h .ttl { flex: 1; text-align: center; font-weight: 600; background: none; border: 0; color: var(--text); font: inherit; font-weight: 600; padding: 6px; border-radius: 8px; cursor: pointer; }
+  .cal-h .ttl:hover { background: var(--hover); }
+  .cal-h .nav { width: 30px; height: 30px; display: grid; place-items: center; background: none; border: 0; color: var(--muted); border-radius: 8px; cursor: pointer; }
+  .cal-h .nav:hover { background: var(--hover); color: var(--text); }
+  .cal-w, .cal-d { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .cal-w span { text-align: center; color: var(--faint); font-size: 10.5px; padding: 4px 0; text-transform: uppercase; letter-spacing: .06em; }
+  .cal-d button { aspect-ratio: 1; display: grid; place-items: center; background: none; border: 0; border-radius: 8px; color: var(--text); font: inherit; cursor: pointer; font-variant-numeric: tabular-nums; position: relative; transition: background-color .08s, color .08s; }
+  .cal-d button:hover { background: var(--hover); }
+  .cal-d button.out { color: var(--faint); }
+  .cal-d button.today { box-shadow: inset 0 0 0 1px var(--faint); }
+  .cal-d button.inr { background: var(--accent-soft); border-radius: 0; }
+  .cal-d button.sel { background: var(--accent); color: var(--on-accent); font-weight: 600; border-radius: 8px; }
+  .cal-d button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .cal-d button:disabled { opacity: .3; cursor: default; }
+  .cal-m { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .cal-m button { padding: 12px 0; background: none; border: 0; border-radius: 9px; color: var(--text); font: inherit; cursor: pointer; }
+  .cal-m button:hover { background: var(--hover); }
+  .cal-m button.sel { background: var(--accent); color: var(--on-accent); font-weight: 600; }
+  .cal-f { display: flex; justify-content: space-between; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line-2); }
+  .cal-f button { background: none; border: 0; color: var(--accent); font: inherit; padding: 4px 8px; border-radius: 6px; cursor: pointer; }
+  .cal-f button:hover { background: var(--hover); }
+  .cal-v { animation: swapin .18s var(--ease) both; }
+  .xs.date { min-width: 128px; }
+
+  /* ---- rich thread content ---------------------------------------------------------------- */
+  .code { margin: 8px 0 10px; background: var(--deep); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .code .ch { display: flex; align-items: center; gap: 6px; padding: 4px 8px 4px 12px; border-bottom: 1px solid var(--line-2); background: color-mix(in srgb, var(--raised) 60%, transparent); }
+  .code .cl { color: var(--faint); font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; font-family: var(--mono); }
+  .code .cc { background: none; border: 0; color: var(--muted); font: inherit; font-size: 11.5px; padding: 2px 7px; border-radius: 6px; cursor: pointer; }
+  .code .cc:hover { background: var(--hover); color: var(--text); }
+  .code pre { margin: 0; padding: 10px 12px; overflow: auto; max-height: 420px; background: transparent; border: 0; border-radius: 0; font-size: 12px; line-height: 1.55; tab-size: 2; }
+  .code pre code { font-family: var(--mono); }
+  .tk-c { color: var(--faint); font-style: italic; } .tk-s { color: var(--c3); } .tk-n { color: var(--c4); } .tk-k { color: var(--c2); } .tk-t { color: var(--c1); } .tk-w { color: var(--c1); font-weight: 500; }
+  .dl { display: block; margin: 0 -12px; padding: 0 12px; } .dl.da { background: color-mix(in srgb, var(--good) 14%, transparent); color: var(--text); } .dl.dd { background: color-mix(in srgb, var(--bad) 14%, transparent); } .dl.dh { color: var(--c2); }
+  .code.previewing pre { display: none; }
+  .prevbox { padding: 10px; background: #fff; } .prevbox iframe { width: 100%; height: 320px; border: 0; resize: vertical; background: #fff; display: block; } .prevbox img { max-width: 100%; max-height: 360px; display: block; margin: 0 auto; }
+  .mdimg { max-width: min(100%, 560px); max-height: 380px; border-radius: 10px; border: 1px solid var(--line); display: block; background: var(--raised); object-fit: contain; margin: 6px 0; }
+  .imgl { display: inline-block; max-width: 100%; }
+  .imgfail { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); font-size: 12px; margin: 2px 0; }
+  .body li.task { list-style: none; margin-left: -20px; display: flex; gap: 8px; align-items: baseline; }
+  .box { flex: none; width: 14px; height: 14px; border: 1.5px solid var(--faint); border-radius: 4px; display: inline-grid; place-items: center; color: var(--on-accent); transform: translateY(2px); }
+  li.task.done .box, .todos li.completed .box { background: var(--accent); border-color: var(--accent); }
+  li.task.done { color: var(--muted); }
+  .todos .box i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  .mdd { border: 1px solid var(--line); border-radius: 10px; background: var(--raised); margin: 8px 0; }
+  .mdd > summary { cursor: pointer; padding: 6px 12px; color: var(--muted); font-size: 12.5px; list-style: none; display: flex; gap: 6px; }
+  .mdd > summary::-webkit-details-marker { display: none; }
+  .mdd > summary::before { content: ""; width: 6px; height: 6px; margin: 6px 4px 0 0; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); transition: transform .18s var(--ease); flex: none; }
+  .mdd[open] > summary::before { transform: rotate(45deg); }
+  .mdd .wb, .mdd > pre.plain { padding: 2px 14px 10px; font-size: 13px; }
+  pre.plain { white-space: pre-wrap; word-break: break-word; font-family: var(--mono); font-size: 12px; margin: 0; color: var(--muted); }
+  .attach { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--raised); font-size: 11.5px; color: var(--text); }
+  .chip small { color: var(--faint); } .chip.soft { background: var(--accent-soft); border-color: var(--accent-line); color: var(--text); }
+  .cmd { display: inline-flex; gap: 8px; align-items: baseline; padding: 3px 11px; border-radius: 9px; background: var(--accent-soft); border: 1px solid var(--accent-line); font-family: var(--mono); font-size: 12.5px; margin-bottom: 6px; }
+  .cmd span { color: var(--muted); }
+  .sys { color: var(--muted); font-size: 13px; border-left: 2px solid var(--line); padding-left: 12px; } .sys .role { text-transform: uppercase; font-size: 10px; letter-spacing: .08em; color: var(--faint); margin-right: 8px; }
+  .errline { display: flex; gap: 8px; align-items: flex-start; padding: 8px 12px; border-radius: 10px; background: color-mix(in srgb, var(--bad) 10%, transparent); border: 1px solid color-mix(in srgb, var(--bad) 30%, transparent); color: var(--text); font-size: 13px; } .errline .ui { color: var(--bad); margin-top: 3px; }
+  /* tool cards */
+  details.tool { border-radius: 8px; min-width: 0; }
+  details.tool > summary { list-style: none; display: flex; align-items: center; gap: 9px; padding: 5px 8px; margin: 0 -8px; border-radius: 8px; cursor: pointer; color: var(--muted); min-width: 0; }
+  details.tool > summary::-webkit-details-marker { display: none; }
+  details.tool > summary:hover { background: var(--hover); }
+  details.tool .tn { color: var(--text); font-weight: 600; flex: none; }
+  details.tool .td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; font-family: var(--mono); font-size: 12px; }
+  details.tool > summary > .ui:last-child { color: var(--faint); transition: transform .12s; margin-left: auto; flex: none; }
+  details.tool[open] > summary > .ui:last-child { transform: rotate(90deg); }
+  details.tool .tb { margin: 4px 0 10px 22px; display: grid; gap: 8px; min-width: 0; }
+  details.tool .meta { color: var(--faint); font-size: 12px; font-family: var(--mono); word-break: break-all; }
+  details.tool .code { margin: 0; }
+  .st { font-size: 10.5px; padding: 0 7px; border-radius: 999px; flex: none; } .st.ok { color: var(--good); background: color-mix(in srgb, var(--good) 14%, transparent); } .st.bad { color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, transparent); }
+  details.tool.err > summary .tn { color: var(--bad); }
+  .res .rl, .aqa .rl { color: var(--faint); font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px; display: block; }
+  .res.bad .code { border-color: color-mix(in srgb, var(--bad) 40%, var(--line)); }
+  .kv { display: grid; gap: 4px; } .kr { display: grid; grid-template-columns: minmax(70px, 130px) minmax(0, 1fr); gap: 10px; align-items: baseline; font-size: 12.5px; } .kk { color: var(--faint); font-family: var(--mono); } .kvv { word-break: break-word; } .kvb { min-width: 0; }
+  .todos { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; } .todos li { display: flex; gap: 9px; align-items: baseline; font-size: 13px; } .todos li.completed { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--faint); }
+  .ask { border: 1px solid var(--accent-line); background: var(--accent-soft); border-radius: 14px; padding: 12px 14px; display: grid; gap: 10px; }
+  .ask .ah { display: flex; align-items: center; gap: 8px; } .ask .ah .at { margin-left: auto; color: var(--faint); font-size: 10.5px; }
+  .aq { display: grid; gap: 6px; } .aqh { display: flex; gap: 6px; } .aqq { font-weight: 500; } .aqq p { margin: 0; }
+  .aqo { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+  .aqo li { display: grid; gap: 1px; padding: 7px 11px; border: 1px solid var(--line); border-radius: 9px; background: var(--bg); } .aqo li span { color: var(--muted); font-size: 12.5px; }
+  .aqa { border-top: 1px dashed var(--accent-line); padding-top: 8px; font-size: 13px; } .aqa.wait { color: var(--faint); } .aqa p { margin: 0; }
+
+  /* ---- small screens ------------------------------------------------------------------- */
+  /* Phones and narrow windows: the header keeps its two rows but the second scrolls sideways
+     instead of wrapping (so it never changes height), controls are big enough for a finger, and
+     Threads shows the list or the conversation, one at a time. */
+  @media (max-width: 820px) {
+    :root { --pad: 14px; }
+    body { font-size: 14px; }
+    .brand { display: none; }
+    .row { gap: 6px 8px; padding-top: 8px; padding-bottom: 8px; }
+    #view { order: 5; width: 100%; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    #view::-webkit-scrollbar, #ctx::-webkit-scrollbar { display: none; }
+    #view button { flex: 1 0 auto; min-height: 34px; padding: 3px 12px; }
+    #stamp, .palbtn .kbd { display: none; }
+    .row.sub { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; min-height: 52px; padding-bottom: 10px; gap: 8px; -webkit-overflow-scrolling: touch; }
+    .row.sub > *, .row.sub .uonly > * { flex: none; }
+    .uonly { flex-wrap: nowrap; }
+    .search input { width: min(200px, 52vw); }
+    .btn, .xs, .icon-btn { min-height: 36px; }
+    input.field, .xs-q { font-size: 16px; }
+    .seg button { min-height: 32px; }
+    main { padding-top: 18px; gap: 30px; }
+    .hero { gap: 20px; }
+    .big { font-size: clamp(34px, 11vw, 48px); }
+    .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 18px; }
+    .lbar { flex-wrap: wrap; }
+    .win .more .r { grid-template-columns: minmax(70px, 1fr) minmax(0, 1.4fr) 34px; }
+    .ov { padding-top: 7vh; }
+    .pal { width: 100%; }
+    .help .cols { grid-template-columns: 1fr; }
+    .tip { display: none; }
+    .table-wrap, .mdtable { -webkit-overflow-scrolling: touch; }
+    #tablecard th.txt { width: 120px; } #tablecard th.num { width: 80px; }
+    .top > .custom { padding: 8px 10px; }
+
+    /* Threads: list, then conversation, with the details panel as a sheet. */
+    main.flush { padding: 8px var(--pad) 12px; }
+    .threads { display: block; height: calc(100dvh - var(--hh) - 20px); min-height: 420px; position: relative; }
+    .tl, .td { height: 100%; }
+    .tl { border-right: 0; }
+    .threads:not(.detail) .td, .threads:not(.detail) .tside { display: none; }
+    .threads.detail .tl { display: none; }
+    .thead { padding: 0 12px; gap: 8px; }
+    .threads .thead .back, .threads .thead .dbtn { display: inline-grid; }
+    .thead .sep, .thead .p { display: none; }
+    .thead .prog { min-width: 0; }
+    .conv { padding: 8px 14px 40px; }
+    .bubble { max-width: 94%; }
+    .tside { position: fixed; left: 8px; right: 8px; bottom: 8px; z-index: 60; max-height: 78dvh; padding: 0; border-radius: 16px; display: block !important; background: var(--raised); border: 1px solid var(--line);
+      box-shadow: 0 18px 60px rgba(0,0,0,.45); transform: translateY(115%); transition: transform .3s var(--ease); overflow-y: auto; }
+    .threads.sheet .tside { transform: none; }
+    .tside .card { border: 0; background: transparent; }
+    .jumps { right: 12px; bottom: 12px; }
+    details.tool .tb { margin-left: 8px; }
+    .kr { grid-template-columns: 1fr; gap: 2px; }
+    .ask { padding: 10px; }
+  }
+  .thead .back, .thead .dbtn { display: none; place-items: center; min-width: 34px; height: 34px; background: none; border: 1px solid var(--line); border-radius: 9px; color: var(--text); cursor: pointer; flex: none; font: inherit; padding: 0 10px; }
+  .thead .dbtn { margin-left: 6px; }
+  .tscrim { display: none; }
+  @media (max-width: 820px) { .threads.sheet .tscrim { display: block; position: fixed; inset: 0; z-index: 59; background: rgba(8,6,12,.45); animation: ovin .2s var(--ease) both; } }
+  @media (max-width: 420px) {
+    .stats { grid-template-columns: 1fr 1fr; }
+    .xs.field { max-width: 150px; }
+  }
+
+  /* ---- wide and ultrawide screens ------------------------------------------------------- */
+  /* The content column grows with the screen instead of stopping at 1680px with empty margins,
+     text and controls step up a little, and the conversation, side panel and charts use the room. */
+  @media (min-width: 1900px) {
+    :root { --maxw: 1960px; }
+    body { font-size: 13.5px; }
+    .conv { max-width: 980px; }
+    .threads { grid-template-columns: 340px minmax(0, 1fr) 360px; }
+    .heat-wrap { max-width: none; }
+  }
+  @media (min-width: 2500px) {
+    :root { --maxw: 2480px; --pad: clamp(40px, 3vw, 72px); }
+    body { font-size: 14.5px; }
+    .conv { max-width: 1120px; font-size: 15px; }
+    .threads { grid-template-columns: 380px minmax(0, 1fr) 400px; }
+    .hero { grid-template-columns: minmax(340px, 440px) minmax(0, 1fr); }
+    .stats { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+    .code pre { font-size: 13px; }
+  }
+  @media (min-width: 3200px) {
+    :root { --maxw: 3040px; }
+    body { font-size: 15.5px; }
+    .conv { max-width: 1240px; font-size: 16px; }
+    .threads { grid-template-columns: 420px minmax(0, 1fr) 440px; }
+  }
+
+  .tk-f { color: var(--c5); } .tk-y { color: var(--c6); } .tk-v { color: var(--c2); } .tk-p { color: var(--faint); } .tk-d { color: var(--c5); font-style: italic; } .tk-h { color: var(--c1); font-weight: 600; } .tk-a { color: var(--accent); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+  .tk-ln { color: var(--faint); user-select: none; opacity: .75; }
+  .dl .dp { opacity: .7; margin-right: 6px; user-select: none; } .dl.da .dp { color: var(--good); } .dl.dd .dp { color: var(--bad); }
+  /* ---- messages: the bubble, with its time and actions outside it ---------------------------- */
+  :root { --bubble: color-mix(in srgb, var(--accent) 38%, var(--bg)); --skill: var(--c3); }
+  .turn { display: grid; gap: 4px; min-width: 0; }
+  .turn.user { justify-self: end; justify-items: end; max-width: 82%; }
+  .turn.user .bubble { background: var(--bubble); border: 0; border-radius: 18px; padding: 11px 16px; max-width: 100%; justify-self: end; }
+  .turn.user .bubble .body { max-height: 420px; }
+  .msgmeta { display: flex; align-items: center; gap: 2px; color: var(--faint); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+  .turn.user .msgmeta { justify-content: flex-end; padding-right: 2px; }
+  .msgmeta time { margin: 0 6px 0 0; }
+  .msgmeta button { width: 26px; height: 26px; display: grid; place-items: center; background: none; border: 0; border-radius: 7px; color: var(--faint); cursor: pointer; transition: background-color var(--t-fast), color var(--t-fast); }
+  .msgmeta button:hover { background: var(--hover); color: var(--text); }
+  .msgmeta button.ok { color: var(--good); }
+  .turn.assistant .msgmeta { opacity: 0; transition: opacity var(--t-med) var(--ease); }
+  .turn.assistant:hover .msgmeta, .turn.assistant:focus-within .msgmeta { opacity: 1; }
+  @media (hover: none) { .turn.assistant .msgmeta { opacity: .8; } }
+  /* ---- skills, links and custom tags ----------------------------------------------------------- */
+  .cmd { border-color: color-mix(in srgb, var(--skill) 45%, transparent); background: color-mix(in srgb, var(--skill) 14%, transparent); }
+  .cmd b { color: var(--skill); }
+  details.t-skill > summary .tn, details.t-skill > summary > .ui:first-child { color: var(--skill); }
+  .mdd.w-skill > summary { color: var(--skill); }
+  .mdd.w-custom { border-left: 3px solid var(--hue, var(--c2)); }
+  .mdd.w-custom > summary b { color: var(--hue, var(--c2)); font-weight: 600; }
+  .subrow { display: flex; gap: 8px; align-items: baseline; padding: 3px 0; } .subrow .chip { flex: none; }
+  .subrow + .subrow { border-top: 1px dashed var(--line-2); }
+
+  .rchips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; } .rchips:empty { display: none; }
+  .chip.ok { color: var(--good); border-color: color-mix(in srgb, var(--good) 40%, var(--line)); } .chip.bad { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 40%, var(--line)); }
+  .code.out pre { color: var(--text); } .code.out .ch .cl { text-transform: none; letter-spacing: 0; }
+  .ln, .gap { display: block; } .gap { color: var(--faint); font-style: italic; padding: 2px 0; user-select: none; }
+  .plan { border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; background: var(--raised); display: grid; gap: 8px; }
+  .plan .ph { display: flex; gap: 10px; align-items: baseline; } .pbar { height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; } .pbar i { display: block; height: 100%; background: var(--accent); transform-origin: left; animation: grow .7s var(--ease) both; }
+  .pp .pn { color: var(--faint); font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px; } .todos li.in_progress { color: var(--text); font-weight: 500; }
+  .grep { display: grid; gap: 8px; font-family: var(--mono); font-size: 12px; } .gf { border: 1px solid var(--line); border-radius: 9px; overflow: hidden; background: var(--deep); }
+  .gn { display: flex; gap: 6px; align-items: center; padding: 4px 10px; background: var(--raised); color: var(--muted); border-bottom: 1px solid var(--line-2); } .gn small { margin-left: auto; color: var(--faint); }
+  .gl { display: flex; gap: 10px; padding: 1px 10px; white-space: pre; overflow-x: auto; } .gl .tk-ln { min-width: 3ch; text-align: right; flex: none; }
+  .ops { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; } .ops li { display: flex; gap: 8px; align-items: baseline; font-size: 13px; }
+
+  /* ---- wide screens, round two: what the testers found ------------------------------------ */
+  @media (min-width: 1900px) {
+    .heat svg, .heat-foot { max-width: none; }
+    .conv p, .conv li { max-width: 92ch; }
+    .turn.user { max-width: min(82%, 78ch); }
+    .tside { align-content: start; } .tside .card { position: sticky; top: 14px; }
+    .table-wrap table { max-width: 1900px; }
+    .foot > div { max-width: 120ch; }
+  }
+  @media (min-width: 2500px) {
+    .pal { width: 840px; }
+    .legend .meta, th, .stat .k { font-size: 12.5px; }
+    .chart svg text, .heat text { font-size: 11.5px; }
+  }
+  @media (min-width: 3500px) {
+    body { font-size: 17px; }
+    .conv { font-size: 17px; max-width: 1320px; }
+    .legend .meta, th, .stat .k { font-size: 13.5px; }
+    .chart svg text, .heat text { font-size: 13px; }
+    .pal { width: 980px; }
+  }
+
+  .fileref { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 0 8px; vertical-align: baseline; background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: 7px; color: var(--text); font: inherit; font-size: .92em; cursor: pointer; line-height: 1.55; }
+  .fileref:hover { background: color-mix(in srgb, var(--accent) 22%, transparent); } .fileref span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); font-size: .92em; } .fileref .ui { color: var(--accent); flex: none; }
+  .fv { position: fixed; inset: 0; z-index: 85; display: flex; justify-content: flex-end; }
+  .fvs { position: absolute; inset: 0; background: rgba(8,6,12,.45); animation: ovin .2s var(--ease) both; }
+  .fvp { position: relative; width: min(720px, 100%); height: 100%; background: var(--raised); border-left: 1px solid var(--line); box-shadow: -20px 0 60px rgba(0,0,0,.35); display: flex; flex-direction: column; animation: fvin .26s var(--ease) both; outline: none; }
+  .fv.out .fvs { animation: ovout .18s ease-in both; } .fv.out .fvp { animation: fvout .18s ease-in both; }
+  @keyframes fvin { from { transform: translateX(32px); opacity: 0; } to { transform: none; opacity: 1; } } @keyframes fvout { to { transform: translateX(24px); opacity: 0; } }
+  .fvp header { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); } .fvt { display: inline-flex; align-items: center; gap: 8px; min-width: 0; } .fvt b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fvmeta { padding: 8px 16px 0; color: var(--faint); word-break: break-all; } .fvact { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line-2); } .fvact .faint { margin-left: auto; font-size: 12px; }
+  .fvb { flex: 1; overflow: auto; padding: 12px 16px 24px; min-height: 0; } .fvb .code { margin-top: 0; } .fvb .code pre { max-height: none; } .fvimg { display: grid; place-items: center; } .fvimg img { max-width: 100%; max-height: none; }
+  .fvhosts { margin-top: 12px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; } .fvmd { font-size: 14px; }
+  @media (max-width: 820px) { .fvp { width: 100%; border-left: 0; } }
+  .code .cc.ic { width: 26px; height: 24px; padding: 0; display: grid; place-items: center; } .code .cc.ok { color: var(--good); }
+
+  /* ---- search field, clear button, checkbox ------------------------------------------------ */
+  input[type="search"]::-webkit-search-cancel-button, input[type="search"]::-webkit-search-decoration { appearance: none; -webkit-appearance: none; display: none; }
+  .search input { padding-right: 62px; transition: border-color var(--t-fast), box-shadow var(--t-fast), background-color var(--t-fast); }
+  .search input:focus { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .search .ui { transition: color var(--t-fast); } .search:focus-within .ui { color: var(--accent); }
+  .search .sclear { position: absolute; right: 7px; top: 50%; width: 22px; height: 22px; margin-top: -11px; display: grid; place-items: center; border: 0; border-radius: 6px; background: var(--hover); color: var(--muted); cursor: pointer; opacity: 0; transform: scale(.8); pointer-events: none; transition: opacity var(--t-fast), transform var(--t-fast) var(--ease), background-color var(--t-fast), color var(--t-fast); }
+  .search.has .sclear { opacity: 1; transform: none; pointer-events: auto; } .search .sclear:hover { background: var(--line); color: var(--text); }
+  .search .skbd { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); font: 10.5px var(--mono); color: var(--faint); border: 1px solid var(--line); border-radius: 5px; padding: 0 5px; line-height: 17px; pointer-events: none; transition: opacity var(--t-fast); }
+  .search.has .skbd, .search:focus-within .skbd { opacity: 0; }
+  @media (hover: none), (max-width: 820px) { .search .skbd { display: none; } .search input { padding-right: 36px; } }
+  .btn.ghost .cnt { display: inline-grid; place-items: center; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-size: 10.5px; font-weight: 600; margin-left: 2px; animation: swapin .2s var(--ease) both; }
+  .btn.ghost:hover { color: var(--text); background: var(--hover); border-color: var(--line); }
+  input[type="checkbox"] { appearance: none; -webkit-appearance: none; flex: none; width: 16px; height: 16px; margin: 0; border: 1.5px solid var(--faint); border-radius: 5px; background: var(--bg); display: inline-grid; place-content: center; cursor: pointer; vertical-align: -3px;
+    transition: background-color .12s var(--ease), border-color .12s var(--ease), box-shadow .12s var(--ease); }
+  input[type="checkbox"]::after { content: ""; width: 10px; height: 10px; background: var(--on-accent); transform: scale(0); transition: transform .16s var(--ease);
+    clip-path: polygon(14% 52%, 0 68%, 40% 100%, 100% 22%, 84% 8%, 40% 66%); }
+  input[type="checkbox"]:hover { border-color: var(--accent-line); }
+  input[type="checkbox"]:checked { background: var(--accent); border-color: var(--accent); }
+  input[type="checkbox"]:checked::after { transform: scale(1); }
+  input[type="checkbox"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  input[type="checkbox"]:disabled { opacity: .5; cursor: default; }
+  label.subs { cursor: pointer; border-radius: 7px; padding: 2px 6px; transition: background-color var(--t-fast); } label.subs:hover { background: var(--hover); }
+
+  /* ---- tooltip --------------------------------------------------------------------------------- */
+  .xtip { position: fixed; left: 0; top: 0; z-index: 95; max-width: min(320px, calc(100vw - 12px)); padding: 5px 9px; border-radius: 8px; background: var(--deep); color: var(--text); border: 1px solid var(--line); box-shadow: 0 8px 24px rgba(0,0,0,.28); font-size: 12px; line-height: 1.4; white-space: pre-line; overflow-wrap: anywhere; pointer-events: none; opacity: 0; transform: translateY(var(--ty, 4px)) scale(.97); transition: opacity .12s var(--ease), transform .16s var(--ease); }
+  .xtip.on { opacity: 1; transform: none; }
+  @media (hover: none) and (pointer: coarse) { .xtip { display: none; } }
+
+  /* ---- small screens, second pass ------------------------------------------------------- */
+  .tside .sclose { display: none; }
+  .top { overflow-x: clip; }
+  @media (max-width: 820px) {
+    .heat-wrap { aspect-ratio: auto; }
+    .bdhead .seg { max-width: 100%; overflow-x: auto; scrollbar-width: none; } .bdhead .seg::-webkit-scrollbar { display: none; }
+    details.tool .tb, .steps, .conv, .turn, .code { min-width: 0; max-width: 100%; }
+    details.tool .tb { grid-template-columns: minmax(0, 1fr); }
+    .code pre { max-width: 100%; overflow-x: auto; }
+    .thead h2 { flex: 1 1 0; }
+    .thead .prog { display: none; }
+    .tside .sclose { display: grid; place-items: center; margin-left: auto; width: 30px; height: 30px; padding: 0; }
+    .tside .h { display: flex; align-items: center; }
+    .tside .f .v { white-space: normal; overflow-wrap: anywhere; text-align: right; }
+    .top > .custom { max-width: calc(100vw - 2 * var(--pad)); flex-wrap: wrap; }
+    .icon-btn { min-width: 36px; min-height: 36px; }
+    .seg button, .btn.sm, .cal button, .via-btn { min-height: 36px; }
+    #view button, #range button { min-height: 36px; }
+    .pal input { font-size: 16px; } .pal .ft { display: none; }
+    .conv .empty { display: grid; gap: 8px; justify-items: center; padding: 40px 16px; text-align: center; }
+  }
 </style>
 </head>
 <body>
@@ -688,6 +1075,8 @@ const billing = (agent, provider) => state.data?.billing?.[`${agent}|${provider}
 const billTag = (agent, provider) => { const b = billing(agent, provider); return b ? `<span class="tag ${b.kind === "subscription" ? "you" : ""}">${esc(b.label)}</span>` : ""; };
 const UI = {
   "chevron-right": '<path d="m9 18 6-6-6-6"/>',
+  "chevron-left": '<path d="m15 18-6-6 6-6"/>',
+  calendar: '<rect x="3" y="4.5" width="18" height="16.5" rx="3"/><path d="M3 9.5h18M8 3v3.5M16 3v3.5"/>',
   "chevron-down": '<path d="m6 9 6 6 6-6"/>',
   refresh: '<path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
@@ -708,6 +1097,29 @@ const UI = {
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
   moon: '<path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/>',
   monitor: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
+  x: '<path d="M18 6 6 18M6 6l12 12"/>',
+  image: '<rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="m21 16-5-5-8 8"/>',
+  globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+  brain: '<path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/><path d="M17.6 6.5a3 3 0 0 0 .4-1.375"/><path d="M6 5.125A3 3 0 0 0 6.4 6.5"/><path d="M3.5 10.9a4 4 0 0 1 .6-.4"/><path d="M19.9 10.5a4 4 0 0 1 .6.4"/><path d="M6 18a4 4 0 0 1-2-.5"/><path d="M20 17.5a4 4 0 0 1-2 .5"/>',
+  "square-pen": '<path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.4 2.6a1 1 0 0 1 3 3l-9 9a2 2 0 0 1-.85.5l-2.87.84a.5.5 0 0 1-.62-.62l.84-2.87a2 2 0 0 1 .5-.85z"/>',
+  "file-text": '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4M10 9H8M16 13H8M16 17H8"/>',
+  "file-plus": '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4M9 15h6M12 18v-6"/>',
+  diff: '<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7M11 18H8a2 2 0 0 1-2-2V9"/>',
+  "list-checks": '<path d="m3 17 2 2 4-4M3 7l2 2 4-4M13 6h8M13 12h8M13 18h8"/>',
+  "help-circle": '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/>',
+  bot: '<path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/>',
+  plug: '<path d="M12 22v-5M9 8V2M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/>',
+  wand: '<path d="m21.6 3.6-1.3-1.3a1.2 1.2 0 0 0-1.7 0L2.4 18.6a1.2 1.2 0 0 0 0 1.7l1.3 1.3a1.2 1.2 0 0 0 1.7 0L21.6 5.3a1.2 1.2 0 0 0 0-1.7Z"/><path d="m14 7 3 3M5 6v4M19 14v4M10 2v2M7 8H3M21 16h-4M11 3H9"/>',
+  wrench: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94z"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  send: '<path d="M22 2 11 13M22 2l-7 20-4-9-9-4Z"/>',
+  square: '<rect x="5" y="5" width="14" height="14" rx="2"/>',
+  "folder-search": '<path d="M10.7 20H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.7.9l.8 1.2a2 2 0 0 0 1.7.9H20a2 2 0 0 1 2 2v4.1"/><circle cx="17" cy="17" r="3"/><path d="m21 21-1.9-1.9"/>',
+  list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+  "message-square": '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+  hash: '<path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/>',
+  link: '<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>',
+  eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
   command: '<path d="M9 6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3z"/>',
 };
 const ui = (n, s = 14) => `<svg class="ui" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${UI[n]}</svg>`;
@@ -719,7 +1131,7 @@ const store = (() => { try { return window.localStorage; } catch { return { getI
 const pref = (k, d) => store.getItem("usage." + k) || d;
 const state = {
   view: pref("view", "usage"),
-  range: pref("range", "30d"), from: "", to: "",
+  range: pref("range", "30d"), from: /^\d{4}-\d{2}-\d{2}$/.test(pref("from", "")) ? pref("from", "") : "", to: /^\d{4}-\d{2}-\d{2}$/.test(pref("to", "")) ? pref("to", "") : "",
   host: "all", agent: "all", project: "all", model: "all", q: "",
   group: pref("group", "project"), metric: pref("metric", "cost"), tab: pref("tab", "models"), chart: pref("chart", "lines"),
   sort: {}, shown: 100,
@@ -727,7 +1139,7 @@ const state = {
   mod: { data: null, scope: "used", q: "", metric: "intelligence", picked: new Set(), sort: null, shown: 60 },
   thr: { q: "", agent: "all", host: "all", model: "all", project: "all", days: "0", limit: 200, mode: "resume", sub: false, list: null, sel: null, detail: null, cmd: null, unavailable: null },
 };
-const save = () => { for (const k of ["view", "range", "group", "metric", "tab", "chart"]) store.setItem("usage." + k, state[k]); };
+const save = () => { for (const k of ["view", "range", "group", "metric", "tab", "chart", "from", "to"]) store.setItem("usage." + k, state[k]); };
 
 const RANGES = [["1d", "Today"], ["7d", "7d"], ["30d", "30d"], ["90d", "90d"], ["1y", "1y"], ["all", "All"], ["custom", "Custom"]];
 const GROUPS = [["project", "Project"], ["agent", "Agent"], ["model", "Model"]];
@@ -817,6 +1229,26 @@ const hideTip = () => tip.classList.remove("on");
 
 // ==== fetching =================================================================
 let inFlight = 0;
+// The last answer to each request is kept in localStorage. On the next visit the page is drawn
+// from it at once and then brought up to date when the real answer arrives, so it feels instant
+// and is still current. Only the newest few are kept, and one that will not fit is skipped.
+const LC = "usage.c:";
+function cacheGet(key) {
+  try { const raw = localStorage.getItem(LC + key); return raw ? JSON.parse(raw).v : null; } catch { return null; }
+}
+function cachePut(key, value) {
+  try {
+    const json = JSON.stringify({ at: Date.now(), v: value });
+    if (json.length > 1_500_000) return;
+    localStorage.setItem(LC + key, json);
+    const mine = Object.keys(localStorage).filter((k) => k.startsWith(LC));
+    if (mine.length > 10) {
+      const oldest = mine.map((k) => { try { return [k, JSON.parse(localStorage.getItem(k)).at]; } catch { return [k, 0]; } }).sort((a, b) => a[1] - b[1]);
+      for (const [k] of oldest.slice(0, mine.length - 10)) localStorage.removeItem(k);
+    }
+  } catch { /* storage full or blocked: the page works without it */ }
+}
+const sigOf = (data) => JSON.stringify({ ...data, meta: { ...data.meta, generatedAt: 0 }, hosts: data.hosts.map((h) => h.host + h.rows) });
 const get = async (url, signal) => {
   document.body.classList.toggle("busy", ++inFlight > 0);
   try {
@@ -839,8 +1271,14 @@ async function loadUsage(fresh = false) {
   if (state.q.trim()) q.set("q", state.q.trim());
   if (state.range === "custom" && state.from && state.to) { q.set("from", state.from); q.set("to", state.to); }
   if (fresh) q.set("fresh", "1");
-  const data = await get("/api/usage?" + q, usageCtl.signal);
-  const sig = JSON.stringify({ ...data, meta: { ...data.meta, generatedAt: 0 }, hosts: data.hosts.map((h) => h.host + h.rows) });
+  const url = "/api/usage?" + q;
+  if (!state.data) {
+    const hit = cacheGet(url);
+    if (hit && Array.isArray(hit.hosts) && hit.meta) { try { state.sig = sigOf(hit); state.data = hit; if (state.view === "usage") renderNow(false, false, true); } catch { state.data = null; state.sig = ""; } }
+  }
+  const data = await get(url, usageCtl.signal);
+  cachePut(url, data);
+  const sig = sigOf(data);
   const same = sig === state.sig && Boolean($("chart"));
   state.sig = sig;
   state.data = data;
@@ -855,18 +1293,28 @@ async function loadModels(fresh = false) {
   if (state.host !== "all") q.set("host", state.host);
   if (state.agent !== "all") q.set("harness", state.agent);
   if (state.range === "custom" && state.from && state.to) { q.set("from", state.from); q.set("to", state.to); }
-  state.mod.data = await get("/api/models?" + q);
+  const murl = "/api/models?" + q;
+  if (!state.mod.data) { const hit = cacheGet(murl); if (hit) { state.mod.data = hit; if (state.view === "models") renderNow(false, false, true); } }
+  state.mod.data = await get(murl);
+  cachePut(murl, state.mod.data);
   stamp();
   if (state.view === "models") render(soft);
 }
 async function loadLimits(fresh = false) {
   const soft = fromInput();
+  if (!state.limits) { const hit = cacheGet("/api/limits"); if (hit) { state.limits = hit; if (state.view === "limits") renderNow(false, false, true); } }
   state.limits = await get("/api/limits" + (fresh ? "?fresh=1" : ""));
+  cachePut("/api/limits", state.limits);
   stamp();
   if (state.view === "limits") render(soft);
 }
 let thrCtl = null;
+let thrBusy = 0;
 async function loadThreads(fresh = false, append = false) {
+  thrBusy++;
+  try { return await loadThreadsNow(fresh, append); } finally { thrBusy--; }
+}
+async function loadThreadsNow(fresh, append) {
   thrCtl?.abort();
   thrCtl = new AbortController();
   const t = state.thr;
@@ -874,7 +1322,11 @@ async function loadThreads(fresh = false, append = false) {
   const q = new URLSearchParams({ q: t.q, harness: t.agent, host: t.host, model: t.model, project: t.project, days: t.days, limit: append ? 200 : t.limit, offset: have, subagents: t.sub ? "1" : "0" });
   if (fresh) q.set("fresh", "1");
   if (!append && $("tlist") && t.q.trim()) { $("tlist").classList.add("searching"); $("tq")?.closest(".search")?.classList.add("busy"); }
-  const body = await get("/api/threads?" + q, thrCtl.signal);
+  const turl = "/api/threads?" + q;
+  const plain = !append && !t.q.trim() && t.agent === "all" && t.host === "all" && t.model === "all" && t.project === "all" && t.days === "0" && !t.sub;
+  if (plain && !t.list && !t.unavailable) { const hit = cacheGet("/api/threads"); if (hit) { t.list = hit; if (state.view === "threads" && $("tlist")) refreshThreadList(); else if (state.view === "threads") renderNow(false, false, true); } }
+  const body = await get(turl, thrCtl.signal);
+  if (plain && !body.unavailable) cachePut("/api/threads", { ...body, threads: body.threads.slice(0, 60), total: body.total });
   if (body.unavailable) { t.unavailable = body.unavailable; t.list = null; }
   else if (append && t.list) { t.unavailable = null; t.list = { ...body, threads: [...t.list.threads, ...body.threads] }; t.limit = t.list.threads.length; }
   else { t.unavailable = null; t.list = body; }
@@ -891,8 +1343,11 @@ async function openThread(id) {
   // it would throw away the list's scroll position and the keyboard focus, both of which
   // matter once the list is long.
   if (state.view === "threads") { if ($("tdetail") && $("tlist")) { convObserver?.disconnect(); renderThreadDetail(); } else render(); }
-  try { t.detail = await get("/api/threads/show?limit=150&id=" + encodeURIComponent(id)); } catch (e) { t.detail = { error: e.message }; }
-  if (state.view === "threads" && t.sel === id) renderThreadDetail();
+  let got;
+  try { got = await get("/api/threads/show?limit=150&id=" + encodeURIComponent(id)); } catch (e) { got = { error: e.message }; }
+  if (t.sel !== id) return;
+  t.detail = got;
+  if (state.view === "threads") renderThreadDetail();
 }
 const stamp = () => { $("stamp").textContent = "updated " + new Date().toLocaleTimeString("en-GB"); };
 
@@ -912,6 +1367,27 @@ function fillSelect(el, all, items, current, nameOf = (x) => x) {
   el.classList.toggle("on", el.value !== "all");
 }
 const CTX_NOTE = { limits: "Plan limits and balances for the agents and providers found on each machine" };
+// The range popover sits directly under the Custom chip, whichever row the chips are on,
+// right-aligned to it, kept inside the window, with its arrow over the chip's centre. On a
+// narrow screen it spans the width instead.
+function placeCustom() {
+  const pop = $("custom"), chip = [...($("range")?.querySelectorAll("button") ?? [])].find((b) => b.dataset.v === "custom"), head = document.querySelector("header.top");
+  if (!pop || !chip || !head || !pop.classList.contains("on")) return;
+  const c = chip.getBoundingClientRect(), h = head.getBoundingClientRect(), edge = 8;
+  const w = Math.min(pop.offsetWidth, innerWidth - edge * 2);
+  let left = Math.max(edge, Math.min(c.right - w, innerWidth - w - edge));
+  if (innerWidth < 520) left = edge;
+  pop.style.left = left + "px"; pop.style.right = "auto";
+  pop.style.top = c.bottom - h.top + 8 + "px"; pop.style.marginTop = "0";
+  pop.style.setProperty("--ax", Math.max(14, Math.min(w - 14, c.left + c.width / 2 - left)) + "px");
+}
+addEventListener("resize", () => requestAnimationFrame(placeCustom));
+// "Clear" with a small count of what it will clear. The button's width changes by a digit at most,
+// and it only fades in and out, so the row does not move.
+function setClear(btn, n) {
+  const sig = String(n); if (btn.dataset.n === sig) return; btn.dataset.n = sig;
+  btn.innerHTML = `${ui("x", 12)}Clear${n ? `<span class="cnt">${n}</span>` : ""}`;
+}
 function controls() {
   const usage = state.view === "usage", scoped = usage || state.view === "models";
   $("crumbs").classList.toggle("hide", !scoped);
@@ -922,9 +1398,13 @@ function controls() {
   threadControls();
   setSeg($("range"), RANGES, state.range);
   setSeg($("view"), VIEWS, usage ? state.metric : state.view);
+  { const on = $("view").querySelector("[aria-pressed=true]"), box = $("view"); if (on && box.scrollWidth > box.clientWidth + 2) box.scrollTo({ left: on.offsetLeft - (box.clientWidth - on.offsetWidth) / 2, behavior: "auto" }); }
   $("custom").classList.toggle("on", scoped && state.range === "custom");
+  placeCustom();
   // The button keeps its place and only fades, so the search box never jumps.
-  $("clear").classList.toggle("off", !(state.host !== "all" || state.agent !== "all" || state.project !== "all" || state.model !== "all" || state.q.trim()));
+  const active = ["host", "agent", "project", "model"].filter((k) => state[k] !== "all").length + (state.q.trim() ? 1 : 0);
+  $("clear").classList.toggle("off", !active);
+  setClear($("clear"), active);
   const d = state.data;
   if (d) {
     fillSelect($("f-host"), "All environments", d.options.hosts, state.host);
@@ -932,13 +1412,19 @@ function controls() {
     fillSelect($("f-project"), "All projects", d.options.projects, state.project, (p) => tail(p, 2));
     fillSelect($("f-model"), "All models", d.options.models, state.model);
     if (state.range !== "custom" && d.meta) { $("from").value = d.meta.start; $("to").value = d.meta.end; }
+    else if (state.range === "custom" && state.from && state.to) { $("from").value = state.from; $("to").value = state.to; }
   }
   document.documentElement.style.setProperty("--hh", $("top").offsetHeight + "px");
 }
 function render(soft = false) {
-  const main = $("main"), landed = Boolean(main.querySelector(".sk, .skrow")), mine = soft || performance.now() - lastInput < 700;
-  if (landed && !main.classList.contains("enter")) replay(main, "swap", 300);       // data replacing its placeholder
-  else if (mine && !main.classList.contains("enter")) replay(main, "swap", 300);    // a change you just made
+  const main = $("main"), landed = Boolean(main.querySelector(".sk, .skrow"));
+  // Data replacing its placeholder, or a change the person asked for, cross-fades.
+  if ((soft || landed) && usableVT() && !main.classList.contains("enter")) { transition(() => renderNow(true)); return; }
+  renderNow(false, soft || performance.now() - lastInput < 700, landed);
+}
+function renderNow(viaVT = false, mine = false, landed = false) {
+  const main = $("main");
+  if (!viaVT && !main.classList.contains("enter") && (landed || mine)) replay(main, "swap", 300);  // no View Transitions: a soft fade
   controls();
   $("main").classList.toggle("flush", state.view === "threads");
   if (state.view === "limits") return renderLimits();
@@ -964,6 +1450,16 @@ function stat(label, value, d = "", cls = "") {
   return `<div class="stat"><div class="k">${label}</div><div class="v ${cls}">${value}${d}</div></div>`;
 }
 
+// Where an agent's spend came from. A single provider is one quiet line; several are tucked
+// behind a toggle, closed by default, so the list stays short. Which are open is remembered.
+state.viaOpen = new Set(JSON.parse(store.getItem("usage.viaOpen") || "[]"));
+function viaBlock(agent) {
+  const rows = state.data.sources.filter((x) => x.agent === agent).map((x) => `via ${esc(providerName(x.provider))}${billing(x.agent, x.provider) ? ` · ${esc(billing(x.agent, x.provider).label)}` : ""}`);
+  if (rows.length <= 1) return rows.length ? `<span class="meta via">${rows[0]}</span>` : "";
+  const open = state.viaOpen.has(agent), id = "via-" + agent.replace(/\W/g, "");
+  return `<button class="via-btn" type="button" data-via="${esc(agent)}" aria-expanded="${open}" aria-controls="${id}">${rows.length} providers ${ui("chevron-right", 11)}</button>
+    <div class="via-wrap ${open ? "open" : ""}" id="${id}"><div class="via-in">${rows.join("<br>")}</div></div>`;
+}
 function renderUsage() {
   const d = state.data, main = $("main");
   if (!d) { main.innerHTML = SKELETON.usage(); return; }
@@ -983,7 +1479,7 @@ function renderUsage() {
     const v = m === "cost" ? a.cost : m === "messages" ? a.messages : a.tokens;
     const value = m === "cost" ? (a.unpricedRows && !a.cost ? '<span class="unp">Unpriced</span>' : money(a.cost) + (a.unpricedRows ? '<span class="unp">*</span>' : "")) : m === "messages" ? int(a.messages) : compact(a.tokens);
     const meta = m === "cost" ? `${pctText(pct(a.cost, t.cost))} of cost · ${compact(a.tokens)} tokens` : `${pctText(pct(v, total))} of ${METRIC_WORD[m]} · ${m === "tokens" ? (a.unpricedRows && !a.cost ? "unpriced" : money(a.cost)) : compact(a.tokens) + " tokens"}`;
-    return `<li><span class="name"><i class="dot" style="background:${agentColor(a.agent)}"></i>${ai(a.agent, 15)}${esc(agentName(a.agent))}<small>${plural(a.sessions, "session")}</small></span><span class="val">${value}</span><span class="meta">${meta}</span><span class="meta via">${d.sources.filter((s) => s.agent === a.agent).map((s) => `via ${esc(providerName(s.provider))}${billing(s.agent, s.provider) ? ` · ${esc(billing(s.agent, s.provider).label)}` : ""}`).join("<br>")}</span></li>`;
+    return `<li><span class="name"><i class="dot" style="background:${agentColor(a.agent)}"></i>${ai(a.agent, 15)}${esc(agentName(a.agent))}<small>${plural(a.sessions, "session")}</small></span><span class="val">${value}</span><span class="meta">${meta}</span>${viaBlock(a.agent)}</li>`;
   }).join("");
 
   const types = m === "cost"
@@ -1113,7 +1609,7 @@ function drawChart() {
   const d = state.data, el = $("chart");
   if (!el) return;
   const m = state.metric, days = d.days, series = d.stack, bars = state.chart === "bars";
-  const W = Math.max(480, el.clientWidth), H = 250, L = 50, R = 8, T = 8, B = 24;
+  const W = Math.max(480, el.clientWidth), H = Math.max(250, Math.min(460, Math.round(W * 0.15))), L = 50, R = 8, T = 8, B = 24;
   const pw = W - L - R, ph = H - T - B;
   const totals = days.map((_, i) => series.reduce((s, x) => s + x[m][i], 0));
   const peak = bars ? Math.max(0, ...totals) : Math.max(0, ...series.flatMap((s) => s[m]));
@@ -1140,7 +1636,7 @@ function drawChart() {
       series.forEach((s, si) => {
         const v = s[m][i];
         if (!v) return;
-        svg += `<rect x="${xAt(i) - bw / 2}" y="${y(base + v)}" width="${bw}" height="${Math.max(1, y(base) - y(base + v))}" fill="${stackColor(s, si)}" rx="1.5"/>`;
+        svg += `<rect x="${xAt(i) - bw / 2}" y="${y(base + v)}" width="${bw}" height="${Math.max(1, y(base) - y(base + v))}" fill="${stackColor(s, si)}" rx="1.5" class="bar"/>`;
         base += v;
       });
     });
@@ -1149,7 +1645,7 @@ function drawChart() {
       const c = stackColor(s, si), pts = s[m].map((v, i) => [xAt(i), y(v)]);
       if (days.length === 1) { svg += `<circle cx="${pts[0][0]}" cy="${pts[0][1]}" r="3.5" fill="${c}"/>`; return; }
       const line = smoothPath(pts);
-      svg += `<path d="${line}L${xAt(days.length - 1)},${y(0)}L${xAt(0)},${y(0)}Z" fill="${c}" opacity=".08"/><path d="${line}" fill="none" stroke="${c}" stroke-width="1.5" stroke-linejoin="round"/>`;
+      svg += `<path d="${line}L${xAt(days.length - 1)},${y(0)}L${xAt(0)},${y(0)}Z" fill="${c}" opacity=".08" class="area"/><path d="${line}" fill="none" stroke="${c}" stroke-width="1.5" stroke-linejoin="round" pathLength="1" class="line"/>`;
     });
   }
   svg += `<rect id="hit" x="${L}" y="${T}" width="${pw}" height="${ph}" fill="transparent"/></svg>`;
@@ -1301,11 +1797,10 @@ function drawTable() {
   const need = y0 + window.innerHeight - below - top;
   if (need > card.offsetHeight) card.style.minHeight = need + "px";
   if (window.scrollY !== y0) window.scrollTo(0, y0); // the reflow above may already have clamped it
-  card.querySelectorAll("[data-tab]").forEach((b) => b.addEventListener("click", () => { state.tab = b.dataset.tab; state.shown = 100; save(); drawTable(); replay(card, "swapcard", 300); }));
+  card.querySelectorAll("[data-tab]").forEach((b) => b.addEventListener("click", () => { if (b.dataset.tab === state.tab) return; transition(() => { state.tab = b.dataset.tab; state.shown = 100; save(); drawTable(); if (!vtBusy) replay($("tablecard"), "swapcard", 300); }); }));
   card.querySelectorAll("th[data-sort]").forEach((th) => th.addEventListener("click", () => {
     const k = th.dataset.sort;
-    state.sort[state.tab] = [k, k === sk ? -sd : (def.cols.find((c) => c.k === k).left ? 1 : -1)];
-    drawTable(); replay(card, "swapcard", 300);
+    transition(() => { state.sort[state.tab] = [k, k === sk ? -sd : (def.cols.find((c) => c.k === k).left ? 1 : -1)]; drawTable(); if (!vtBusy) replay($("tablecard"), "swapcard", 300); });
   }));
   card.querySelector("#more")?.addEventListener("click", () => { state.shown += 200; drawTable(); });
   card.querySelector("#csv")?.addEventListener("click", () => exportCsv(def, rows));
@@ -1399,25 +1894,47 @@ function threadControls() {
   $("t-days").value = t.days; $("t-days").classList.toggle("on", t.days !== "0");
   $("t-sub").checked = t.sub;
   $("tsubl").textContent = `Subagents${t.list?.hiddenSubagents ? ` (${int(t.list.hiddenSubagents)} hidden)` : ""}`;
-  $("tclear").classList.toggle("off", !(t.q || t.sub || t.days !== "0" || THREAD_FILTERS.some(([k]) => t[k] !== "all")));
+  const tActive = (t.q.trim() ? 1 : 0) + (t.sub ? 1 : 0) + (t.days !== "0" ? 1 : 0) + THREAD_FILTERS.filter(([k]) => t[k] !== "all").length;
+  $("tclear").classList.toggle("off", !tActive);
+  setClear($("tclear"), tActive);
 }
 const threadCount = (list) => `${int(list.threads.length)} of ${int(list.total)}${list.ranked ? " · best match first" : " · newest first"}`;
+// On a narrow screen Threads shows the list or the conversation, never both. Opening a row goes
+// to the conversation; Back (or the browser's back) returns to the list.
+const narrow = () => matchMedia("(max-width: 820px)").matches;
+function showDetail(on) {
+  const t = state.thr, sec = document.querySelector(".threads");
+  if (!sec) return;
+  if (on && !t.mob) history.pushState({ mob: 1 }, "", location.hash);
+  t.mob = on; sec.classList.toggle("detail", on); if (!on) sec.classList.remove("sheet");
+}
+addEventListener("popstate", () => { if (state.thr.mob) showDetail(false); });
+document.addEventListener("click", (e) => {
+  if (e.target.closest("#tretry") && state.thr.sel) { const id = state.thr.sel; const el = $("tdetail"); if (el) el.dataset.id = ""; openThread(id); return; }
+  if (e.target.closest("#tback")) { if (history.state?.mob) history.back(); else showDetail(false); }
+  else if (e.target.closest("#tdbtn")) document.querySelector(".threads")?.classList.toggle("sheet");
+  else if (e.target.closest("#tscrim, #tsclose")) document.querySelector(".threads")?.classList.remove("sheet");
+});
+document.addEventListener("keydown", (e) => {
+  const sec = document.querySelector(".threads.sheet");
+  if (e.key === "Escape" && sec && !XS.pop && !$("fv")) { sec.classList.remove("sheet"); $("tdbtn")?.focus(); e.stopPropagation(); }
+}, true);
 function renderThreads() {
   const t = state.thr, main = $("main");
   if (t.unavailable) { main.innerHTML = `<div class="empty">${esc(t.unavailable)}.<br>Threads come from <code>atuin threads</code>; install atuin and enable capture with <code>atuin threads enable</code>.</div>`; return; }
   const list = t.list;
-  main.innerHTML = `<section class="threads">
+  main.innerHTML = `<section class="threads ${t.mob ? "detail" : ""}">
     <aside class="tl"><div class="bar">
       <label class="search">${ui("search", 14)}<input class="field" id="tq" type="search" value="${esc(t.q)}" placeholder="Search threads, typos are fine" autocomplete="off" aria-label="Search threads"><span class="wait" aria-hidden="true"></span></label>
     </div><div class="scroll" id="tlist" role="listbox" aria-label="Threads" data-sig="${esc(threadSig())}">${list ? threadRows(list) : `<div style="padding:10px">${skRows(9, 66)}</div>`}</div>
     <div class="tcount mono" id="tcount">${list ? threadCount(list) : ""}</div></aside>
     <div class="td" id="tdetail"></div>
-    <aside class="tside" id="tside"></aside><div class="sr" id="tlive" role="status" aria-live="polite"></div></section>`;
+    <aside class="tside" id="tside" aria-label="Thread details"></aside><div class="tscrim" id="tscrim"></div><div class="sr" id="tlive" role="status" aria-live="polite"></div></section>`;
   const tq = $("tq");
   const go = debounce(() => { t.q = tq.value; t.limit = 200; loadThreads().catch(() => {}); }, 280);
   tq.addEventListener("input", () => { tq.closest(".search").classList.add("busy"); go(); });
   const box = $("tlist");
-  box.addEventListener("click", (e) => { if (e.target.closest("#tclear2")) { clearThreadFilters(); return; } const row = e.target.closest("[data-id]"); if (row) openThread(row.dataset.id); });
+  box.addEventListener("click", (e) => { if (e.target.closest("#tclear2")) { clearThreadFilters(); return; } const row = e.target.closest("[data-id]"); if (row) { openThread(row.dataset.id); if (narrow()) showDetail(true); } });
   // Arrow keys walk the list and open as they go; Home and End jump to the ends.
   let openTimer;
   box.addEventListener("keydown", (e) => {
@@ -1514,38 +2031,229 @@ function refreshThreadList() {
 const debounce = (fn, ms) => { let h; return (...a) => { clearTimeout(h); h = setTimeout(() => fn(...a), ms); }; };
 
 // ---- markdown ---------------------------------------------------------------------
-// A small renderer for what agents write: headings, lists, tables, quotes, rules,
-// fenced and inline code, bold, italic, strikethrough and links. Every character
-// of the source is escaped before any tag is added, and links are limited to http
-// and https, so a transcript cannot inject markup or a script URL.
-function mdInline(src) {
-  const codes = [];
-  let s = String(src).replace(/`([^`\n]+)`/g, (m, c) => { codes.push(c); return `\u0000${codes.length - 1}\u0000`; });
-  s = esc(s)
-    .replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g, (m, t, u) => `<a href="${u}" target="_blank" rel="noopener noreferrer">${t}</a>`)
-    .replace(/\*\*([^*\n]+?)\*\*/g, "<strong>$1</strong>")
+// What agents write: headings, lists (with checkboxes), tables, quotes, rules, fenced code
+// (with highlighting, a copy button, and a preview for html and svg), images, links, a small
+// set of inline html, and the wrapper tags harnesses put around their own context. Every
+// character of the source is escaped before any tag is added, links are limited to http and
+// https, and a picture can only come from http(s), a data: image, or a file the server will
+// read for this thread (see /api/threads/image), so a transcript cannot inject markup or script.
+
+const imgIcon = () => ui("image", 13);
+const SAFE_DATA_IMG = /^data:image\/(png|jpe?g|gif|webp|avif);base64,[A-Za-z0-9+/=]+$/i;
+function imageSrc(src) {
+  const raw = String(src).trim();
+  if (/^https?:\/\//i.test(raw)) return raw;
+  if (SAFE_DATA_IMG.test(raw) && raw.length < 4_000_000) return raw;
+  if (/^(file:\/\/|\/|~\/|[A-Za-z]:[\\/])/.test(raw)) return `/api/threads/image?id=${encodeURIComponent(state.thr.sel || "")}&path=${encodeURIComponent(raw)}`;
+  return null;
+}
+function imgTag(alt, src) {
+  const name = String(src).split(/[\\/]/).pop().split(/[?#]/)[0].slice(0, 80) || "image", u = imageSrc(src);
+  if (!u) return `<span class="imgfail" title="${esc(src)}">${imgIcon()}<span>${esc(alt || name)}</span></span>`;
+  return `<a class="imgl" href="${esc(u)}" target="_blank" rel="noopener noreferrer"><img class="mdimg" src="${esc(u)}" alt="${esc(alt || name)}" loading="lazy" decoding="async" data-name="${esc(alt || name)}"></a>`;
+}
+// A picture that will not load (the file is on another machine, the link is dead) becomes a quiet
+// chip saying so, instead of a broken-image icon.
+document.addEventListener("error", (e) => {
+  const img = e.target;
+  if (!img?.classList?.contains("mdimg")) return;
+  const chip = document.createElement("span");
+  chip.className = "imgfail"; chip.innerHTML = `${imgIcon()}<span>${esc(img.dataset.name || "image")} · not available here</span>`;
+  (img.closest("a") ?? img).replaceWith(chip);
+}, true);
+
+function mdEm(t) {
+  return t.replace(/\*\*\*([^*\n]+?)\*\*\*/g, "<strong><em>$1</em></strong>").replace(/\*\*([^*\n]+?)\*\*/g, "<strong>$1</strong>")
     .replace(/(^|[\s(])__([^_\n]+?)__(?=[\s).,;:!?]|$)/g, "$1<strong>$2</strong>")
     .replace(/(^|[\s(])\*([^*\s][^*\n]*?)\*(?=[\s).,;:!?]|$)/g, "$1<em>$2</em>")
     .replace(/(^|[\s(])_([^_\s][^_\n]*?)_(?=[\s).,;:!?]|$)/g, "$1<em>$2</em>")
     .replace(/~~([^~\n]+?)~~/g, "<del>$1</del>");
-  return s.replace(/\u0000(\d+)\u0000/g, (m, i) => `<code class="i">${esc(codes[Number(i)])}</code>`);
 }
-const MD_RULE = /^\s*(-{3,}|\*{3,}|_{3,})\s*$/, MD_LIST = /^(\s*)([-*+]|\d+[.)])\s+(.*)$/, MD_TABLE_SEP = /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/;
+function mdInline(src) {
+  const stash = [];
+  const keep = (html) => `\u0000${stash.push(html) - 1}\u0000`;
+  const link = (u, inner) => keep(`<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${inner}</a>`);
+  let s = String(src);
+  // Code spans (any run of backticks) and backslash escapes in one pass, so \` cannot open a span
+  // and a backslash inside a span stays literal.
+  s = s.replace(/(`+)([^`]|[^`][\s\S]*?[^`])\1(?!`)|\\([\\`*_{}[\]()#+\-.!|~>])/g, (m, f, c, escaped) => (escaped !== undefined ? keep(esc(escaped)) : looksLikePath(c.trim()) ? keep(pathChip(c.trim())) : keep(`<code class="i">${esc(c.trim())}</code>`)));
+  s = s.replace(/!\[([^\]\n]*)\]\(\s*<?((?:[^()\s>]|\([^()\s]*\))+)>?(?:\s+"[^"]*")?\s*\)/g, (m, alt, u) => keep(imgTag(alt, u)));
+  s = s.replace(/\[([^\]\n]+)\]\(\s*<?(https?:\/\/(?:[^()\s>]|\([^()\s]*\))+)>?(?:\s+"[^"]*")?\s*\)/g, (m, t, u) => link(u, mdEm(esc(t))));
+  s = s.replace(/<(https?:\/\/[^\s>]+)>/g, (m, u) => link(u, esc(u)));
+  s = s.replace(/(^|[\s(])(https?:\/\/[^\s<>)\]]*[^\s<>)\].,;:!?'"])/g, (m, pre, u) => pre + link(u, esc(u)));          // bare links
+  s = s.replace(/(^|[\s(])((?:~\/|\/(?=[\w.])|[A-Za-z]:[\\/])[\w.@%+=,~-]+(?:[\\/][\w.@%+=,~-]+)*)(?<![.,=+])(?=$|[\s),;:!?.'"])/g, (m, pre, path) => (looksLikePath(path) ? pre + keep(pathChip(path)) : m)); // bare paths
+  s = s.replace(/<(\/?)(b|i|em|strong|u|s|del|ins|kbd|sub|sup|mark|small)>/gi, (m, sl, tag) => keep(`<${sl}${tag.toLowerCase()}>`)); // a little inline html
+  s = s.replace(/<br\s*\/?>/gi, () => keep("<br>"));
+  s = mdEm(esc(s));
+  return s.replace(/\u0000(\d+)\u0000/g, (m, i) => stash[Number(i)]);
+}
+
+// ---- code: highlighting, copy, preview ---------------------------------------------------
+const LANGS = { js: "js", javascript: "js", jsx: "js", ts: "js", typescript: "js", tsx: "js", mjs: "js", cjs: "js", go: "js", rust: "js", rs: "js", java: "js", kotlin: "js", swift: "js", c: "js", cpp: "js", "c++": "js", cs: "js", csharp: "js", php: "js", dart: "js",
+  json: "json", jsonc: "json", json5: "json", py: "py", python: "py", rb: "py", ruby: "py", sh: "sh", bash: "sh", zsh: "sh", shell: "sh", fish: "sh", console: "sh", powershell: "sh", ps1: "sh", pwsh: "sh", bat: "sh",
+  html: "html", xml: "html", svg: "html", vue: "html", svelte: "html", css: "css", scss: "css", less: "css", diff: "diff", patch: "diff", yaml: "yaml", yml: "yaml", toml: "yaml", ini: "yaml", env: "yaml", sql: "sql", md: "md", markdown: "md" };
+const KW = {
+  js: "const let var function return if else for while do switch case break continue new class extends import from export default async await try catch finally throw typeof instanceof in of null true false undefined this super yield static public private protected readonly interface type enum implements void delete as satisfies keyof declare namespace module abstract get set",
+  go: "package import func return if else for range switch case default break continue go defer chan select struct interface map type var const nil true false make new len cap append panic recover fallthrough goto",
+  rs: "fn let mut const static pub use mod impl struct enum trait type match if else for while loop in return break continue as ref move async await dyn where unsafe extern crate self Self super true false Some None Ok Err Box Vec String Option Result",
+  java: "class interface extends implements public private protected static final abstract void int long double float boolean char byte short new return if else for while do switch case break continue try catch finally throw throws import package this super null true false var record enum instanceof synchronized",
+  c: "int long short char float double void unsigned signed const static extern struct union enum typedef sizeof return if else for while do switch case break continue goto auto register volatile inline NULL true false class public private protected namespace using template typename new delete nullptr bool",
+  py: "def class return if elif else for while in not and or is import from as with try except finally raise lambda None True False pass break continue yield async await global nonlocal assert del self cls match case",
+  sh: "if then else elif fi for while until do done case esac function in return export local readonly declare unset set shift source exit trap eval exec select time",
+  sql: "select from where and or not insert into values update set delete create table alter drop join left right inner outer full on group by order having limit offset as distinct union all null is in like between exists case when then else end primary key foreign references index unique default constraint with returning",
+  css: "important inherit initial unset none auto",
+  yaml: "true false null yes no on off",
+  json: "true false null",
+  md: "", html: "", diff: "",
+};
+// Which keyword list a language uses, and which comment style.
+const LANG_KW = { js: "js", go: "go", rs: "rs", java: "java", c: "c", py: "py", sh: "sh", sql: "sql", css: "css", yaml: "yaml", json: "json", html: "", md: "" };
+const COMMENT = { js: "\\/\\/[^\\n]*|\\/\\*[\\s\\S]*?\\*\\/", go: "\\/\\/[^\\n]*|\\/\\*[\\s\\S]*?\\*\\/", rs: "\\/\\/[^\\n]*|\\/\\*[\\s\\S]*?\\*\\/", java: "\\/\\/[^\\n]*|\\/\\*[\\s\\S]*?\\*\\/", c: "\\/\\/[^\\n]*|\\/\\*[\\s\\S]*?\\*\\/",
+  css: "\\/\\*[\\s\\S]*?\\*\\/", py: "#[^\\n]*", sh: "(?<=^|\\s)#[^\\n]*", yaml: "(?<=^|\\s)#[^\\n]*", sql: "--[^\\n]*|\\/\\*[\\s\\S]*?\\*\\/", html: "<!--[\\s\\S]*?-->" };
+// The language families that share a grammar with js for strings, numbers, calls and types.
+const CLIKE = new Set(["js", "go", "rs", "java", "c"]);
+const hlCache = {};
+function hlRegex(lang) {
+  if (hlCache[lang]) return hlCache[lang];
+  const parts = [];
+  const add = (name, src) => parts.push(`(?<${name}>${src})`);
+  if (COMMENT[lang]) add("c", COMMENT[lang]);
+  if (lang === "md") {
+    add("h", "^#{1,6} [^\\n]*"); add("w", "\\*\\*[^*\\n]+\\*\\*"); add("s", "`[^`\\n]+`"); add("a", "\\[[^\\]\\n]*\\]\\([^)\\n]*\\)"); add("v", "^[ \\t]*(?:[-*+]|\\d+\\.) ");
+  } else if (lang === "html") {
+    add("t", "<\\/?[A-Za-z][\\w:-]*|\\/?>"); add("k", "(?<=\\s)[A-Za-z_:@][\\w:.@-]*(?==)"); add("s", '"[^"\\n]*"|\'[^\'\\n]*\'');
+  } else if (lang === "css") {
+    add("s", '"(?:[^"\\\\\\n]|\\\\.)*"|\'(?:[^\'\\\\\\n]|\\\\.)*\''); add("n", "#[0-9a-fA-F]{3,8}\\b|-?\\b\\d[\\d.]*(?:px|em|rem|%|vh|vw|s|ms|deg)?\\b");
+    add("k", "[A-Za-z-]+(?=\\s*:(?!:))"); add("t", "[.#][A-Za-z_][\\w-]*|@[a-z-]+|::?[a-z-]+"); add("f", "[A-Za-z-]+(?=\\()");
+  } else if (lang === "yaml") {
+    add("s", '"(?:[^"\\\\\\n]|\\\\.)*"|\'[^\'\\n]*\''); add("k", "^[ \\t-]*[\\w.\\-\\/\"']+(?=[ \\t]*:)|^\\[[^\\]\\n]+\\]"); add("n", "-?\\b\\d[\\d._]*\\b");
+  } else if (lang === "json") {
+    add("k", '"(?:[^"\\\\\\n]|\\\\.)*"(?=\\s*:)'); add("s", '"(?:[^"\\\\\\n]|\\\\.)*"'); add("n", "-?\\b\\d[\\d.]*(?:[eE][+-]?\\d+)?\\b");
+  } else if (lang === "sh") {
+    add("s", '"(?:[^"\\\\]|\\\\.)*"|\'[^\']*\'|`[^`]*`'); add("v", "\\$\\{?[A-Za-z_@#?*0-9][\\w]*\\}?|\\$\\(|\\$[@#?*!$]");
+    add("f", "(?<=\\s)--?[A-Za-z][\\w-]*(?:=)?"); add("p", "\\|\\||&&|[|;&<>]+|\\\\$"); add("n", "\\b\\d+\\b");
+  } else {
+    add("s", '"(?:[^"\\\\\\n]|\\\\.)*"|\'(?:[^\'\\\\\\n]|\\\\.)*\'|`(?:[^`\\\\]|\\\\.)*`');
+    if (lang === "py") add("s2", '"""[\\s\\S]*?"""|\'\'\'[\\s\\S]*?\'\'\'');
+    add("n", "\\b0x[0-9a-fA-F]+\\b|\\b\\d[\\d_]*(?:\\.\\d+)?(?:[eE][+-]?\\d+)?\\b");
+    if (lang === "py") add("d", "@[A-Za-z_][\\w.]*");
+  }
+  const words = KW[LANG_KW[lang]];
+  if (words) add("w", `\\b(?:${words.trim().split(/\s+/).join("|")})\\b`);
+  if (CLIKE.has(lang) || lang === "py") { add("y", "\\b[A-Z][A-Za-z0-9_]*\\b"); add("f", "\\b[A-Za-z_$][\\w$]*(?=\\s*\\()"); }
+  if (lang === "sh") add("w", "^[ \\t]*[A-Za-z_./~][\\w./~-]*");                    // the command a line starts with
+  return (hlCache[lang] = new RegExp(parts.join("|"), "gm"));
+}
+const TK = { c: "tk-c", s: "tk-s", s2: "tk-s", n: "tk-n", w: "tk-w", k: "tk-k", t: "tk-t", f: "tk-f", y: "tk-y", v: "tk-v", p: "tk-p", d: "tk-d", h: "tk-h", a: "tk-a" };
+function hlCode(code, lang) {
+  if (!lang || lang === "text" || code.length > 40000) return esc(code);
+  if (lang === "diff") return hlDiff(code);
+  const re = hlRegex(lang);
+  re.lastIndex = 0;
+  let out = "", at = 0, m;
+  while ((m = re.exec(code))) {
+    if (m[0] === "") { re.lastIndex += 1; continue; }
+    const g = m.groups, name = Object.keys(g).find((k) => g[k] !== undefined);
+    out += esc(code.slice(at, m.index)) + `<span class="${TK[name] ?? "tk-w"}">${esc(m[0])}</span>`;
+    at = m.index + m[0].length;
+  }
+  return out + esc(code.slice(at));
+}
+// Language of a path, by extension ("src/app.ts" is js, "x.py" is py).
+const langOfPath = (p) => LANGS[String(p ?? "").split(/[?#]/)[0].split(".").pop().toLowerCase()] ?? "";
+// A diff keeps its row colours (added, removed, header) and the code on each row is highlighted in
+// the language of the file it belongs to, found from the diff's own headers, or given.
+function hlDiff(code, given = "") {
+  let lang = given;
+  return code.split("\n").map((l) => {
+    const file = /^(?:\+\+\+ (?:b\/)?|diff --git a\/\S+ b\/|\*\*\* (?:Update|Add|Delete) File: )(\S+)/.exec(l)?.[1];
+    if (file) lang = langOfPath(file) || lang;
+    const head = /^(\+\+\+|---|\*\*\* |diff --git|index |new file|deleted file|similarity|rename )/.test(l) || l.startsWith("@@");
+    if (head) return `<span class="dl dh">${esc(l)}</span>`;
+    const sign = l[0], body = sign === "+" || sign === "-" || sign === " " ? l.slice(1) : l, cls = sign === "+" ? "da" : sign === "-" ? "dd" : "";
+    const lead = sign === "+" || sign === "-" || sign === " " ? `<span class="dp">${esc(sign)}</span>` : "";
+    return `<span class="dl ${cls}">${lead}${lang ? hlCode(body, lang) : esc(body)}</span>`;
+  }).join("\n");
+}
+// File content as tools print it, with a gutter of line numbers ("12:code", "   12→code", "12\tcode"):
+// the numbers stay dim and the code beside them is highlighted.
+function hlNumbered(text, lang) {
+  const lines = text.split("\n"), re = /^(\s*\d+)([:→|\t]\s?|\s{2,})/;
+  const hits = lines.filter((l) => re.test(l)).length;
+  if (!lang || hits < Math.max(2, lines.length * 0.6)) return null;
+  return lines.map((l) => { const m = re.exec(l); return m ? `<span class="tk-ln">${esc(m[0])}</span>${hlCode(l.slice(m[0].length), lang)}` : hlCode(l, lang); }).join("\n");
+}
+const guessLang = (code) => (/^\s*[{[]/.test(code) && /[}\]]\s*$/.test(code) ? "json" : /^(diff --git|@@ |--- a\/|\*\*\* Begin Patch|\+\+\+ )/m.test(code) ? "diff" : /^\s*(\$ |#!\/)/.test(code) ? "sh" : /^\s*<(!DOCTYPE|html|div|svg)\b/i.test(code) ? "html" : "");
+// `info` is the fence's language word; `hint` is a language to use when there is none (a diff's file).
+function codeBlock(code, info = "", hint = "") {
+  const raw = String(info).trim().split(/[\s{]/)[0].toLowerCase(), lang = raw === "text" ? "" : LANGS[raw] ?? (raw ? "" : guessLang(code));
+  const label = raw || lang || "";
+  const previewable = lang === "html" && (raw === "html" || raw === "svg");
+  const body = lang === "diff" ? hlDiff(code, hint) : hlCode(code, lang);
+  return `<div class="code"><div class="ch"><span class="cl">${esc(label || "text")}</span><span class="spacer"></span>${previewable ? '<button type="button" class="cc" data-prev>Preview</button>' : ""}<button type="button" class="cc ic" data-copy aria-label="Copy code" title="Copy">${ui("copy", 13)}</button></div><pre><code>${body}</code></pre></div>`;
+}
+document.addEventListener("click", (e) => {
+  const copy = e.target.closest("[data-copy]"), prev = e.target.closest("[data-prev]");
+  if (copy) {
+    const text = copy.closest(".code").querySelector("code").textContent;
+    navigator.clipboard?.writeText(text).then(() => { const was = copy.innerHTML; copy.innerHTML = ui("check", 13); copy.classList.add("ok"); setTimeout(() => { copy.innerHTML = was; copy.classList.remove("ok"); }, 1300); }).catch(() => {});
+  } else if (prev) {
+    const box = prev.closest(".code"), on = box.classList.toggle("previewing");
+    prev.textContent = on ? "Code" : "Preview";
+    box.querySelector(".prevbox")?.remove();
+    if (on) {
+      const code = box.querySelector("code").textContent, svg = /^\s*<svg[\s>]/i.test(code), holder = document.createElement("div");
+      holder.className = "prevbox";
+      // Sandboxed with nothing allowed: no script, no forms, no navigation, no same-origin access.
+      if (svg) holder.innerHTML = `<img alt="SVG preview" src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(code)}">`;
+      else { const f = document.createElement("iframe"); f.setAttribute("sandbox", ""); f.setAttribute("referrerpolicy", "no-referrer"); f.srcdoc = code; f.title = "HTML preview"; holder.append(f); }
+      box.append(holder);
+    }
+  }
+});
+
+// ---- files a conversation mentions ---------------------------------------------------------------
+// An absolute path (in code, in prose, in a tool card) is a chip. Clicking it opens a viewer: the
+// file's text with highlighting, an image, or a note for a binary; "Reveal" shows it in the file
+// manager, and a file that lives on another machine can be read over ssh from a configured host.
+const PATH_RE = /^(?:~\/|\/|[A-Za-z]:[\\/])[^\s`'"<>|*?]+$/;
+function looksLikePath(t) {
+  if (!PATH_RE.test(t) || /^\/\//.test(t)) return false;
+  const segs = t.split(/[\\/]/).filter(Boolean);
+  return /\.[A-Za-z0-9]{1,8}$/.test(t) || segs.length >= 3;
+}
+const pathChip = (p, label) => `<button type="button" class="fileref" data-path="${esc(p)}" title="${esc(p)}">${ui(IMAGE_EXT.test(p) ? "image" : "file-text", 12)}<span>${esc(label ?? (p.split(/[\\/]/).filter(Boolean).pop() || p))}</span></button>`;
+const IMAGE_EXT = /\.(png|jpe?g|gif|webp|bmp|avif|svg)$/i;
+// ---- block markdown -----------------------------------------------------------------
+const MD_RULE = /^\s*(-{3,}|\*{3,}|_{3,})\s*$/, MD_LIST = /^(\s*)([-*+]|\d+[.)])\s+(.*)$/, MD_TABLE_SEP = /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/;
 // A pipe inside backticks is text, not a column break.
 const mdCells = (line) => line.trim().replace(/`[^`]*`/g, (c) => c.replace(/\|/g, "\u0001")).replace(/^\|/, "").replace(/\|$/, "").split(/(?<!\\)\|/).map((c) => c.trim().replace(/\u0001/g, "|"));
+// "[Attached image "x" is saved at: /p.png]" and "[Image: source: /p.png]" are how harnesses mention a picture.
+function imageMarkers(text) {
+  return text
+    .replace(/\[Attached image "([^"]*)" is saved at: ([^\]\n]+)\]/g, (m, name, p) => `\n\n![${name}](${p.trim()})\n\n`)
+    .replace(/\[Image(?: #\d+)?: source: ([^\]\n]+)\]/g, (m, p) => `\n\n![image](${p.trim()})\n\n`);
+}
 function md(text) {
-  const lines = String(text).replace(/\r\n?/g, "\n").split("\n"), out = [];
+  const lines = imageMarkers(String(text).replace(/\r\n?/g, "\n")).split("\n"), out = [];
   let para = [];
   const flush = () => { if (para.length) { out.push(`<p>${para.map(mdInline).join("<br>")}</p>`); para = []; } };
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    const fence = /^\s*(```|~~~)/.exec(line);
+    const fence = /^(\s*)(`{3,}|~{3,})\s*([^`]*)$/.exec(line);
     if (fence) {
       flush();
-      const body = [];
-      for (i++; i < lines.length && !lines[i].trimStart().startsWith(fence[1]); i++) body.push(lines[i]);
-      out.push(`<pre><code>${esc(body.join("\n"))}</code></pre>`);
+      const [, indent, marks, info] = fence, body = [], close = new RegExp(`^\\s*\\${marks[0]}{${marks.length},}\\s*$`);
+      for (i++; i < lines.length && !close.test(lines[i]); i++) body.push(lines[i].startsWith(indent) ? lines[i].slice(indent.length) : lines[i]);
+      out.push(codeBlock(body.join("\n"), info));
       continue;
+    }
+    if (/^\s*<details[\s>]/i.test(line)) {                          // <details><summary>..</summary>..</details>
+      let j = i, buf = [];
+      for (; j < lines.length; j++) { buf.push(lines[j]); if (/<\/details>\s*$/i.test(lines[j])) break; }
+      const html = buf.join("\n"), sum = /<summary[^>]*>([\s\S]*?)<\/summary>/i.exec(html)?.[1] ?? "Details";
+      const inner = html.replace(/^\s*<details[^>]*>/i, "").replace(/<summary[\s\S]*?<\/summary>/i, "").replace(/<\/details>\s*$/i, "");
+      flush(); out.push(`<details class="mdd"><summary>${mdInline(sum.replace(/<[^>]+>/g, ""))}</summary>${md(inner)}</details>`); i = j; continue;
     }
     if (!line.trim()) { flush(); continue; }
     const h = /^(#{1,6})\s+(.*?)\s*#*$/.exec(line);
@@ -1553,10 +2261,10 @@ function md(text) {
     if (MD_RULE.test(line)) { flush(); out.push("<hr>"); continue; }
     if (line.includes("|") && MD_TABLE_SEP.test(lines[i + 1] ?? "")) {
       flush();
-      const head = mdCells(line), rows = [];
+      const head = mdCells(line), rows = [], align = mdCells(lines[i + 1]).map((c) => (/^:-+:$/.test(c) ? "center" : /-:$/.test(c) ? "right" : "left"));
       for (i += 2; i < lines.length && lines[i].includes("|") && lines[i].trim(); i++) rows.push(mdCells(lines[i]));
       i--;
-      out.push(`<div class="mdtable"><table><thead><tr>${head.map((c) => `<th>${mdInline(c)}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr>${head.map((_, n) => `<td>${mdInline(r[n] ?? "")}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`);
+      out.push(`<div class="mdtable"><table><thead><tr>${head.map((c, n) => `<th style="text-align:${align[n] ?? "left"}">${mdInline(c)}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr>${head.map((_, n) => `<td style="text-align:${align[n] ?? "left"}">${mdInline(r[n] ?? "")}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`);
       continue;
     }
     if (/^\s*>/.test(line)) {
@@ -1572,8 +2280,8 @@ function md(text) {
       const items = [];
       for (; i < lines.length; i++) {
         const m = MD_LIST.exec(lines[i]);
-        if (m) items.push({ depth: Math.floor(m[1].replace(/\t/g, "  ").length / 2), ordered: /\d/.test(m[2]), text: [m[3]] });
-        else if (lines[i].trim() && /^\s+/.test(lines[i]) && items.length) items.at(-1).text.push(lines[i].trim()); // wrapped item text
+        if (m) items.push({ depth: Math.floor(m[1].replace(/\t/g, "  ").length / 2), ordered: /\d/.test(m[2]), start: /\d/.test(m[2]) ? parseInt(m[2], 10) : 1, text: [m[3]] });
+        else if (lines[i].trim() && /^\s+/.test(lines[i]) && !/^\s*(`{3,}|~{3,})/.test(lines[i]) && items.length) items.at(-1).text.push(lines[i].trim()); // wrapped item text
         else break;
       }
       i--;
@@ -1583,8 +2291,10 @@ function md(text) {
         const depth = Math.min(it.depth, open.length); // never skip a level
         while (open.length > depth + 1) html += `</li></${open.pop()}>`;
         if (open.length === depth + 1) html += "</li>";
-        else { const tag = it.ordered ? "ol" : "ul"; html += `<${tag}>`; open.push(tag); }
-        html += `<li>${it.text.map(mdInline).join("<br>")}`;
+        else { const tag = it.ordered ? "ol" : "ul"; html += `<${tag}${it.ordered && it.start !== 1 ? ` start="${it.start}"` : ""}>`; open.push(tag); }
+        const task = /^\[([ xX])\]\s+/.exec(it.text[0]);
+        if (task) { html += `<li class="task ${task[1] === " " ? "" : "done"}"><span class="box" aria-hidden="true">${task[1] === " " ? "" : ui("check", 11)}</span>${[it.text[0].slice(task[0].length), ...it.text.slice(1)].map(mdInline).join("<br>")}`; }
+        else html += `<li>${it.text.map(mdInline).join("<br>")}`;
       }
       while (open.length) html += `</li></${open.pop()}>`;
       out.push(html);
@@ -1595,50 +2305,385 @@ function md(text) {
   flush();
   return out.join("");
 }
-const formatText = md;
-// What a tool call was about, in one line: its description, command, path or query.
-function toolSummary(input) {
-  try {
-    const o = JSON.parse(input);
-    const v = o.description ?? o.command ?? o.file_path ?? o.path ?? o.pattern ?? o.query ?? o.prompt ?? o.url ?? Object.values(o).find((x) => typeof x === "string");
-    return String(v ?? "").split("\n")[0];
-  } catch { return String(input).split("\n")[0]; }
+
+// ---- wrapper tags -------------------------------------------------------------------------
+// Agent harnesses wrap their own text in tags: injected reminders, pasted attachments, slash
+// commands, background-task notices. They are shown as quiet cards instead of raw markup.
+const WRAP = ["system-reminder", "t3_context", "context", "pasted_content", "command-message", "command-name", "command-args", "local-command-stdout", "local-command-stderr", "local-command-caveat",
+  "task-notification", "agent-message", "ide_opened_file", "ide_selection", "user-prompt-submit-hook", "environment_context", "user_instructions", "turn_aborted", "subagent_notification", "system_notification", "function_results", "truncated"];
+const WRAP_RE = new RegExp(`<(${WRAP.join("|")})((?:\\s[^>]*)?)>([\\s\\S]*?)</\\1>`, "g");
+const WRAP_LABEL = { "system-reminder": "System reminder", t3_context: "Attachments", context: "Context", pasted_content: "Pasted content", "local-command-stdout": "Command output", "local-command-stderr": "Command error", "local-command-caveat": "Note",
+  "task-notification": "Task update", "agent-message": "Message from an agent", ide_opened_file: "Opened in the editor", ide_selection: "Editor selection", "user-prompt-submit-hook": "Hook", environment_context: "Environment", user_instructions: "Instructions",
+  turn_aborted: "Turn interrupted", subagent_notification: "Subagent update", system_notification: "System notice", function_results: "Result", truncated: "Truncated" };
+function splitWrappers(text) {
+  const found = [];
+  for (const re of [WRAP_RE, CUSTOM_RE]) {
+    re.lastIndex = 0; let m;
+    while ((m = re.exec(text))) {
+      if (re === CUSTOM_RE && (WRAP.includes(m[1]) || HTML_TAGS.has(m[1]))) continue;
+      found.push({ index: m.index, end: m.index + m[0].length, tag: m[1], attrs: m[2], body: m[3], custom: re === CUSTOM_RE });
+    }
+  }
+  found.sort((a, b) => a.index - b.index);
+  const parts = []; let at = 0;
+  for (const f of found) {
+    if (f.index < at) continue;                                 // inside one already taken
+    if (f.index > at) parts.push({ text: text.slice(at, f.index) });
+    parts.push({ tag: f.tag, attrs: f.attrs, body: f.body, custom: f.custom }); at = f.end;
+  }
+  if (at < text.length) parts.push({ text: text.slice(at) });
+  return parts;
 }
-const TOOL_ICON = { Bash: "terminal", Read: "file", Write: "file", Edit: "file", Glob: "search", Grep: "search", Agent: "zap", Task: "zap" };
+function wrapCard(p) {
+  if (p.custom) {
+    const body = p.body.trim(); if (!body) return "";
+    const kids = (body.match(/<([a-z][\w-]*)[\s>]/g) ?? []).length;
+    return `<details class="mdd wrap w-custom" style="--hue:${tagHue(p.tag)}"><summary><b>${esc(humanize(p.tag))}</b>${kids ? `<span class="faint"> · ${kids} ${kids === 1 ? "item" : "items"}</span>` : ""}</summary><div class="wb">${customBody(body)}</div></details>`;
+  }
+  const label = WRAP_LABEL[p.tag] ?? p.tag;
+  if (p.tag === "t3_context") {
+    const items = [...p.body.matchAll(/<context\s+([^>]*)>([\s\S]*?)<\/context>/g)].map((c) => ({ kind: /kind="([^"]*)"/.exec(c[1])?.[1] ?? "file", name: /name:\s*(.+)/.exec(c[2])?.[1]?.trim() ?? "attachment", size: /sizeBytes:\s*(\d+)/.exec(c[2])?.[1] }));
+    if (!items.length) return "";
+    return `<div class="attach">${items.map((a) => `<span class="chip">${ui(a.kind === "image" ? "image" : "file", 12)}${esc(a.name)}${a.size ? `<small>${esc(fmtBytes(+a.size))}</small>` : ""}</span>`).join("")}</div>`;
+  }
+  const body = p.body.trim();
+  if (!body) return "";
+  if (p.tag === "local-command-stdout" || p.tag === "local-command-stderr") return `<details class="mdd wrap"><summary>${esc(label)}</summary>${codeBlock(body, "")}</details>`;
+  const first = body.split("\n")[0].replace(/<[^>]+>/g, "").slice(0, 110);
+  const note = /^(task-notification|subagent_notification|agent-message)$/.test(p.tag) ? `<span class="faint"> · ${esc(first)}</span>` : "";
+  const inner = /^(system-reminder|environment_context|user_instructions|ide_opened_file|ide_selection|user-prompt-submit-hook|local-command-caveat)$/.test(p.tag) ? `<pre class="plain">${esc(body)}</pre>` : md(body);
+  return `<details class="mdd wrap w-${p.tag}"><summary>${esc(label)}${note}</summary><div class="wb">${inner}</div></details>`;
+}
+const HTML_TAGS = new Set(["div", "span", "p", "a", "ul", "ol", "li", "table", "tr", "td", "th", "thead", "tbody", "pre", "code", "img", "br", "hr", "h1", "h2", "h3", "h4", "h5", "h6", "details", "summary", "strong", "em", "b", "i", "u", "s", "kbd", "sub", "sup", "mark", "small", "section", "article", "nav", "header", "footer", "main", "form", "input", "button", "select", "option", "label", "textarea", "script", "style", "svg", "path", "g", "html", "head", "body", "title", "meta", "link", "iframe", "video", "audio", "canvas", "blockquote"]);
+const CUSTOM_RE = /<([a-z][a-z0-9]*(?:[_-][a-z0-9]+)+)((?:\s[^>]*)?)>\n?([\s\S]*?)\n?<\/\1>/g;
+const humanize = (t) => t.replace(/[_-]+/g, " ").replace(/^./, (c) => c.toUpperCase());
+const tagHue = (name) => `var(--c${1 + ([...name].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7) % 7)})`;
+// The body of a custom tag: child tags become labelled rows (<memory>text</memory>), the rest is markdown.
+function customBody(body) {
+  const kids = [...body.matchAll(/<([a-z][\w-]*)((?:\s[^>]*)?)>([\s\S]*?)<\/\1>/g)];
+  const rest = body.replace(/<([a-z][\w-]*)((?:\s[^>]*)?)>[\s\S]*?<\/\1>/g, "").trim();
+  const attr = (a) => [...String(a).matchAll(/([\w-]+)="([^"]*)"/g)].map((m) => `${m[1]}: ${m[2]}`).join(" · ");
+  const rows = kids.map((k) => `<div class="subrow"><span class="chip soft">${esc(humanize(k[1]))}</span><div class="wb">${md(k[3].trim())}${attr(k[2]) ? `<div class="meta">${esc(attr(k[2]))}</div>` : ""}</div></div>`).join("");
+  return rows + (rest ? md(rest) : "");
+}
+const fmtBytes = (n) => (n > 1e6 ? (n / 1e6).toFixed(1) + " MB" : n > 1e3 ? Math.round(n / 1e3) + " KB" : n + " B");
+const cmdChip = (name, args) => `<span class="cmd"><b>${esc(name)}</b>${args ? `<span>${esc(args)}</span>` : ""}</span>`;
+
+// A message's text: slash commands become a chip, a skill's expanded prompt folds away, wrapper
+// tags become cards, and the rest is markdown.
+function renderText(text, role) {
+  if (/^Base directory for this skill:/.test(text)) return `<details class="mdd wrap w-skill"><summary>Skill instructions</summary><div class="wb">${md(text)}</div></details>`;
+  const cname = /<command-name>\s*([^<]+?)\s*<\/command-name>/.exec(text)?.[1], cargs = /<command-args>([\s\S]*?)<\/command-args>/.exec(text)?.[1]?.trim();
+  let lead = "";
+  if (cname) { lead = cmdChip(cname, cargs); text = text.replace(/<command-(message|name|args)>[\s\S]*?<\/command-\1>/g, ""); }
+  return lead + splitWrappers(text).map((p) => (p.tag ? wrapCard(p) : md(p.text))).join("");
+}
+const formatText = renderText;
+
+// ---- tools --------------------------------------------------------------------------------
 const clock = (at) => (at ? new Date(at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : "");
-function stepHTML(b, at) {
+function toolKind(name) {
+  const n = String(name || "").toLowerCase();
+  if (n.startsWith("mcp__")) return "mcp";
+  if (/^(bash|shell|shell_command|powershell|pwsh|run_command|exec|exec_command|terminal|command|eval|execute|python)$/.test(n)) return "shell";
+  if (/^(read|view|cat|read_file|open|readfile)$/.test(n)) return "read";
+  if (/^(write|create|write_file|create_file)$/.test(n)) return "write";
+  if (/^(edit|multiedit|str_replace_editor|str_replace_based_edit_tool|replace|update|notebookedit|edit_file)$/.test(n)) return "edit";
+  if (/^(apply_patch|patch)$/.test(n)) return "patch";
+  if (/^(glob|find|ls|list|list_dir|file_search)$/.test(n)) return "glob";
+  if (/^(grep|search|rg|codesearch|search_files|toolsearch)$/.test(n)) return "search";
+  if (/^(wait|monitor|sleep)$/.test(n) || n.endsWith("background_wait")) return "wait";
+  if (/^(sendmessage|send_message|report_intent|notify)$/.test(n)) return "message";
+  if (/^(taskstop|kill|stop|task_stop)$/.test(n)) return "stop";
+  if (/^(todo|todowrite|todo_write|update_plan|plan)$/.test(n)) return "todo";
+  if (/^(askuserquestion|ask|ask_user|question|request_user_input)$/.test(n)) return "ask";
+  if (/^(agent|task|subagent|spawn_agent|delegate_task)$/.test(n)) return "agent";
+  if (/^(webfetch|websearch|web_search|web_fetch|fetch|browse)$/.test(n)) return "web";
+  if (n === "skill") return "skill";
+  return "tool";
+}
+const TOOL_META = { shell: ["terminal", "Shell"], read: ["eye", "Read"], write: ["file-plus", "Write"], edit: ["square-pen", "Edit"], patch: ["square-pen", "Patch"], search: ["search", "Search"], glob: ["folder-search", "Find files"], todo: ["list-checks", "Plan"],
+  ask: ["help-circle", "Question"], agent: ["bot", "Agent"], web: ["globe", "Web"], skill: ["wand", "Skill"], mcp: ["plug", "MCP"], wait: ["clock", "Wait"], message: ["send", "Message"], stop: ["square", "Stop"], tool: ["wrench", "Tool"] };
+const pick = (a, ...keys) => { for (const k of keys) if (a?.[k] != null && a[k] !== "") return a[k]; return undefined; };
+const base = (p) => String(p ?? "").split(/[\\/]/).filter(Boolean).slice(-2).join("/");
+const one = (v, n = 150) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, n);
+const extLang = (p) => LANGS[String(p ?? "").split(".").pop().toLowerCase()] ?? "";
+function diffText(oldS, newS) {
+  const o = String(oldS ?? "").split("\n"), n = String(newS ?? "").split("\n");
+  return [...o.map((l) => "- " + l), ...n.map((l) => "+ " + l)].join("\n");
+}
+function kvTable(obj) {
+  const rows = Object.entries(obj ?? {}).filter(([, v]) => v != null && v !== "");
+  if (!rows.length) return "";
+  return `<div class="kv">${rows.map(([k, v]) => {
+    const text = typeof v === "string" ? v : JSON.stringify(v, null, 2);
+    return `<div class="kr"><span class="kk">${esc(k)}</span>${text.length > 90 || text.includes("\n") ? `<div class="kvb">${codeBlock(text, typeof v === "string" ? "" : "json")}</div>` : `<span class="kvv">${esc(text)}</span>`}</div>`;
+  }).join("")}</div>`;
+}
+// ---- tool output, drawn by what it is --------------------------------------------------------
+// ANSI colour codes (a test run, a linter, ls --color) become real colours instead of being
+// stripped or shown as escape garbage.
+const ANSI_FG = { 30: "#6c7086", 31: "var(--bad)", 32: "var(--good)", 33: "var(--warn)", 34: "var(--c2)", 35: "var(--c6)", 36: "var(--c3)", 37: "var(--text)", 90: "var(--faint)", 91: "var(--bad)", 92: "var(--good)", 93: "var(--warn)", 94: "var(--c2)", 95: "var(--c6)", 96: "var(--c3)", 97: "var(--text)" };
+function ansiHtml(text) {
+  let out = "", fg = null, bold = false, open = false, at = 0;
+  const close = () => { if (open) { out += "</span>"; open = false; } };
+  const apply = () => { close(); if (fg || bold) { out += `<span style="${fg ? `color:${fg};` : ""}${bold ? "font-weight:600" : ""}">`; open = true; } };
+  for (const m of text.matchAll(/\u001b\[([0-9;]*)m/g)) {
+    out += esc(text.slice(at, m.index)); at = m.index + m[0].length;
+    const codes = m[1] === "" ? [0] : m[1].split(";").map(Number);
+    for (let i = 0; i < codes.length; i++) {
+      const c = codes[i];
+      if (c === 0) { fg = null; bold = false; } else if (c === 1) bold = true; else if (c === 22) bold = false; else if (c === 39) fg = null;
+      else if (ANSI_FG[c]) fg = ANSI_FG[c];
+      else if (c === 38 && codes[i + 1] === 5) { fg = `hsl(${(codes[i + 2] * 47) % 360} 65% 62%)`; i += 2; }
+      else if (c === 38 && codes[i + 1] === 2) { fg = `rgb(${codes[i + 2]},${codes[i + 3]},${codes[i + 4]})`; i += 4; }
+    }
+    apply();
+  }
+  out += esc(text.slice(at)); close();
+  return out.replace(/https?:\/\/[^\s<>"')\]]+/g, (u) => `<a href="${u}" target="_blank" rel="noopener noreferrer">${u}</a>`);
+}
+const plainBlock = (html, label = "") => `<div class="code out"><div class="ch"><span class="cl">${esc(label || "output")}</span><span class="spacer"></span><button type="button" class="cc ic" data-copy aria-label="Copy output" title="Copy">${ui("copy", 13)}</button></div><pre><code>${html}</code></pre></div>`;
+
+// "[src/app.tsx#D787]" then "35:  return (" ... : a file read or an edit's context, line numbers kept as a
+// gutter, the code highlighted in the file's language, and a gap marker where lines were skipped.
+function fileView(text) {
+  const m = /^\[([^\]\n]+?)(?:#(\w+))?\]\n/.exec(text);
+  if (!m) return null;
+  const path = m[1], lang = langOfPath(path), rows = text.slice(m[0].length).split("\n"), out = [];
+  let prev = null, shown = 0;
+  for (const row of rows) {
+    const n = /^(\s*)(\d+)([:|→\t ]\s?)(.*)$/.exec(row);
+    if (!n) { if (row.trim()) out.push(`<span class="gap">${esc(row)}</span>`); continue; }
+    const no = Number(n[2]);
+    if (prev != null && no > prev + 1) out.push(`<span class="gap">⋯ ${no - prev - 1} lines</span>`);
+    out.push(`<span class="ln"><span class="tk-ln">${esc(String(no).padStart(4))}  </span>${lang ? hlCode(n[4], lang) : esc(n[4])}</span>`);
+    prev = no; shown += 1;
+  }
+  if (!shown) return null;
+  return `<div class="res"><div class="rl">${pathChip(path)}${m[2] ? `<span class="faint mono"> #${esc(m[2])}</span>` : ""} <span class="faint">${shown} lines</span></div><div class="code out"><pre><code>${out.join("\n")}</code></pre></div></div>`;
+}
+// The plan tool's own summary ("Remaining items (5): ... Overall: 2/7 done ... Phase: - [x] item") as a
+// progress bar and phases with ticked items.
+function planView(text) {
+  if (!/^Remaining items \(\d+\):|^Overall: \d+\/\d+ done/m.test(text)) return null;
+  const overall = /Overall:\s*(\d+)\/(\d+) done/.exec(text), active = /Active phase (\d+)\/(\d+) "([^"]*)"/.exec(text);
+  const phases = []; let cur = null;
+  for (const line of text.split("\n")) {
+    const ph = /^  (\S[^:]*):\s*$/.exec(line), it = /^\s{4}- \[( |x|X)\] (.*?)(?: \(in progress\))?$/.exec(line);
+    if (ph && !/^(Remaining|Overall|Active)/.test(ph[1])) { cur = { name: ph[1], items: [] }; phases.push(cur); }
+    else if (it && cur) cur.items.push({ done: it[1] !== " ", text: it[2], now: /\(in progress\)/.test(line) });
+  }
+  if (!phases.length && !overall) return null;
+  const done = overall ? +overall[1] : 0, total = overall ? +overall[2] : phases.reduce((n, p) => n + p.items.length, 0);
+  return `<div class="plan"><div class="ph"><b>Plan</b><span class="faint">${done} of ${total} done${active ? ` · phase ${active[1]} of ${active[2]}, ${esc(active[3])}` : ""}</span></div><div class="pbar"><i style="width:${total ? (done / total) * 100 : 0}%"></i></div>${phases.map((p) => `<div class="pp"><div class="pn">${esc(p.name)}</div><ul class="todos">${p.items.map((i) => `<li class="${i.done ? "completed" : i.now ? "in_progress" : ""}"><span class="box" aria-hidden="true">${i.done ? ui("check", 11) : i.now ? "<i></i>" : ""}</span><span>${esc(i.text)}</span></li>`).join("")}</ul></div>`).join("")}</div>`;
+}
+// "Exit code: 0 / Wall time: 1.2 seconds / Output: ..." (codex) or "exit status 1": the facts as chips, the output below.
+function shellWrapper(text) {
+  const m = /^Exit code:\s*(-?\d+)\s*\nWall time:\s*([^\n]+)\nOutput:\n?([\s\S]*)$/.exec(text);
+  if (!m) return null;
+  return { chips: `<div class="rchips"><span class="chip ${m[1] === "0" ? "ok" : "bad"}">exit ${esc(m[1])}</span><span class="chip">${esc(m[2])}</span></div>`, body: m[3] };
+}
+// path:line:text lines (grep, rg) grouped by file with the matches highlighted in that file's language.
+function grepView(text) {
+  const lines = text.split("\n").filter(Boolean), re = /^([^\s:][^:]*?):(\d+)[:-](.*)$/;
+  const hits = lines.filter((l) => re.test(l));
+  if (lines.length < 2 || hits.length < lines.length * 0.7) return null;
+  const groups = new Map();
+  for (const l of hits) { const [, f, n, t] = re.exec(l); (groups.get(f) ?? groups.set(f, []).get(f)).push([n, t]); }
+  return `<div class="grep">${[...groups].slice(0, 60).map(([f, rows]) => `<div class="gf"><div class="gn">${ui("file-text", 12)}<span>${esc(f)}</span><small>${rows.length}</small></div>${rows.slice(0, 40).map(([n, t]) => `<div class="gl"><span class="tk-ln">${esc(n)}</span>${hlCode(t, langOfPath(f)) || esc(t)}</div>`).join("")}</div>`).join("")}</div>`;
+}
+function resultBlock(res, hintLang = "") {
+  const raw = String(res?.text ?? "");
+  if (!res || !raw.trim()) return "";
+  const label = res.isError ? "Error" : "Result", cls = res.isError ? "bad" : "";
+  const wrap = (inner, extra = "") => `<div class="res ${cls}"><div class="rl">${label}</div>${extra}<div class="rb">${inner}</div></div>`;
+  if (!res.isError) {
+    const file = fileView(raw), plan = file ? null : planView(raw);
+    if (file) return file;
+    if (plan) return `<div class="res">${plan}</div>`;
+  }
+  const sh = shellWrapper(raw.replace(/\u001b\[[0-9;]*m/g, ""));
+  const text = sh ? sh.body : raw, chips = sh ? sh.chips : "";
+  const plain = text.replace(/\u001b\[[0-9;]*m/g, "");
+  if (/^\s*[{[]/.test(plain)) { try { return wrap(codeBlock(JSON.stringify(JSON.parse(plain), null, 2), "json"), chips); } catch { /* not JSON after all */ } }
+  if (/^(diff --git|@@ |--- a\/|\*\*\* Begin Patch)/m.test(plain)) return wrap(codeBlock(plain, "diff", hintLang), chips);
+  const grep = res.isError ? null : grepView(plain);
+  if (grep) return wrap(grep, chips);
+  const numbered = !res.isError && hintLang ? hlNumbered(plain, hintLang) : null;
+  if (numbered) return wrap(plainBlock(numbered, hintLang), chips);
+  // Anything else is terminal output: keep its colours, make its links clickable.
+  return wrap(plainBlock(/\u001b\[/.test(text) ? ansiHtml(text) : ansiHtml(plain)), chips);
+}
+function todoBody(a) {
+  const items = pick(a, "todos", "items", "plan") ?? [];
+  if (!Array.isArray(items)) return "";
+  return `<ul class="todos">${items.map((t) => { const st = String(t.status ?? ""), label = t.content ?? t.text ?? t.step ?? t.activeForm ?? JSON.stringify(t); return `<li class="${st}"><span class="box" aria-hidden="true">${st === "completed" ? ui("check", 11) : st === "in_progress" ? '<i></i>' : ""}</span><span>${esc(String(label))}</span></li>`; }).join("")}</ul>`;
+}
+function askBody(a, res) {
+  const qs = Array.isArray(a?.questions) ? a.questions : [];
+  const answer = res?.text ? String(res.text).replace(/^User has answered your questions?:\s*/i, "").trim() : "";
+  return `${qs.map((q) => `<div class="aq"><div class="aqh">${q.header ? `<span class="chip">${esc(q.header)}</span>` : ""}${q.multiSelect ? '<span class="chip soft">choose several</span>' : ""}</div><div class="aqq">${md(String(q.question ?? ""))}</div>${Array.isArray(q.options) ? `<ul class="aqo">${q.options.map((o) => `<li><b>${esc(o.label ?? o)}</b>${o.description ? `<span>${esc(o.description)}</span>` : ""}</li>`).join("")}</ul>` : ""}</div>`).join("")}${answer ? `<div class="aqa"><span class="rl">Answer</span>${md(answer)}</div>` : '<div class="aqa wait">No answer recorded</div>'}`;
+}
+// One call, drawn by what it is: a command, a file edit as a diff, a plan as a checklist, a question
+// with its options. Its result sits inside the same card when both are on the page.
+function toolCard(b, res, at) {
+  const kind = toolKind(b.name), a = b.args ?? {}, [icon, label] = TOOL_META[kind];
+  if (kind === "ask" && Array.isArray(a.questions)) return `<div class="ask"><div class="ah">${ui("help-circle", 14)}<b>Question for you</b><span class="at mono">${clock(at)}</span></div>${askBody(a, res)}</div>`;
+  let head = "", body = "";
+  const intent = pick(a, "i", "intent", "description", "reason");
+  if (kind === "shell") {
+    const cmd = Array.isArray(pick(a, "command", "cmd")) ? pick(a, "command", "cmd").join(" ") : pick(a, "command", "cmd", "script", "code", "input", "i") ?? b.input;
+    head = one(pick(a, "description", "i", "intent", "reason") ?? cmd, 140);
+    body = `<div class="rchips">${pick(a, "workdir", "cwd") ? `<span class="chip">${ui("folder", 12)}${esc(pick(a, "workdir", "cwd"))}</span>` : ""}${pick(a, "timeout", "timeout_ms") != null ? `<span class="chip">${ui("clock", 12)}timeout ${esc(pick(a, "timeout") ?? `${Math.round(pick(a, "timeout_ms") / 1000)}`)}s</span>` : ""}${a.run_in_background ? '<span class="chip">in background</span>' : ""}</div>${codeBlock(String(cmd), "sh")}`;
+  } else if (kind === "read") {
+    const path = pick(a, "file_path", "path", "filePath", "target_file"); head = base(path) || one(b.input);
+    body = `<div class="meta">${path ? pathChip(path) : ""}${pick(a, "offset") != null ? ` · from line ${esc(pick(a, "offset"))}` : ""}${pick(a, "limit") != null ? ` · ${esc(pick(a, "limit"))} lines` : ""}</div>`;
+  } else if (kind === "write") {
+    const path = pick(a, "file_path", "path", "filePath"); head = base(path);
+    body = `<div class="meta">${path ? pathChip(path) : ""}</div>${codeBlock(String(pick(a, "content", "text", "file_text") ?? ""), String(path ?? "").split(".").pop())}`;
+  } else if (kind === "edit") {
+    const path = pick(a, "file_path", "path", "filePath"); head = base(path);
+    const edits = Array.isArray(a.edits) ? a.edits : [{ old: pick(a, "old_string", "oldText", "old_str", "old"), neu: pick(a, "new_string", "newText", "new_str", "new") }];
+    body = `<div class="meta">${path ? pathChip(path) : ""}</div>${edits.map((e) => codeBlock(diffText(e.old ?? e.oldText ?? e.old_string, e.neu ?? e.newText ?? e.new_string), "diff", langOfPath(path))).join("")}`;
+  } else if (kind === "patch") {
+    const patch = String(pick(a, "input", "patch", "diff") ?? b.input); head = one(patch.match(/\*\*\* (?:Update|Add|Delete) File: (.+)/)?.[1] ?? "patch", 120); body = codeBlock(patch, "diff");
+  } else if (kind === "search" || kind === "glob") {
+    head = one(pick(a, "pattern", "query", "glob", "path", "command"), 120) + (a.path && a.pattern ? ` in ${base(a.path)}` : "");
+    body = kvTable(a);
+  } else if (kind === "todo" && Array.isArray(a.ops)) {
+    head = `${a.ops.length} change${a.ops.length === 1 ? "" : "s"}`;
+    body = `<ul class="ops">${a.ops.map((o) => `<li><span class="chip soft">${esc(String(o.op ?? "op").replace(/_/g, " "))}</span><span>${esc(one(o.content ?? o.name ?? o.task ?? o.text ?? o.title ?? Object.entries(o).filter(([k]) => k !== "op").map(([k, v]) => `${k}: ${typeof v === "string" ? v : JSON.stringify(v)}`).join(", "), 200))}</span></li>`).join("")}</ul>`;
+  } else if (kind === "todo") {
+    const items = pick(a, "todos", "items", "plan") ?? [], done = Array.isArray(items) ? items.filter((t) => t.status === "completed").length : 0;
+    head = Array.isArray(items) ? `${done} of ${items.length} done` : ""; body = todoBody(a);
+  } else if (kind === "agent") {
+    head = one(pick(a, "description", "subagent_type", "name") ?? "", 100) + (a.subagent_type ? ` · ${a.subagent_type}` : "");
+    body = `${a.model ? `<div class="meta">model ${esc(a.model)}</div>` : ""}<div class="wb">${md(String(pick(a, "prompt", "task", "message") ?? ""))}</div>`;
+  } else if (kind === "web") {
+    const target = pick(a, "url", "query"); head = one(target, 120);
+    body = (/^https?:\/\//.test(target ?? "") ? `<div class="meta"><a href="${esc(target)}" target="_blank" rel="noopener noreferrer">${esc(target)}</a></div>` : "") + (a.prompt ? `<div class="wb">${md(String(a.prompt))}</div>` : kvTable(a));
+  } else if (kind === "wait" || kind === "message" || kind === "stop") {
+    head = one(Object.values(a).find((v) => typeof v === "string") ?? b.input, 120); body = kvTable(a);
+  } else if (kind === "skill") {
+    head = String(pick(a, "skill", "name") ?? ""); body = kvTable(a);
+  } else if (kind === "mcp") {
+    const [, server, ...rest] = String(b.name).split("__"); head = `${rest.join("__")} ${one(Object.values(a).find((v) => typeof v === "string") ?? "", 90)}`;
+    body = `<div class="meta"><span class="chip soft">${esc(server)}</span> ${esc(rest.join("__"))}</div>${kvTable(a)}`;
+  } else {
+    head = one(Object.values(a).find((v) => typeof v === "string") ?? b.input, 120); body = a && Object.keys(a).length ? kvTable(a) : codeBlock(String(b.input ?? ""), "");
+  }
+  if (intent && !head) head = one(intent, 140);
+  const state = res ? (res.isError ? '<span class="st bad">failed</span>' : '<span class="st ok">done</span>') : "";
+  const showName = kind === "mcp" ? "MCP" : kind === "tool" ? esc(b.name) : label;
+  return `<details class="tool t-${kind}${res?.isError ? " err" : ""}"><summary>${ui(icon, 14)}<b class="tn">${showName}</b><span class="td">${esc(head)}</span>${state}<span class="at mono">${clock(at)}</span>${ui("chevron-right", 12)}</summary><div class="tb">${body}${kind === "ask" || (kind === "todo" && !planView(String(res?.text ?? ""))) ? "" : resultBlock(res, kind === "read" ? langOfPath(pick(a, "file_path", "path", "filePath", "target_file")) : "")}</div></details>`;
+}
+function stepHTML(b, at, res) {
   const line = (icon, label, body, extra = "") => `<details class="step"><summary>${ui(icon, 14)}<span class="l">${label}</span>${extra}<span class="at mono">${clock(at)}</span>${ui("chevron-right", 12)}</summary><pre>${esc(body)}</pre></details>`;
-  if (b.type === "thinking") return line("sparkles", "Thinking", b.text);
-  if (b.type === "tool_call") return line(TOOL_ICON[b.name] ?? "terminal", `<b>${esc(b.name)}</b> ${esc(toolSummary(b.input).slice(0, 160))}`, b.input);
-  if (b.type === "tool_result") return line("chevron-right", `<span class="faint">${esc(b.text.split("\n")[0].slice(0, 160) || "result")}</span>`, b.text);
+  if (b.type === "thinking") return line("brain", "Thinking", b.text);
+  if (b.type === "tool_call") return toolCard(b, res, at);
+  if (b.type === "tool_result") return `<details class="tool t-result${b.isError ? " err" : ""}"><summary>${ui("chevron-right", 14)}<span class="td faint">${esc(one(b.text, 140) || "result")}</span><span class="at mono">${clock(at)}</span>${ui("chevron-right", 12)}</summary><div class="tb">${resultBlock(b)}</div></details>`;
   if (b.type === "patch") {
     const add = b.files.reduce((s, f) => s + f.additions, 0), del = b.files.reduce((s, f) => s + f.deletions, 0);
-    return `<div class="files"><div class="fh"><b>${plural(b.files.length, "changed file")}</b><span class="add">+${add}</span><span class="del">-${del}</span></div>${b.files.map((f) => `<details class="step"><summary>${ui("file", 14)}<span class="l mono">${esc(tail(f.path, 3))}</span><span class="add mono">+${f.additions}</span><span class="del mono">-${f.deletions}</span>${ui("chevron-right", 12)}</summary><pre>${esc(f.diff)}</pre></details>`).join("")}</div>`;
+    return `<div class="files"><div class="fh">${ui("square-pen", 14)}<b>${plural(b.files.length, "changed file")}</b><span class="add">+${add}</span><span class="del">-${del}</span></div>${b.files.map((f) => `<details class="step"><summary>${ui("square-pen", 14)}<span class="l">${esc(tail(f.path, 3))}</span><span class="add">+${f.additions}</span><span class="del">-${f.deletions}</span>${ui("chevron-right", 12)}</summary>${f.diff ? codeBlock(f.diff, "diff", langOfPath(f.path)) : ""}</details>`).join("")}</div>`;
   }
   return "";
 }
-// The conversation as T3 shows it: user turns as bubbles on the right, the
-// assistant's words as plain text, and everything it did in between as one-line
-// steps. A long run of steps folds into a single line.
+// The conversation as T3 shows it: user turns as bubbles on the right, the assistant's words as
+// plain text, and everything it did in between as one-line steps. A long run of steps folds into
+// a single line. Questions, summaries and errors stand on their own, so they are never folded away.
+// Time, copy and link, under a message. The raw text is kept aside (not in the page) so Copy gives the
+// markdown that was written, not the rendered words.
+const RAW = new Map();
+let rawId = 0;
+function msgMeta(raw, at) {
+  const id = ++rawId; RAW.set(id, String(raw));
+  return `<div class="msgmeta"><time datetime="${esc(at ?? "")}">${clock(at)}</time><button type="button" data-copymsg="${id}" aria-label="Copy message" title="Copy message">${ui("copy", 13)}</button><button type="button" data-linkmsg="${esc(at ?? "")}" aria-label="Copy link to this message" title="Copy link to this message">${ui("link", 13)}</button></div>`;
+}
+document.addEventListener("click", (e) => {
+  const c = e.target.closest("[data-copymsg]"), l = e.target.closest("[data-linkmsg]");
+  const done = (btn, icon) => { const old = btn.innerHTML; btn.innerHTML = ui("check", 13); btn.classList.add("ok"); setTimeout(() => { btn.innerHTML = old; btn.classList.remove("ok"); }, 1300); };
+  if (c) navigator.clipboard?.writeText(RAW.get(Number(c.dataset.copymsg)) ?? "").then(() => done(c)).catch(() => {});
+  else if (l) {
+    const url = `${location.origin}${location.pathname}#threads/${state.thr.sel}${l.dataset.linkmsg ? "@" + new Date(l.dataset.linkmsg).getTime() : ""}`;
+    navigator.clipboard?.writeText(url).then(() => done(l)).catch(() => {});
+  }
+});
+// The viewer: a drawer on the right (a full sheet on a phone). One request fills it; if the file is not
+// on this machine the server says so and names the hosts it could be read from.
+let fvTimer = null;
+function closeFile() {
+  const fv = $("fv"); if (!fv) return;
+  fv.classList.add("out"); clearTimeout(fvTimer);
+  fvTimer = setTimeout(() => fv.remove(), reduced() ? 0 : 200);
+}
+async function openFile(file, host = "") {
+  $("fv")?.remove();
+  const id = state.thr.sel, name = file.split(/[\\/]/).filter(Boolean).pop() || file;
+  const fv = document.createElement("div");
+  fv.id = "fv"; fv.className = "fv";
+  fv.innerHTML = `<div class="fvs" data-fvclose></div><aside class="fvp" role="dialog" aria-label="File ${esc(name)}"><header><span class="fvt">${ui("file-text", 15)}<b title="${esc(file)}">${esc(name)}</b></span><span class="spacer"></span><button type="button" class="icon-btn" data-fvclose aria-label="Close">${ui("x", 16)}</button></header><div class="fvmeta mono">${esc(file)}</div><div class="fvact" id="fvact"></div><div class="fvb" id="fvb"><div class="skrow">${sk(18, "60%")}${sk(14)}${sk(14, "90%")}${sk(14, "75%")}${sk(14)}</div></div></aside>`;
+  document.body.append(fv);
+  fv.querySelector(".fvp").focus?.();
+  const body = $("fvb"), act = $("fvact");
+  const copy = `<button type="button" class="btn sm" data-copypath>${ui("copy", 12)}Copy path</button>`;
+  try {
+    const r = await get(`/api/threads/file?id=${encodeURIComponent(id)}&path=${encodeURIComponent(file)}${host ? "&host=" + encodeURIComponent(host) : ""}`);
+    if (!$("fv")) return;
+    act.innerHTML = `${copy}${r.via === "this machine" ? `<button type="button" class="btn sm" data-reveal>${ui("folder", 12)}Show in file manager</button>` : ""}<span class="faint">${esc(r.via)}${r.size != null ? " · " + esc(fmtBytes(r.size)) : ""}${r.mtime ? " · " + esc(ago(r.mtime)) : ""}</span>`;
+    if (r.kind === "image") {
+      const src = r.dataUrl ?? `/api/threads/image?id=${encodeURIComponent(id)}&path=${encodeURIComponent(file)}`;
+      body.innerHTML = `<div class="fvimg"><img class="mdimg" src="${esc(src)}" alt="${esc(name)}" data-name="${esc(name)}"></div>`;
+    } else if (r.kind === "binary") body.innerHTML = `<div class="empty">A binary file${r.size != null ? " of " + esc(fmtBytes(r.size)) : ""}. It is not shown as text.</div>`;
+    else {
+      const md = r.ext === ".md" || r.ext === ".markdown";
+      body.innerHTML = (r.truncated ? `<div class="note">Showing the first ${esc(fmtBytes(r.text.length))}.</div>` : "") + (md ? `<div class="body fvmd">${renderText(r.text, "assistant")}</div>` : codeBlock(r.text, (r.ext || "").slice(1)));
+    }
+  } catch (e) {
+    const hosts = e.hosts ?? [];
+    act.innerHTML = copy;
+    body.innerHTML = `<div class="empty">${esc(e.message)}.${hosts.length ? `<div class="fvhosts">Read it over ssh from: ${hosts.map((h) => `<button type="button" class="btn sm" data-host="${esc(h)}">${esc(h)}</button>`).join("")}</div>` : ""}</div>`;
+  }
+  fv.onclick = (ev) => {
+    if (ev.target.closest("[data-fvclose]")) closeFile();
+    else if (ev.target.closest("[data-copypath]")) navigator.clipboard?.writeText(file);
+    else if (ev.target.closest("[data-reveal]")) fetch(`/api/threads/reveal?id=${encodeURIComponent(id)}&path=${encodeURIComponent(file)}`, { method: "POST", headers: { "x-usage-action": "1" } }).catch(() => {});
+    else if (ev.target.closest("[data-host]")) openFile(file, ev.target.closest("[data-host]").dataset.host);
+  };
+}
+document.addEventListener("click", (e) => { const c = e.target.closest(".fileref"); if (c) { e.preventDefault(); openFile(c.dataset.path); } });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && $("fv") && !XS.pop) { closeFile(); e.stopPropagation(); } }, true);
 function conversationHTML(messages) {
-  const out = [];
+  const results = new Map(), used = new Set(), out = [];
+  for (const m of messages) for (const b of m.content) if (b.type === "tool_result" && b.id) results.set(b.id, b);
   let run = [];
   const flush = () => {
     if (!run.length) return;
     if (run.length > 5) {
       const names = [...new Set(run.map((r) => r.name).filter(Boolean))].slice(0, 4).join(", ");
-      out.push(`<details class="run"><summary>${ui("zap", 14)}<span class="l"><b>${run.length} steps</b>${names ? ` <span class="faint">${esc(names)}</span>` : ""}</span><span class="at mono">${clock(run.at(-1).at)}</span>${ui("chevron-right", 12)}</summary><div class="steps">${run.map((r) => r.html).join("")}</div></details>`);
+      out.push(`<details class="run"><summary>${ui("list", 14)}<span class="l"><b>${run.length} steps</b>${names ? ` <span class="faint">${esc(names)}</span>` : ""}</span><span class="at mono">${clock(run.at(-1).at)}</span>${ui("chevron-right", 12)}</summary><div class="steps">${run.map((r) => r.html).join("")}</div></details>`);
     } else out.push(`<div class="steps">${run.map((r) => r.html).join("")}</div>`);
     run = [];
   };
   for (const m of messages) for (const b of m.content) {
     if (b.type === "text") {
       if (!b.text.trim()) continue;
+      const html = renderText(b.text, m.role);
+      if (!html) continue;
       flush();
-      out.push(m.role === "user" ? `<div class="bubble"><div class="body">${formatText(b.text)}</div><div class="at mono">${clock(m.at)}</div></div>` : `<div class="say body">${formatText(b.text)}</div>`);
-    } else {
-      const html = stepHTML(b, m.at);
-      if (html) run.push({ html, at: m.at, name: b.type === "tool_call" ? b.name : null });
+      if (m.role === "user") out.push(`<div class="turn user" data-at="${esc(m.at ?? "")}"><div class="bubble"><div class="body">${html}</div></div>${msgMeta(b.text, m.at)}</div>`);
+      else if (m.role === "assistant") out.push(`<div class="turn assistant" data-at="${esc(m.at ?? "")}"><div class="say body">${html}</div>${msgMeta(b.text, m.at)}</div>`);
+      else out.push(`<div class="sys body"><span class="role">${esc(m.role)}</span>${html}</div>`); // system, developer and the like
+    } else if (b.type === "summary") { flush(); out.push(`<details class="mdd wrap"><summary>Conversation summary</summary><div class="wb">${renderText(b.text, "system")}</div></details>`); }
+    else if (b.type === "error") { flush(); out.push(`<div class="errline">${ui("x", 13)}<span>${esc(b.text)}</span></div>`); }
+    else if (b.type === "tool_result" && b.id && used.has(b.id)) continue;
+    else {
+      const res = b.type === "tool_call" && b.id ? results.get(b.id) : undefined;
+      if (res) used.add(b.id);
+      const html = stepHTML(b, m.at, res);
+      if (!html) continue;
+      if (b.type === "tool_call" && toolKind(b.name) === "ask" && Array.isArray(b.args?.questions)) { flush(); out.push(html); continue; }
+      run.push({ html, at: m.at, name: b.type === "tool_call" ? b.name : null });
     }
   }
   flush();
@@ -1669,7 +2714,7 @@ function renderThreadDetail() {
   const x = threadBrief(), dt = t.detail;
   if (el.dataset.id !== String(x.id)) {
     el.dataset.id = String(x.id);
-    el.innerHTML = `<header class="thead"><span class="p">${ui("folder", 14)}<span id="tfolder"></span></span><span class="sep">/</span><h2 id="ttitle"></h2><span class="prog" id="tprog" aria-live="off"></span></header>
+    el.innerHTML = `<header class="thead"><button class="back" id="tback" type="button" aria-label="Back to the threads">${ui("chevron-left", 16)}</button><span class="p">${ui("folder", 14)}<span id="tfolder"></span></span><span class="sep">/</span><h2 id="ttitle"></h2><span class="prog" id="tprog" aria-live="off"></span><button class="dbtn" id="tdbtn" type="button" aria-label="Show thread details">Details</button></header>
       <div class="meter-line" id="tbar" aria-hidden="true"><i></i></div>
       <div class="scroll" id="tscroll" tabindex="0" role="region" aria-label="Conversation"><div class="conv" id="tconv"></div></div>
       <div class="jumps"><button class="jump" id="tjump" aria-label="Back to the top" title="Back to the top">${ui("arrow-up", 16)}</button><button class="jump" id="tend" aria-label="Down to the end" title="Down to the end">${ui("arrow-down", 16)}</button></div>`;
@@ -1691,7 +2736,7 @@ function renderThreadDetail() {
   const conv = $("tconv");
   if (!t.sel) conv.innerHTML = t.list ? `<div class="empty">${t.list.threads.length ? "Pick a thread to read it." : "No threads match these filters."}</div>` : `<div class="skrow">${sk(64, "62%")}${sk(16)}${sk(16, "92%")}${sk(30)}${sk(120)}</div>`;
   else if (!dt) conv.innerHTML = `<div class="skrow">${sk(64, "62%")}<div style="height:6px"></div>${sk(16)}${sk(16, "92%")}${sk(16, "70%")}${sk(30)}${sk(30)}${sk(16, "85%")}${sk(120)}</div>`;
-  else if (dt.error) conv.innerHTML = `<div class="empty">${esc(dt.error)}</div>`;
+  else if (dt.error) conv.innerHTML = `<div class="empty"><div>Could not load this thread.</div><div class="faint small">${esc(String(dt.error).split("\n")[0].slice(0, 160))}</div><button type="button" class="btn sm" id="tretry">Try again</button></div>`;
   else if (conv.__dt !== dt) {
     // Drawn once per loaded thread. Later pages are appended by loadMoreMessages, so a
     // re-render of the frame never throws away what has been scrolled through.
@@ -1790,8 +2835,9 @@ function renderThreadSide() {
   const fact = (icon, label, value) => `<div class="f">${ui(icon, 14)}<span class="k">${label}</span><span class="v" title="${esc(value)}">${esc(value)}</span></div>`;
   const meter = (label, pc, text) => `<div class="m"><span>${esc(label)}</span><i><b style="width:${Math.max(0, Math.min(100, pc))}%"></b></i><span class="mono">${esc(text)}</span></div>`;
   const off = has ? "" : "disabled";
+  const link = (icon, label, id, text, tip) => `<div class="f">${ui(icon, 14)}<span class="k">${label}</span><a class="v link" id="${id}" role="link" ${has && text !== "-" ? "" : 'aria-disabled="true"'} title="${esc(tip)}">${esc(text)}</a></div>`;
   side.innerHTML = `<div class="card">
-      <div class="h">Resume</div>
+      <div class="h">Resume<button type="button" class="icon-btn sclose" id="tsclose" aria-label="Close the details">${ui("x", 15)}</button></div>
       <div class="seg modes" id="rmode" role="group" aria-label="How to continue">
         <button data-v="resume" aria-pressed="${t.mode === "resume"}" ${off} title="Carry on in the same session">Resume</button>
         <button data-v="fork" aria-pressed="${t.mode === "fork"}" ${off} title="A new session with the same history; the original is left alone">Fork</button>
@@ -1800,15 +2846,40 @@ function renderThreadSide() {
       <button class="cmdbox" id="cmdbox" ${off} title="Copy"><code id="cmdtext" class="mono">${has ? "Getting the command" : "No thread open"}</code>${ui("copy", 13)}</button>
       <button class="btn primary" id="resume" ${off}>${ui("copy", 13)}<span>Copy command</span></button>
       <div class="cmdnote faint" id="cmdnote">${has ? "" : "Open a thread to get the command that resumes it."}</div>
-      <hr>${fact("folder", "Folder", has ? tail(x.cwd, 2) : "-")}${fact("branch", "Branch", x.branch || "-")}${fact("zap", "Agent", has ? agentName(x.harness) + (x.model ? " · " + x.model : "") : "-")}${fact("monitor", "Machine", x.machine || "-")}
-      <hr>${fact("file", "Messages", has ? int(x.messages) : "-")}${fact("sparkles", "Started", x.startedAt ? new Date(x.startedAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" }) : "-")}${fact("refresh", "Last active", x.updatedAt ? ago(x.updatedAt) : "-")}
-      <div class="f">${ui("terminal", 14)}<span class="k">Session</span><button class="v link mono" id="copyid" ${off} title="Copy the session id">${has ? esc(String(x.session).slice(0, 13)) + "…" : "-"}</button></div>
+      <hr>${link("folder", "Folder", "openfolder", has && x.cwd ? tail(x.cwd, 2) : "-", x.cwd ? `Open ${x.cwd} in the file manager` : "No folder recorded")}${link("branch", "Branch", "brlink", x.branch || "-", "Looking for the repository")}${link("link", "Repository", "repolink", "-", "Looking for the repository")}${fact("bot", "Agent", has ? agentName(x.harness) + (x.model ? " · " + x.model : "") : "-")}${fact("monitor", "Machine", x.machine || "-")}
+      <hr>${fact("message-square", "Messages", has ? int(x.messages) : "-")}${fact("calendar", "Started", x.startedAt ? new Date(x.startedAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" }) : "-")}${fact("clock", "Last active", x.updatedAt ? ago(x.updatedAt) : "-")}
+      <div class="f">${ui("hash", 14)}<span class="k">Session</span><button class="v link mono" id="copyid" ${off} title="Copy the session id">${has ? esc(String(x.session).slice(0, 13)) + "…" : "-"}</button></div>
       <hr><div class="h">Tokens <span class="mono faint">${compact(tok)}</span></div>${[["Input", k.input], ["Output", k.output], ["Cache read", k.cache_read], ["Cache write", k.cache_write]].map(([l, v]) => meter(l, pct(v ?? 0, tok), compact(v ?? 0))).join("")}
     </div>`;
   if (!has) return;
   const flash = (el, html) => { const old = el.innerHTML; el.innerHTML = html; setTimeout(() => { if (el.isConnected) el.innerHTML = old; }, 1200); };
   const copyCmd = (el, html) => { if (t.cmd?.text) { copy(t.cmd.text); flash(el, html); } };
   $("copyid").addEventListener("click", (e) => { copy(x.session); flash(e.currentTarget, "copied"); });
+  // Folder: opens in this machine's file manager. A thread from another machine says so instead.
+  const folder = $("openfolder");
+  if (x.cwd) folder.addEventListener("click", async () => {
+    if (folder.dataset.busy) return; folder.dataset.busy = "1";
+    const was = folder.textContent;
+    try {
+      const r = await fetch("/api/threads/folder?id=" + encodeURIComponent(x.id), { method: "POST", headers: { "x-usage-action": "1" } });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "failed");
+      folder.textContent = "opened";
+    } catch (e) { folder.textContent = /not on this machine/.test(e.message) ? "not on this machine" : "could not open"; }
+    setTimeout(() => { delete folder.dataset.busy; if (folder.isConnected) folder.textContent = was; }, 1500);
+  });
+  // Branch and repository: the origin remote of that folder, turned into a web address. Only the
+  // machine that has the folder can answer, so on another machine these stay plain text.
+  if (x.cwd) {
+    const r = t.repo?.id === x.id && t.repo.branch === x.branch ? t.repo : (t.repo = { id: x.id, branch: x.branch, p: get("/api/threads/repo?id=" + encodeURIComponent(x.id) + (x.branch ? "&branch=" + encodeURIComponent(x.branch) : "")).catch(() => null) });
+    r.p.then((info) => {
+      if (state.thr.sel !== x.id || !$("brlink")) return;
+      const set = (el, href, text, tip) => { if (text) el.textContent = text; el.title = tip; if (href) { el.href = href; el.target = "_blank"; el.rel = "noopener noreferrer"; el.removeAttribute("aria-disabled"); } };
+      if (!info) { $("brlink").title = $("repolink").title = "That folder is not on this machine"; return; }
+      set($("brlink"), info.branchUrl, info.branch && !x.branch ? info.branch : "", info.branchUrl ? `Open branch ${x.branch || info.branch} on the web` : "This repository has no web address");
+      set($("repolink"), info.web, info.name || "none", info.web ? `Open ${info.web}` : "This folder has no remote called origin");
+      if (!info.web) $("repolink").setAttribute("aria-disabled", "true");
+    });
+  }
   $("resume").addEventListener("click", (e) => copyCmd(e.currentTarget, `${ui("check", 13)}<span>Copied</span>`));
   $("cmdbox").addEventListener("click", (e) => copyCmd(e.currentTarget.querySelector(".ui"), UI.check));
   $("rmode").addEventListener("click", (e) => { const v = e.target.closest("button")?.dataset.v; if (v) { t.mode = v; resume(threadBrief()); } });
@@ -1900,10 +2971,10 @@ function renderModels() {
     <section id="mh2h"></section>
     <section id="mtable"></section>
     <div class="foot"><div>Prices are list prices in US dollars per million tokens. Benchmark columns are Artificial Analysis indexes and Design Arena Elo as published in the OpenRouter model list; a dash means the source has no figure. The usage columns follow the range and scope above. Tick two to five rows to put them head to head; the best figure in each row is highlighted.</div></div>`;
-  $("mscope").addEventListener("click", (e) => { const v = e.target.closest("button")?.dataset.v; if (v) { M.scope = v; M.shown = 60; renderModels(); } });
+  $("mscope").addEventListener("click", (e) => { const v = e.target.closest("button")?.dataset.v; if (v && v !== M.scope) transition(() => { M.scope = v; M.shown = 60; renderModels(); }); });
   const mq = $("mq");
   mq.addEventListener("input", debounce(() => { M.q = mq.value; M.shown = 60; drawModelTable(); drawModelBars(); }, 200));
-  $("mmetric").addEventListener("change", (e) => { M.metric = e.target.value; drawModelBars(); });
+  $("mmetric").addEventListener("change", (e) => { transition(() => { M.metric = e.target.value; drawModelBars(); }); });
   drawModelBars(); drawModelScatter(); drawModelHead(); drawModelTable();
 }
 
@@ -2002,7 +3073,7 @@ function drawModelScatter() {
   const pickedIds = new Set(modelRows().filter((r) => M.picked.has(r.key) && r.c).map((r) => r.c.id));
   const pts = d.catalog.filter((c) => c.bench?.intelligence != null && c.price?.output > 0);
   if (!pts.length) { el.innerHTML = `<div class="empty">No benchmark data cached.</div>`; return; }
-  const W = Math.max(420, el.clientWidth), H = 280, L = 40, R = 12, T = 10, B = 30, pw = W - L - R, ph = H - T - B;
+  const W = Math.max(420, el.clientWidth), H = Math.max(280, Math.min(520, Math.round(W * 0.22))), L = 40, R = 12, T = 10, B = 30, pw = W - L - R, ph = H - T - B;
   const xs = pts.map((c) => Math.log10(c.price.output)), x0 = Math.floor(Math.min(...xs)), x1 = Math.ceil(Math.max(...xs));
   const ys = pts.map((c) => c.bench.intelligence), y0 = Math.floor(Math.min(...ys) / 10) * 10, y1 = Math.ceil(Math.max(...ys) / 10) * 10;
   const X = (c) => L + ((Math.log10(c.price.output) - x0) / (x1 - x0 || 1)) * pw, Y = (c) => T + ph - ((c.bench.intelligence - y0) / (y1 - y0 || 1)) * ph;
@@ -2055,7 +3126,7 @@ function drawModelTable() {
       <td>${num(r.c?.bench?.intelligence, (v) => v.toFixed(1))}</td><td>${num(r.c?.bench?.coding, (v) => v.toFixed(1))}</td><td>${num(r.c?.bench?.agentic, (v) => v.toFixed(1))}</td><td class="muted">${num(r.c?.bench?.arenaCode, Math.round)}</td>
       <td>${num(r.u?.tokens, compact)}</td><td>${r.u ? costCell(r.u) : '<span class="none-v">-</span>'}</td></tr>`).join("")}</tbody></table></div>
     ${rows.length > shown.length ? `<div class="more"><button class="btn" id="mmore">Show ${Math.min(100, rows.length - shown.length)} more of ${int(rows.length - shown.length)}</button></div>` : ""}` : `<div class="empty">No model matches.</div>`;
-  card.querySelectorAll("th[data-sort]").forEach((th) => th.addEventListener("click", () => { const k = th.dataset.sort; M.sort = [k, k === sk ? -sd : k === "name" ? 1 : -1]; drawModelTable(); }));
+  card.querySelectorAll("th[data-sort]").forEach((th) => th.addEventListener("click", () => { const k = th.dataset.sort; transition(() => { M.sort = [k, k === sk ? -sd : k === "name" ? 1 : -1]; drawModelTable(); }); }));
   card.querySelectorAll("td.sel input").forEach((box) => box.addEventListener("change", () => { box.checked ? M.picked.add(box.dataset.key) : M.picked.delete(box.dataset.key); drawModelBars(); drawModelScatter(); drawModelHead(); }));
   card.querySelector("#mmore")?.addEventListener("click", () => { M.shown += 100; drawModelTable(); });
 }
@@ -2069,7 +3140,13 @@ function applyTheme() {
   $("theme").innerHTML = ui(cur[2], 16);
   $("theme").title = `Theme: ${cur[1]} (Shift D)`;
 }
-function setTheme(t) { state.theme = t; store.setItem("usage.theme", t); applyTheme(); }
+function setTheme(t) {
+  state.theme = t; store.setItem("usage.theme", t);
+  // Fade the colours across instead of snapping: the class turns transitions on for one change.
+  const root = document.documentElement;
+  if (!matchMedia("(prefers-reduced-motion: reduce)").matches) { root.classList.add("theming"); clearTimeout(setTheme._t); setTheme._t = setTimeout(() => root.classList.remove("theming"), 460); }
+  applyTheme();
+}
 const cycleTheme = () => setTheme(THEMES[(THEMES.findIndex((t) => t[0] === state.theme) + 1) % THEMES.length][0]);
 matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => { if (state.theme === "system") applyTheme(); });
 
@@ -2087,10 +3164,22 @@ function closeOverlay() {
   closing = setTimeout(() => { if (ov.isConnected && ov.classList.contains("out")) overlay.innerHTML = ""; closing = null; }, 160);
 }
 const isOpen = () => Boolean(overlay.querySelector(".ov:not(.out)"));
-const pickView = (v) => { if (["cost", "tokens", "messages"].includes(v)) { state.metric = v; save(); setView("usage"); } else setView(v); };
+const pickView = (v) => {
+  if (!["cost", "tokens", "messages"].includes(v)) return setView(v);
+  // Cost, tokens and messages are one page. Switching between them cross-fades in place;
+  // coming from another page goes through setView, which does its own transition.
+  if (state.view === "usage") transition(() => { state.metric = v; save(); renderNow(true); });
+  else { state.metric = v; save(); setView("usage"); }
+};
 const pickRange = (v) => { state.range = v; save(); if (v === "custom" && state.data) { state.from = state.from || state.data.meta.start; state.to = state.to || state.data.meta.end; } controls(); if (v !== "custom" || (state.from && state.to)) reloadUsage(); };
 const TABS = ["models", "sessions", "projects", "sources", "agents", "days"];
-function stepTab(n) { if (state.view !== "usage") return; state.tab = TABS[(TABS.indexOf(state.tab) + n + TABS.length) % TABS.length]; state.shown = 100; save(); drawTable(); $("tablecard").scrollIntoView({ block: "nearest" }); }
+function stepTab(n) {
+  if (state.view !== "usage") return;
+  // Only the tab changes. The page stays exactly where it is: no scrolling to the card, no focus move.
+  const y = window.scrollY, x = window.scrollX;
+  state.tab = TABS[(TABS.indexOf(state.tab) + n + TABS.length) % TABS.length]; state.shown = 100; save(); drawTable();
+  if (window.scrollY !== y) window.scrollTo(x, y);
+}
 function stepThread(n) {
   const list = state.thr.list?.threads;
   if (!list?.length) return;
@@ -2108,10 +3197,12 @@ const SHORTCUTS = [
   ["Usage", "g", "Cycle chart split: project, agent, model", () => { state.group = GROUPS[(GROUPS.findIndex((x) => x[0] === state.group) + 1) % GROUPS.length][0]; save(); reloadUsage(); }],
   ["Usage", "b", "Toggle lines and bars", () => { state.chart = state.chart === "bars" ? "lines" : "bars"; save(); if (state.view === "usage") render(); }],
   ["Usage", "]", "Next breakdown tab", () => stepTab(1)], ["Usage", "[", "Previous breakdown tab", () => stepTab(-1)],
+  ["Usage", "Right", "Next breakdown tab", () => stepTab(1)], ["Usage", "Left", "Previous breakdown tab", () => stepTab(-1)],
   ["Usage", "e", "Export the breakdown as CSV", () => $("csv")?.click()],
   ["Usage", "x", "Clear every filter", clearFilters],
   ["Threads", "x", "Clear every thread filter", () => clearThreadFilters()],
   ["Threads", "j", "Next thread", () => stepThread(1)], ["Threads", "k", "Previous thread", () => stepThread(-1)],
+  ["Threads", "Down", "Next thread", () => stepThread(1)], ["Threads", "Up", "Previous thread", () => stepThread(-1)],
   ["Threads", "y", "Copy the command shown in the panel", () => $("resume")?.click()],
   ["General", "/", "Focus search", focusSearch], ["General", "r", "Reload data", () => $("refresh").click()],
   ["General", "Shift D", "Cycle theme: system, Latte, Macchiato", cycleTheme],
@@ -2198,10 +3289,22 @@ if (/Mac|iPhone|iPad/.test(navigator.platform)) $("palbtn").querySelector(".kbd"
 
 document.addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); isOpen() ? closeOverlay() : openPalette(); return; }
-  if (e.key === "Escape") { if (isOpen()) closeOverlay(); else if (document.activeElement?.matches("input, select")) document.activeElement.blur(); return; }
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "f") {
+    const box = state.view === "threads" ? $("tq") : state.view === "models" ? $("mq") : state.view === "usage" ? $("q") : null;
+    // The first press goes to the page's search; pressed again while it is focused, the browser's own find opens.
+    if (box && document.activeElement !== box) { e.preventDefault(); focusSearch(); return; }
+  }
+  if (e.key === "Escape" && XS.pop) { const o = XS.owner; xsClose(); o?.focus(); return; }
+  if (e.key === "Escape") { if (isOpen()) closeOverlay(); else if (document.activeElement?.matches(".search input") && document.activeElement.value) { const f = document.activeElement; f.value = ""; f.dispatchEvent(new Event("input", { bubbles: true })); } else if (document.activeElement?.matches("input, select")) document.activeElement.blur(); return; }
+  // An open dropdown or calendar owns the keyboard until it closes.
+  if (XS.pop) return;
   // Typing in a field, a held modifier, or an open dialog: the key belongs to that, not to a shortcut.
   if (isOpen() || e.ctrlKey || e.metaKey || e.altKey || e.target.closest?.("input, select, textarea, [contenteditable]")) return;
-  const key = e.shiftKey && e.key.toLowerCase() === "d" ? "Shift D" : e.key;
+  // Arrow keys only act when nothing has focus: with a list, a field, a button or the conversation
+  // focused they keep doing their own job (moving, scrolling), so this never steals them.
+  const ARROWS = { ArrowDown: "Down", ArrowUp: "Up", ArrowLeft: "Left", ArrowRight: "Right" };
+  if (e.key in ARROWS && (e.shiftKey || (e.target !== document.body && e.target !== document.documentElement))) return;
+  const key = e.shiftKey && e.key.toLowerCase() === "d" ? "Shift D" : ARROWS[e.key] ?? e.key;
   // A key can mean one thing per view (x clears the usage filters or the thread
   // filters), so the match is the entry that applies where you are.
   const applies = (g) => (g === "Threads" ? state.view === "threads" : g === "Usage" ? state.view === "usage" : g === "Range" ? ["usage", "models"].includes(state.view) : true);
@@ -2224,21 +3327,39 @@ function replay(el, cls, ms) {
 // same render caused by data arriving a minute later does not, so a refresh never flickers.
 let lastInput = 0;
 for (const type of ["pointerdown", "keydown", "change"]) document.addEventListener(type, () => { lastInput = performance.now(); }, true);
+// ==== transitions ================================================================
+// A change the person asks for (a tab, a filter, a range, a sort) cross-fades from the old
+// page to the new one with the View Transitions API, so nothing blinks. Browsers without it
+// get a short fade-in instead. The update itself always runs, and runs only once.
+const canVT = typeof document.startViewTransition === "function";
+let vtReady = false, vtBusy = false;
+const usableVT = () => canVT && vtReady && !vtBusy && !document.hidden && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+function transition(update) {
+  if (!usableVT()) { update(); return Promise.resolve(); }
+  vtBusy = true;
+  let t;
+  try { t = document.startViewTransition(() => { try { update(); } catch (e) { console.error(e); } }); } catch { vtBusy = false; update(); return Promise.resolve(); }
+  const done = () => { vtBusy = false; };
+  t.finished.then(done, done);
+  return t.updateCallbackDone.catch(() => {});
+}
+requestAnimationFrame(() => requestAnimationFrame(() => { vtReady = true; }));
+
 function setView(v) {
   const changed = v !== state.view;
   state.view = v; save();
-  if (changed) { window.scrollTo(0, 0); replay($("main"), "enter", 420); }
   if (v !== "threads") history.replaceState(null, "", location.pathname);
-  render();
+  if (changed && usableVT()) transition(() => { window.scrollTo(0, 0); renderNow(true); });
+  else { if (changed) { window.scrollTo(0, 0); replay($("main"), "enter", 420); } renderNow(false); }
   if (v === "limits") loadLimits().catch(fail);
   if (v === "threads" && !state.thr.list) loadThreads().catch(fail);
-  if (v === "usage" && !state.data) reloadUsage();
+  if (v === "usage" && (!state.data || state.staleUsage)) { state.staleUsage = false; reloadUsage(); }
   if (v === "models") { loadModels().catch(fail); if (!state.data) loadUsage().catch(() => {}); }
 }
 $("view").addEventListener("click", (e) => {
   const v = e.target.closest("button")?.dataset.v;
   if (!v) return;
-  if (v === "cost" || v === "tokens" || v === "messages") { state.metric = v; save(); setView("usage"); } else setView(v);
+  pickView(v);
 });
 $("range").addEventListener("click", (e) => { const v = e.target.closest("button")?.dataset.v; if (!v) return; state.range = v; save(); if (v === "custom" && state.data) { state.from = state.from || state.data.meta.start; state.to = state.to || state.data.meta.end; } controls(); if (v !== "custom" || (state.from && state.to)) reloadUsage(); });
 $("main").addEventListener("click", (e) => {
@@ -2255,7 +3376,11 @@ function clearThreadFilters() { Object.assign(state.thr, { q: "", agent: "all", 
 $("tclear").addEventListener("click", clearThreadFilters);
 for (const k of ["host", "agent", "project", "model"]) $("f-" + k).addEventListener("change", (e) => { state[k] = e.target.value; state.shown = 100; reloadUsage(); });
 $("q").addEventListener("input", debounce((e) => { state.q = e.target.value; state.shown = 100; reloadUsage(); }, 250));
-for (const id of ["from", "to"]) $(id).addEventListener("change", (e) => { state[id] = e.target.value; if (state.from && state.to && state.from <= state.to) { state.range = "custom"; save(); reloadUsage(); } });
+for (const id of ["from", "to"]) $(id).addEventListener("change", (e) => {
+  state[id] = e.target.value;
+  if (state.from && state.to && state.from > state.to) { [state.from, state.to] = [state.to, state.from]; $("from").value = state.from; $("to").value = state.to; }
+  if (state.from && state.to) { state.range = "custom"; save(); reloadUsage(); }
+});
 $("refresh").addEventListener("click", async () => {
   const b = $("refresh"); b.classList.add("spin");
   try { if (state.view === "models") await loadModels(true); else if (state.view === "limits") await loadLimits(true); else if (state.view === "threads") await loadThreads(true); else await loadUsage(true); } catch (e) { fail(e); } finally { b.classList.remove("spin"); }
@@ -2272,7 +3397,347 @@ setInterval(() => {
 if (!["cost", "tokens", "messages"].includes(state.metric)) state.metric = "cost";
 applyTheme();
 const hash = /^#threads\/([\w-]+)$/.exec(location.hash);
-if (hash) { state.view = "threads"; state.thr.sel = hash[1]; openThread(hash[1]); }
+if (hash) { state.view = "threads"; state.thr.sel = hash[1]; if (matchMedia("(max-width: 820px)").matches) state.thr.mob = true; openThread(hash[1]); }
+
+// ==== custom select and date picker ==================================================
+// The native controls stay in the page, hidden, so every existing handler, value and
+// change event keeps working. These draw the button and the popup (see the CSS above).
+const XS = { pop: null, scrim: null, owner: null, closeT: null };
+const xsChevron = () => ui("chevron-down", 13);
+const xsMobile = () => innerWidth < 640;
+
+function xsClose(immediate = false) {
+  const { pop, scrim, owner } = XS;
+  if (!pop) return;
+  XS.pop = XS.scrim = XS.owner = null;
+  owner?.setAttribute("aria-expanded", "false");
+  document.removeEventListener("pointerdown", xsOutside, true);
+  removeEventListener("resize", xsReflow); removeEventListener("scroll", xsOnScroll, true);
+  if (immediate || reduced()) { pop.remove(); scrim?.remove(); return; }
+  pop.classList.add("out"); scrim?.classList.add("out");
+  setTimeout(() => { pop.remove(); scrim?.remove(); }, 140);
+}
+const xsOutside = (e) => { if (XS.pop && !XS.pop.contains(e.target) && !XS.owner?.contains(e.target)) xsClose(); };
+const xsOnScroll = (e) => { if (XS.pop && !XS.pop.contains(e.target)) xsClose(); };
+const xsReflow = () => { if (XS.pop && XS.owner) xsPlace(XS.pop, XS.owner); };
+
+// Under the button when there is room, over it when there is not, always inside the window.
+function xsPlace(pop, anchor) {
+  if (pop.classList.contains("sheet")) return;
+  const a = anchor.getBoundingClientRect(), gap = 6, edge = 8;
+  pop.style.minWidth = Math.max(160, a.width) + "px";
+  const w = pop.offsetWidth, h = pop.offsetHeight;
+  const below = innerHeight - a.bottom - gap - edge, above = a.top - gap - edge;
+  const up = h > below && above > below;
+  const left = Math.max(edge, Math.min(a.left, innerWidth - w - edge));
+  pop.style.left = left + "px";
+  pop.style.top = (up ? Math.max(edge, a.top - gap - Math.min(h, above)) : a.bottom + gap) + "px";
+  pop.style.setProperty("--ox", Math.max(0, Math.min(w, a.left + a.width / 2 - left)) + "px");
+  pop.style.setProperty("--oy", up ? "100%" : "0");
+  const list = pop.querySelector(".xs-list");
+  if (list) list.style.maxHeight = Math.max(120, Math.min(320, (up ? above : below) - (pop.querySelector(".xs-q") ? 48 : 12))) + "px";
+}
+
+function xsOpenPop(anchor, build) {
+  xsClose(true);
+  clearTimeout(XS.closeT);
+  const pop = document.createElement("div");
+  pop.className = "xs-pop"; pop.setAttribute("role", "dialog");
+  const sheet = xsMobile();
+  if (sheet) { pop.classList.add("sheet"); const scrim = document.createElement("div"); scrim.className = "xs-scrim"; scrim.addEventListener("pointerdown", () => xsClose()); document.body.append(scrim); XS.scrim = scrim; }
+  pop.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); const o = XS.owner; xsClose(); o?.focus(); } });
+  build(pop);
+  document.body.append(pop);
+  XS.pop = pop; XS.owner = anchor; anchor.setAttribute("aria-expanded", "true");
+  xsPlace(pop, anchor);
+  document.addEventListener("pointerdown", xsOutside, true);
+  addEventListener("resize", xsReflow); addEventListener("scroll", xsOnScroll, true);
+  return pop;
+}
+
+// ---- select ------------------------------------------------------------------------------
+function enhanceSelect(sel) {
+  if (sel.dataset.xs || sel.multiple) return;
+  sel.dataset.xs = "1";
+  const pick = Boolean(sel.closest(".pick")), mode = Boolean(sel.closest(".modes"));
+  const btn = document.createElement("button");
+  btn.type = "button"; btn.setAttribute("role", "combobox"); btn.setAttribute("aria-haspopup", "listbox"); btn.setAttribute("aria-expanded", "false");
+  btn.className = "xs" + (sel.classList.contains("field") ? " field" : "") + (pick ? " xs-pick" : "");
+  btn.id = sel.id ? sel.id + "-xs" : "";
+  sel.classList.add("xs-native"); sel.tabIndex = -1; sel.setAttribute("aria-hidden", "true");
+  sel.after(btn);
+  const options = () => [...sel.options];
+  const sync = () => {
+    const opts = options(), cur = opts[sel.selectedIndex];
+    const widest = opts.reduce((a, o) => (o.text.length > a.length ? o.text : a), "");
+    const label = esc(cur?.text ?? "");
+    const sig = widest + "\u0001" + label + "\u0001" + sel.disabled + sel.title;
+    if (btn._sig !== sig) {
+      btn._sig = sig;
+      btn.innerHTML = `<span class="xl"><span class="sz" aria-hidden="true">${esc(widest)}</span><span class="cur">${label}</span></span>${xsChevron()}`;
+    }
+    btn.disabled = sel.disabled; btn.title = sel.title || "";
+    btn.classList.toggle("on", sel.classList.contains("on"));
+    const name = sel.getAttribute("aria-label"); if (name) btn.setAttribute("aria-label", `${name}: ${cur?.text ?? ""}`);
+  };
+  new MutationObserver(sync).observe(sel, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "disabled", "title"], characterData: true });
+  sel.addEventListener("change", sync);
+  // Code sets select.value directly in many places; keep the button in step with that.
+  const desc = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value");
+  Object.defineProperty(sel, "value", { configurable: true, get() { return desc.get.call(this); }, set(v) { desc.set.call(this, v); sync(); } });
+  sync();
+
+  const open = () => {
+    const opts = options();
+    const searchable = opts.length > 10;
+    let active = Math.max(0, sel.selectedIndex), typed = "", typedAt = 0;
+    const pop = xsOpenPop(btn, (pop) => {
+      pop.setAttribute("aria-label", sel.getAttribute("aria-label") || "Options");
+      pop.innerHTML = `${searchable ? '<input class="xs-q" type="text" placeholder="Search" aria-label="Search options" autocomplete="off" spellcheck="false">' : ""}<div class="xs-list" role="listbox" tabindex="-1"></div>`;
+    });
+    const list = pop.querySelector(".xs-list"), q = pop.querySelector(".xs-q");
+    let shown = [];
+    const draw = () => {
+      const words = (q?.value ?? "").toLowerCase().split(/\s+/).filter(Boolean);
+      // Every word has to match; the best matches come first, the rest keep their order.
+      shown = opts.map((o, i) => {
+        const hay = o.text.toLowerCase(), hw = hay.match(/[a-z0-9]+/g) ?? [];
+        let score = 0;
+        for (const w of words) { const x = fzWord(w, hay, hw); if (!x) { score = -1; break; } score += x; }
+        return { o, i, score: words.length ? score : 0 };
+      }).filter((x) => x.score >= 0);
+      if (words.length) shown.sort((a, b) => b.score - a.score || a.i - b.i);
+      if (active >= shown.length) active = Math.max(0, shown.length - 1);
+      let lastGroup = null;
+      list.innerHTML = shown.length ? shown.map(({ o, i }, n) => {
+        const g = o.parentElement?.tagName === "OPTGROUP" ? o.parentElement.label : null;
+        const head = g && g !== lastGroup ? `<div class="xs-grp">${esc(g)}</div>` : ""; lastGroup = g;
+        return `${head}<div class="xs-it ${n === active ? "act" : ""}" role="option" id="xo${n}" data-n="${n}" aria-selected="${i === sel.selectedIndex}"><span class="ck">${ui("check", 14)}</span><span class="t">${esc(o.text)}</span></div>`;
+      }).join("") : '<div class="xs-none">Nothing matches</div>';
+      (q ?? list).setAttribute("aria-activedescendant", "xo" + active);
+      list.querySelector(".act")?.scrollIntoView({ block: "nearest" });
+    };
+    const choose = (n) => {
+      const hit = shown[n]; if (!hit) return;
+      const changed = sel.selectedIndex !== hit.i;
+      sel.selectedIndex = hit.i; sync();
+      xsClose(); btn.focus();
+      if (changed) sel.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+    const move = (d) => { active = Math.max(0, Math.min(shown.length - 1, active + d)); list.querySelectorAll(".xs-it").forEach((el) => el.classList.toggle("act", Number(el.dataset.n) === active)); list.querySelector(".act")?.scrollIntoView({ block: "nearest" }); (q ?? list).setAttribute("aria-activedescendant", "xo" + active); };
+    const keys = (e) => {
+      if (e.key === "ArrowDown") { move(1); e.preventDefault(); }
+      else if (e.key === "ArrowUp") { move(-1); e.preventDefault(); }
+      else if (e.key === "Home") { move(-1e6); e.preventDefault(); }
+      else if (e.key === "End") { move(1e6); e.preventDefault(); }
+      else if (e.key === "PageDown") { move(8); e.preventDefault(); }
+      else if (e.key === "PageUp") { move(-8); e.preventDefault(); }
+      else if (e.key === "Enter") { choose(active); e.preventDefault(); }
+      else if (e.key === "Tab") xsClose();
+      else if (!q && e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+        // Type-ahead without a search box: jump to the next label that starts with what was typed.
+        const now = performance.now(); typed = now - typedAt < 700 ? typed + e.key.toLowerCase() : e.key.toLowerCase(); typedAt = now;
+        const at = shown.findIndex(({ o }) => o.text.toLowerCase().startsWith(typed));
+        if (at >= 0) { active = at; move(0); }
+      }
+    };
+    list.addEventListener("keydown", keys); q?.addEventListener("keydown", keys);
+    q?.addEventListener("input", () => { active = 0; draw(); xsPlace(pop, btn); });
+    list.addEventListener("click", (e) => { const it = e.target.closest(".xs-it"); if (it) choose(Number(it.dataset.n)); });
+    list.addEventListener("pointermove", (e) => { const it = e.target.closest(".xs-it"); if (it && Number(it.dataset.n) !== active) { active = Number(it.dataset.n); move(0); } });
+    draw(); xsPlace(pop, btn);
+    (q ?? list).focus({ preventScroll: true });
+  };
+  btn.addEventListener("click", () => (XS.owner === btn ? xsClose() : open()));
+  btn.addEventListener("keydown", (e) => { if (["ArrowDown", "ArrowUp", "Enter", " "].includes(e.key)) { e.preventDefault(); e.stopPropagation(); open(); } });
+}
+
+// ---- date --------------------------------------------------------------------------------
+const pad2 = (n) => String(n).padStart(2, "0");
+const isoOf = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const fromIso = (v) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v || ""); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null; };
+const dateLabel = (v) => { const d = fromIso(v); return d ? d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "Pick a date"; };
+
+function enhanceDate(inp) {
+  if (inp.dataset.xs) return; inp.dataset.xs = "1";
+  const btn = document.createElement("button");
+  btn.type = "button"; btn.id = inp.id ? inp.id + "-xs" : ""; btn.className = "xs field date"; btn.setAttribute("aria-haspopup", "dialog"); btn.setAttribute("aria-expanded", "false");
+  inp.classList.add("xs-native"); inp.tabIndex = -1; inp.setAttribute("aria-hidden", "true");
+  inp.after(btn);
+  const sync = () => {
+    btn.innerHTML = `<span class="xl"><span class="sz" aria-hidden="true">30 Sep 2026</span><span class="cur">${esc(dateLabel(inp.value))}</span></span>${ui("calendar", 14)}`;
+    btn.setAttribute("aria-label", `${inp.getAttribute("aria-label") || "Date"}: ${dateLabel(inp.value)}`);
+  };
+  const desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
+  Object.defineProperty(inp, "value", { configurable: true, get() { return desc.get.call(this); }, set(v) { desc.set.call(this, v); sync(); } });
+  inp.addEventListener("change", sync);
+  sync();
+  const other = () => $(inp.id === "from" ? "to" : "from");
+  btn.addEventListener("click", () => (XS.owner === btn ? xsClose() : openCal()));
+  btn.addEventListener("keydown", (e) => { if (["ArrowDown", "Enter", " "].includes(e.key)) { e.preventDefault(); e.stopPropagation(); openCal(); } });
+
+  function openCal() {
+    const picked = fromIso(inp.value) ?? new Date(), mate = fromIso(other()?.value), today = new Date();
+    let view = new Date(picked.getFullYear(), picked.getMonth(), 1), focus = new Date(picked.getFullYear(), picked.getMonth(), picked.getDate()), level = "days";
+    const pop = xsOpenPop(btn, (p) => { p.classList.add("cal"); p.setAttribute("aria-label", "Choose a date"); });
+    const lo = inp.id === "to" ? mate : fromIso(inp.value), hi = inp.id === "to" ? fromIso(inp.value) : mate;
+    const render = () => {
+      const monthName = view.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+      let body;
+      if (level === "months") {
+        body = `<div class="cal-m cal-v">${Array.from({ length: 12 }, (_, m) => `<button type="button" data-m="${m}" class="${m === picked.getMonth() && view.getFullYear() === picked.getFullYear() ? "sel" : ""}">${new Date(2000, m, 1).toLocaleDateString("en-GB", { month: "short" })}</button>`).join("")}</div>`;
+      } else {
+        const first = new Date(view.getFullYear(), view.getMonth(), 1), offset = (first.getDay() + 6) % 7; // weeks start on Monday
+        const start = new Date(first.getFullYear(), first.getMonth(), 1 - offset);
+        const cells = Array.from({ length: 42 }, (_, i) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + i));
+        const wd = Array.from({ length: 7 }, (_, i) => new Date(2024, 0, 1 + i).toLocaleDateString("en-GB", { weekday: "narrow" }));
+        body = `<div class="cal-w">${wd.map((w) => `<span>${w}</span>`).join("")}</div><div class="cal-d cal-v" role="grid">${cells.map((d) => {
+          const iso = isoOf(d), cls = [d.getMonth() !== view.getMonth() ? "out" : "", iso === isoOf(today) ? "today" : "", iso === inp.value ? "sel" : "", lo && hi && d > lo && d < hi ? "inr" : ""].filter(Boolean).join(" ");
+          return `<button type="button" class="${cls}" data-d="${iso}" tabindex="${iso === isoOf(focus) ? 0 : -1}" aria-label="${d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}" ${iso === inp.value ? 'aria-pressed="true"' : ""}>${d.getDate()}</button>`;
+        }).join("")}</div>`;
+      }
+      pop.innerHTML = `<div class="cal-h"><button type="button" class="nav" data-nav="-1" aria-label="${level === "months" ? "Previous year" : "Previous month"}">${ui("chevron-left", 15)}</button><button type="button" class="ttl" data-level>${level === "months" ? view.getFullYear() : esc(monthName)}</button><button type="button" class="nav" data-nav="1" aria-label="${level === "months" ? "Next year" : "Next month"}">${ui("chevron-right", 15)}</button></div>${body}<div class="cal-f"><button type="button" data-today>Today</button><button type="button" data-close>Close</button></div>`;
+      xsPlace(pop, btn);
+    };
+    const pick = (iso) => { inp.value = iso; xsClose(); btn.focus(); inp.dispatchEvent(new Event("change", { bubbles: true })); };
+    pop.addEventListener("click", (e) => {
+      const t = e.target.closest("button"); if (!t) return;
+      if (t.dataset.d) pick(t.dataset.d);
+      else if (t.dataset.nav) { view = level === "months" ? new Date(view.getFullYear() + +t.dataset.nav, view.getMonth(), 1) : new Date(view.getFullYear(), view.getMonth() + +t.dataset.nav, 1); focus = new Date(view.getFullYear(), view.getMonth(), Math.min(focus.getDate(), 28)); render(); }
+      else if ("level" in t.dataset) { level = level === "days" ? "months" : "days"; render(); }
+      else if (t.dataset.m) { view = new Date(view.getFullYear(), +t.dataset.m, 1); focus = new Date(view.getFullYear(), view.getMonth(), 1); level = "days"; render(); pop.querySelector(".cal-d button[tabindex='0']")?.focus(); }
+      else if ("today" in t.dataset) pick(isoOf(new Date()));
+      else if ("close" in t.dataset) { xsClose(); btn.focus(); }
+    });
+    // Arrow keys walk the days, PageUp and PageDown change the month, Enter picks.
+    pop.addEventListener("keydown", (e) => {
+      if (level !== "days" || !e.target.closest(".cal-d")) return;
+      const step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[e.key];
+      if (step) { focus = new Date(focus.getFullYear(), focus.getMonth(), focus.getDate() + step); view = new Date(focus.getFullYear(), focus.getMonth(), 1); render(); pop.querySelector(`.cal-d button[data-d="${isoOf(focus)}"]`)?.focus(); e.preventDefault(); }
+      else if (e.key === "PageDown" || e.key === "PageUp") { const d = e.key === "PageDown" ? 1 : -1; const dim = new Date(focus.getFullYear(), focus.getMonth() + d + 1, 0).getDate(); focus = new Date(focus.getFullYear(), focus.getMonth() + d, Math.min(focus.getDate(), dim)); view = new Date(focus.getFullYear(), focus.getMonth(), 1); render(); pop.querySelector(`.cal-d button[data-d="${isoOf(focus)}"]`)?.focus(); e.preventDefault(); }
+    });
+    render();
+    pop.querySelector(".cal-d button[tabindex='0']")?.focus({ preventScroll: true });
+  }
+}
+
+// Search fields: a clear button that appears when there is something to clear, a shortcut hint that
+// shows while the field is empty and idle, and the browser's own tiny cancel cross hidden.
+function enhanceSearch(label) {
+  if (label.dataset.xs) return; label.dataset.xs = "1";
+  const input = label.querySelector("input"); if (!input) return;
+  const clear = document.createElement("button"), hint = document.createElement("span");
+  clear.type = "button"; clear.className = "sclear"; clear.setAttribute("aria-label", "Clear search"); clear.title = "Clear (Esc)"; clear.innerHTML = ui("x", 12); clear.tabIndex = -1;
+  hint.className = "skbd"; hint.setAttribute("aria-hidden", "true"); hint.textContent = "Ctrl F";
+  label.append(clear, hint);
+  const sync = () => label.classList.toggle("has", input.value.length > 0);
+  input.addEventListener("input", sync);
+  clear.addEventListener("click", () => { input.value = ""; sync(); input.dispatchEvent(new Event("input", { bubbles: true })); input.focus(); });
+  const desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
+  Object.defineProperty(input, "value", { configurable: true, get() { return desc.get.call(this); }, set(v) { desc.set.call(this, v); sync(); } });
+  sync();
+}
+function enhanceWidgets(root = document) {
+  root.querySelectorAll?.("label.search:not([data-xs])").forEach(enhanceSearch);
+  if (root.matches?.("label.search:not([data-xs])")) enhanceSearch(root);
+  root.querySelectorAll?.("select:not([data-xs])").forEach(enhanceSelect);
+  root.querySelectorAll?.('input[type="date"]:not([data-xs])').forEach(enhanceDate);
+}
+// ---- tooltips ---------------------------------------------------------------------------------------
+// One bubble for the whole page, in place of the browser's own. Any element with a title gets it: the
+// first time it is hovered or focused the title moves to data-tip (the browser would otherwise draw its
+// own), and the text stays available to screen readers as the element's name when it has none.
+const TIP = (() => {
+  const el = document.createElement("div"); el.className = "xtip"; el.setAttribute("role", "tooltip"); el.id = "xtip"; document.body.append(el);
+  let target = null, timer = 0, last = 0;
+  const take = (n) => {
+    if (n.hasAttribute("title")) {
+      const t = n.getAttribute("title"); n.removeAttribute("title");
+      if (t) { n.dataset.tip = t; if (!n.getAttribute("aria-label") && !n.textContent.trim() && !n.getAttribute("aria-labelledby")) n.setAttribute("aria-label", t); }
+    }
+    return n.dataset.tip || "";
+  };
+  const place = (n) => {
+    const r = n.getBoundingClientRect(), w = el.offsetWidth, h = el.offsetHeight, vw = innerWidth, vh = innerHeight;
+    const below = r.bottom + 8 + h <= vh - 6 || r.top - 8 - h < 6;
+    el.style.left = Math.round(Math.max(6, Math.min(vw - w - 6, r.left + r.width / 2 - w / 2))) + "px";
+    el.style.top = Math.round(below ? r.bottom + 8 : r.top - 8 - h) + "px";
+    el.style.setProperty("--ty", below ? "4px" : "-4px");
+  };
+  const show = (n) => {
+    const text = take(n); if (!text || !n.isConnected) return;
+    target = n; el.textContent = text; place(n);
+    n.setAttribute("aria-describedby", "xtip");
+    el.classList.add("on");
+  };
+  const hide = () => {
+    clearTimeout(timer); timer = 0;
+    if (target) { target.removeAttribute("aria-describedby"); last = Date.now(); }
+    target = null; el.classList.remove("on");
+  };
+  const arm = (n, now) => {
+    clearTimeout(timer);
+    // After one tooltip was just shown the next ones come at once, so moving along a row of buttons does not wait each time.
+    const wait = now ? 0 : Date.now() - last < 600 ? 40 : 380;
+    timer = setTimeout(() => show(n), wait);
+  };
+  document.addEventListener("pointerover", (e) => {
+    if (e.pointerType === "touch") return;
+    const n = e.target.closest?.("[title], [data-tip]");
+    if (!n || n === target) return;
+    if (target) hide();
+    if (n.closest("[data-notip]")) { take(n); return; }
+    take(n);   // strip the native title now, before the browser's own delay runs out
+    if (n.dataset.tip) arm(n);
+  }, true);
+  document.addEventListener("pointerout", (e) => {
+    const n = e.target.closest?.("[data-tip]");
+    if (n && !n.contains(e.relatedTarget)) hide();
+  }, true);
+  document.addEventListener("focusin", (e) => {
+    const n = e.target.closest?.("[title], [data-tip]");
+    if (n && e.target.matches?.(":focus-visible")) { take(n); if (n.dataset.tip) arm(n, true); }
+  });
+  document.addEventListener("focusout", hide);
+  for (const t of ["pointerdown", "keydown", "wheel", "contextmenu"]) document.addEventListener(t, hide, { capture: true, passive: true });
+  addEventListener("scroll", hide, { capture: true, passive: true });
+  addEventListener("blur", hide);
+  // A title that changes while its tooltip is open (the theme button, a copied tick) updates in place.
+  new MutationObserver((records) => { for (const r of records) if (r.target === target && r.attributeName === "title") { const t = take(target); if (t) { el.textContent = t; place(target); } else hide(); } })
+    .observe(document.body, { subtree: true, attributes: true, attributeFilter: ["title"] });
+  return { hide };
+})();
+enhanceWidgets();
+// Selects drawn later (the machine menu on Limits, the metric menu on Models, the "move to" menu in Threads)
+new MutationObserver((records) => { for (const r of records) for (const n of r.addedNodes) if (n.nodeType === 1) { if (n.matches?.("select")) enhanceSelect(n); else enhanceWidgets(n); } }).observe(document.body, { childList: true, subtree: true });
+
+// ---- live updates -----------------------------------------------------------------
+// One EventSource: the server says when the snapshots or the thread list changed, and the page
+// reloads just that. A new message in the open thread is appended, and followed when you are at
+// the bottom. If the connection drops the browser reconnects by itself, and the timers below
+// keep the page current in the meantime.
+function liveThread() {
+  const t = state.thr, dt = t.detail, id = t.sel, conv = $("tconv");
+  if (!dt || dt.error || !conv || !id || state.view !== "threads" || t.moreBusy || dt.messages.length < dt.total) return;
+  get(`/api/threads/show?id=${encodeURIComponent(id)}&offset=${dt.messages.length}&limit=250&fresh=1`).then((r) => {
+    if (t.sel !== id || t.detail !== dt || !r.messages?.length) return;
+    const sc = $("tscroll"), follow = sc && sc.scrollHeight - sc.scrollTop - sc.clientHeight < 160;
+    dt.messages.push(...r.messages); dt.total = r.total;
+    const box = document.createElement("template");
+    box.innerHTML = conversationHTML(r.messages);
+    [...box.content.children].slice(0, 14).forEach((n) => n.classList.add("fresh"));
+    const old = $("ctail"); old.before(box.content); old.outerHTML = tailHTML(dt);
+    progress(); watchConvTail(); $("tdetail")?._edges?.();
+    if (follow) requestAnimationFrame(() => sc.scrollTo({ top: sc.scrollHeight, behavior: reduced() ? "auto" : "smooth" }));
+  }).catch(() => {});
+}
+if (typeof EventSource === "function") {
+  const es = new EventSource("/api/events");
+  es.addEventListener("usage", () => { if (state.view === "usage") loadUsage().catch(() => {}); else if (state.view === "models") loadModels().catch(() => {}); else state.staleUsage = true; });
+  es.addEventListener("threads", () => { if (state.view === "threads" && !thrBusy && !state.thr.q.trim()) loadThreads(true).then(liveThread).catch(() => {}); });
+  es.addEventListener("limits", () => { if (state.view === "limits") loadLimits().catch(() => {}); });
+}
+
 // ---- currency -------------------------------------------------------------------
 // Prices are USD underneath. The select re-renders the page in another currency using
 // the latest rate the server has (hourly refresh; the source publishes daily).
@@ -2294,14 +3759,25 @@ function fxNote() {
 $("cur").innerHTML = Object.keys(CURRENCIES).map((c) => `<option value="${c}">${c}</option>`).join("");
 if (!CURRENCIES[state.cur]) state.cur = "USD";
 $("cur").value = state.cur;
+// Threads shows no prices, so a new currency or rate must not redraw it (that would drop its scroll).
+const repriced = () => { if (state.view !== "threads") render(); };
 $("cur").addEventListener("change", async (e) => {
   state.cur = e.target.value; store.setItem("usage.cur", state.cur);
   if (state.cur !== "USD" && !state.fx) await loadRates();
-  fxNote(); render();
+  fxNote(); repriced();
 });
-if (state.cur !== "USD") loadRates().then(render);
-setInterval(() => { if (state.cur !== "USD" && !document.hidden) loadRates().then(render); }, 30 * 60 * 1000);
+if (state.cur !== "USD") loadRates().then(repriced);
+setInterval(() => { if (state.cur !== "USD" && !document.hidden) loadRates().then(repriced); }, 30 * 60 * 1000);
 
+new ResizeObserver(() => placeCustom()).observe(document.querySelector("header.top"));
+$("main").addEventListener("click", (e) => {
+  const btn = e.target.closest(".via-btn"); if (!btn) return;
+  const open = btn.getAttribute("aria-expanded") !== "true", agent = btn.dataset.via;
+  btn.setAttribute("aria-expanded", String(open));
+  btn.nextElementSibling?.classList.toggle("open", open);
+  open ? state.viaOpen.add(agent) : state.viaOpen.delete(agent);
+  store.setItem("usage.viaOpen", JSON.stringify([...state.viaOpen]));
+});
 fetchIcons("/api/icons");
 setView(state.view);
 </script>

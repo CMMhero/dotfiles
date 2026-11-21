@@ -212,14 +212,17 @@ export function summarize(options = {}, { threadsBySession = null } = {}) {
   let start;
   let end = newestDay;
   let label = range;
-  if (range === "custom" && DAY.test(from ?? "") && DAY.test(to ?? "") && from <= to) {
-    start = from;
+  // Real calendar days only (2026-13-45 matches the shape but is not a date), and at most ten years, so a
+  // request cannot make the day loop run for minutes.
+  const real = (d) => DAY.test(d ?? "") && d >= "2000-01-01" && d <= "2100-12-31" && !Number.isNaN(Date.parse(`${d}T00:00:00Z`)) && new Date(`${d}T00:00:00Z`).toISOString().slice(0, 10) === d;
+  if (range === "custom" && real(from) && real(to) && from <= to) {
+    start = daysBetween(from, to) > 3660 ? addDays(to, -3659) : from;
     end = to;
   } else if (range === "all") {
     start = oldestDay;
   } else {
-    start = addDays(newestDay, -((RANGE_DAYS[range] ?? 30) - 1));
-    if (!(range in RANGE_DAYS)) label = "30d";
+    start = addDays(newestDay, -((Object.hasOwn(RANGE_DAYS, range) ? RANGE_DAYS[range] : 30) - 1));
+    if (!Object.hasOwn(RANGE_DAYS, range)) label = "30d";
   }
   const span = daysBetween(start, end);
   const prevEnd = addDays(start, -1);

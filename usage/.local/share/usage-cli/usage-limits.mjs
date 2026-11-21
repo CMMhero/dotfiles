@@ -54,13 +54,20 @@ const FRESH_FLOOR_MS = 10_000; // a refresh button must not hammer the provider
 const cache = new Map();
 const FALLBACK_MAX_AGE_MS = 24 * 3_600_000; // how old a log-derived figure may be before it is dropped
 
+const flights = new Map();
+// A value that is a little old is returned at once and refreshed behind the request, so the
+// page is never held up by an ssh call or a provider that is slow. An explicit refresh
+// (fresh) waits for the new answer; only the first ever call has nothing to return early.
 async function cached(id, fresh, produce) {
   const hit = cache.get(id);
   const age = hit ? Date.now() - hit.at : Infinity;
   if (hit && (fresh ? age < FRESH_FLOOR_MS : age < CACHE_TTL_MS)) return hit.value;
-  const value = await produce();
-  cache.set(id, { at: Date.now(), value });
-  return value;
+  const run = () => {
+    if (!flights.has(id)) flights.set(id, produce().then((value) => { cache.set(id, { at: Date.now(), value }); return value; }).finally(() => flights.delete(id)));
+    return flights.get(id);
+  };
+  if (hit && !fresh) { run().catch(() => {}); return hit.value; }
+  return run();
 }
 
 function readJson(file) {

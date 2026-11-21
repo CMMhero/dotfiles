@@ -18,13 +18,17 @@
 // command.
 // ==============================================================================
 
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
+import { open, readFile, stat } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { findTool } from "./usage-env.mjs";
+import { remoteHosts } from "./usage-limits.mjs";
 import { prepare, scoreThread } from "./usage-fuzzy.mjs";
 
 const ID = /^[A-Za-z0-9][A-Za-z0-9_-]{3,63}$/;
 const HARNESS = /^[a-z][a-z0-9-]{1,20}$/;
-const LIST_TTL_MS = 10_000;
+const LIST_TTL_MS = 6_000;
 const MAX_BUFFER = 256 * 1024 * 1024;
 
 // Caps for the detail view. Tool output can run to megabytes and a browser does
@@ -119,12 +123,32 @@ async function nameMachines(threads) {
 
 const preparedCache = new WeakMap(); // thread object -> its searchable fields, built once per list refresh
 let listCache = null;
-async function allThreads(fresh) {
-  if (!fresh && listCache && Date.now() - listCache.at < LIST_TTL_MS) return listCache.threads;
+let listFlight = null;
+async function loadAllThreads() {
   const threads = JSON.parse(await run(["threads", "list", "--style", "json"]));
   await nameMachines(threads);
   listCache = { at: Date.now(), threads };
   return threads;
+}
+// The list is an external command that takes a second or two. A list that is a few seconds old
+// is returned at once and refreshed behind the request, so the page never waits on it twice;
+// only the very first call, or an explicit refresh, waits for the command.
+async function allThreads(fresh) {
+  const age = listCache ? Date.now() - listCache.at : Infinity;
+  if (!fresh && listCache && age < LIST_TTL_MS) return listCache.threads;
+  if (!fresh && listCache) {
+    listFlight ??= loadAllThreads().catch(() => {}).finally(() => { listFlight = null; });
+    return listCache.threads;
+  }
+  listFlight ??= loadAllThreads().finally(() => { listFlight = null; });
+  return listFlight;
+}
+
+// A cheap fingerprint of the thread list (how many, and the newest few), for change events.
+export async function threadsSignature() {
+  const all = await allThreads(false);
+  const top = [...all].sort((a, b) => Date.parse(b.updated_at ?? 0) - Date.parse(a.updated_at ?? 0)).slice(0, 6);
+  return `${all.length}|${top.map((x) => `${x.atuin_id}:${x.updated_at}:${x.message_count}`).join(",")}`;
 }
 
 // session id -> { id, title } for every captured thread, so a usage row can be
@@ -203,6 +227,24 @@ export async function listThreads({ q = "", harness = "all", host = "all", model
   };
 }
 
+// A tool call's input arrives as a JSON string. The page draws the common tools as cards
+// (a shell command, a todo list, a question with options), which needs the parsed object,
+// so it is sent too, with any very long string clipped. `input` stays as the raw fallback.
+function parsedArgs(input) {
+  let value = input;
+  if (typeof value === "string") {
+    try { value = JSON.parse(value); } catch { return null; }
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value) && !value.length) return null;
+  const shrink = (v, depth = 0) => {
+    if (typeof v === "string") return v.length > 6000 ? `${v.slice(0, 6000)}\n… ${v.length - 6000} more characters` : v;
+    if (depth > 6 || v == null || typeof v !== "object") return v;
+    if (Array.isArray(v)) return v.slice(0, 60).map((x) => shrink(x, depth + 1));
+    return Object.fromEntries(Object.entries(v).slice(0, 60).map(([k, x]) => [k, shrink(x, depth + 1)]));
+  };
+  return shrink(value);
+}
+
 function block(entry) {
   switch (entry?.type) {
     case "text":
@@ -210,12 +252,16 @@ function block(entry) {
     case "thinking":
       return { type: "thinking", text: clip(entry.text, CAP.thinking) };
     case "tool_call":
-      return { type: "tool_call", name: entry.name, input: clip(entry.input, CAP.input) };
+      return { type: "tool_call", id: entry.id ?? null, name: entry.name, input: clip(entry.input, CAP.input), args: parsedArgs(entry.input) };
     case "tool_result":
-      return { type: "tool_result", text: clip(entry.content, CAP.result) };
+      return { type: "tool_result", id: entry.tool_use_id ?? null, isError: Boolean(entry.is_error), text: clip(typeof entry.content === "string" ? entry.content : Array.isArray(entry.content) ? entry.content.map((c) => c?.text ?? "").join("\n") : entry.content, CAP.result) };
+    case "summary":
+    case "error":
+      return { type: entry.type, text: clip(entry.text, CAP.text) };
     case "patch":
       return {
         type: "patch",
+        id: entry.tool_use_id ?? null,
         files: (entry.files ?? []).slice(0, 20).map((f) => ({
           path: f.path, change: f.change, additions: f.additions ?? 0, deletions: f.deletions ?? 0, diff: clip(f.diff ?? "", CAP.diff),
         })),
@@ -233,15 +279,20 @@ const SKIP_ROLES = new Set(["attachment", "custom-title"]);
 const showCache = new Map(); // id -> { at, session, messages }
 const SHOW_TTL_MS = 30_000;
 
-export async function showThread(id, { offset = 0, limit = MAX_MESSAGES } = {}) {
+async function loadEntry(id, fresh = false) {
   if (!ID.test(id)) throw new Error("bad thread id");
   let entry = showCache.get(id);
-  if (!entry || Date.now() - entry.at > SHOW_TTL_MS) {
+  if (!entry || fresh || Date.now() - entry.at > SHOW_TTL_MS) {
     const body = JSON.parse(await run(["threads", "show", id, "--style", "json"], 60_000));
     entry = { at: Date.now(), session: body.session, messages: (body.messages ?? []).filter((m) => !SKIP_ROLES.has(m.role) && m.content?.length) };
     showCache.set(id, entry);
     if (showCache.size > 8) showCache.delete(showCache.keys().next().value);
   }
+  return entry;
+}
+
+export async function showThread(id, { offset = 0, limit = MAX_MESSAGES, fresh = false } = {}) {
+  const entry = await loadEntry(id, fresh);
   const start = Math.max(0, Number(offset) || 0);
   const count = Math.max(1, Math.min(MAX_MESSAGES, Number(limit) || MAX_MESSAGES));
   return {
@@ -256,6 +307,155 @@ export async function showThread(id, { offset = 0, limit = MAX_MESSAGES } = {}) 
       content: m.content.map(block),
     })),
   };
+}
+
+
+// ---- images --------------------------------------------------------------------------
+// Messages point at pictures by path (a pasted screenshot, a saved attachment, a markdown
+// image). The browser cannot open a path on disk, so the server reads it, but only an image
+// file whose path is written in the thread being read. That keeps this from being a way to
+// read arbitrary files: it can only show what the conversation itself already names.
+const IMAGE_TYPES = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp", ".bmp": "image/bmp", ".avif": "image/avif", ".svg": "image/svg+xml" };
+const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
+
+function mentions(entry, file) {
+  const needle = file.replace(/\\/g, "/").toLowerCase();
+  const has = (v) => typeof v === "string" && v.replace(/\\/g, "/").toLowerCase().includes(needle);
+  for (const m of entry.messages) {
+    for (const b of m.content ?? []) {
+      if (has(b.text) || has(typeof b.input === "string" ? b.input : JSON.stringify(b.input ?? "")) || has(typeof b.content === "string" ? b.content : "")) return true;
+    }
+  }
+  return false;
+}
+
+export async function threadImage(id, file) {
+  const entry = await loadEntry(id);
+  const text = String(file ?? "").replace(/^file:\/\//, "");
+  const resolved = decodeURIComponent(text).replace(/^\/([A-Za-z]:[\\/])/, "$1"); // file:///C:/x -> C:/x
+  const type = IMAGE_TYPES[path.extname(resolved).toLowerCase()];
+  if (!type || !path.isAbsolute(resolved)) throw Object.assign(new Error("not an image path"), { status: 400 });
+  if (!mentions(entry, text) && !mentions(entry, resolved)) throw Object.assign(new Error("this thread does not mention that file"), { status: 403 });
+  const info = await stat(resolved).catch(() => null);
+  if (!info?.isFile()) throw Object.assign(new Error("file not found on this machine"), { status: 404 });
+  if (info.size > MAX_IMAGE_BYTES) throw Object.assign(new Error("image too large"), { status: 413 });
+  return { type, data: await readFile(resolved) };
+}
+
+
+// ---- files a thread mentions -------------------------------------------------------------
+// A path in a conversation can be opened from the page: shown here (read-only, text up to 400 KB,
+// images inline), revealed in the file manager, or, when it lives on another machine, read over ssh
+// from one of the hosts in USAGE_REMOTE_HOSTS. Same rule as images: only a path that is written in
+// the thread being read, and only read access, so this is no way to browse the disk.
+const TEXT_LIMIT = 400 * 1024;
+const IMAGE_LIMIT = 4 * 1024 * 1024;
+function normPath(file) {
+  let t = String(file ?? "").replace(/^file:\/\//, "");
+  try { t = decodeURIComponent(t); } catch { /* keep it raw */ }
+  t = t.replace(/^\/([A-Za-z]:[\\/])/, "$1");
+  return t.startsWith("~/") ? path.join(os.homedir(), t.slice(2)) : t;
+}
+const isAbs = (p) => path.isAbsolute(p) || /^[A-Za-z]:[\\/]/.test(p);
+const fail = (message, status, extra = {}) => Object.assign(new Error(message), { status, ...extra });
+const looksBinary = (buf) => buf.subarray(0, 8192).includes(0);
+
+function capture(cmd, args, { timeout = 20_000, maxBuffer = 16 * 1024 * 1024 } = {}) {
+  return new Promise((resolve, reject) => {
+    execFile(cmd, args, { encoding: "buffer", timeout, maxBuffer, windowsHide: true }, (error, stdout, stderr) => (error ? reject(fail(String(stderr).trim().split("\n").pop() || error.message, 502)) : resolve(stdout)));
+  });
+}
+
+async function guard(id, file) {
+  const entry = await loadEntry(id);
+  const given = String(file ?? ""), resolved = normPath(given);
+  if (!isAbs(resolved)) throw fail("not an absolute path", 400);
+  if (!mentions(entry, given) && !mentions(entry, resolved)) throw fail("this thread does not mention that file", 403);
+  return resolved;
+}
+
+export async function threadFile(id, file, { host = "" } = {}) {
+  const resolved = await guard(id, file), ext = path.extname(resolved).toLowerCase();
+  if (host) {
+    if (!remoteHosts().includes(host)) throw fail("not one of the configured hosts", 400);
+    // The path becomes one single-quoted argument of a remote sh, so only plain path characters are allowed.
+    if (!/^[\w@%+=:,./~ -]+$/.test(resolved)) throw fail("that path has characters that are not read remotely", 400);
+    const image = IMAGE_TYPES[ext];
+    const script = image ? `head -c ${IMAGE_LIMIT + 1} -- '${resolved}' | base64 -w0` : `head -c ${TEXT_LIMIT + 1} -- '${resolved}'`;
+    const out = await capture("ssh", ["-o", "BatchMode=yes", "-o", "ConnectTimeout=8", "-o", "LogLevel=ERROR", host, `sh -c "${script.replace(/"/g, '\\"')}"`]);
+    if (image) { const b64 = out.toString().trim(); return { path: resolved, via: host, kind: "image", dataUrl: b64 && b64.length < IMAGE_LIMIT * 1.4 ? `data:${image};base64,${b64}` : null, ext }; }
+    if (looksBinary(out)) return { path: resolved, via: host, kind: "binary", size: out.length, ext };
+    return { path: resolved, via: host, kind: "text", text: out.subarray(0, TEXT_LIMIT).toString("utf8"), truncated: out.length > TEXT_LIMIT, ext };
+  }
+  const info = await stat(resolved).catch(() => null);
+  if (!info?.isFile()) throw fail("that file is not on this machine", 404, { hosts: remoteHosts() });
+  const base = { path: resolved, via: "this machine", size: info.size, mtime: info.mtime.toISOString(), ext };
+  if (IMAGE_TYPES[ext]) return { ...base, kind: "image" };
+  const handle = await open(resolved, "r");
+  try {
+    const buf = Buffer.alloc(Math.min(info.size, TEXT_LIMIT + 1));
+    const { bytesRead } = await handle.read(buf, 0, buf.length, 0);
+    const data = buf.subarray(0, bytesRead);
+    if (looksBinary(data)) return { ...base, kind: "binary" };
+    return { ...base, kind: "text", text: data.subarray(0, TEXT_LIMIT).toString("utf8"), truncated: info.size > TEXT_LIMIT };
+  } finally { await handle.close(); }
+}
+
+// Show the file in the system file manager (selected, where the platform can). Only a file that exists
+// here and is named in the thread.
+export async function revealFile(id, file) {
+  const resolved = await guard(id, file);
+  const info = await stat(resolved).catch(() => null);
+  if (!info) throw fail("that file is not on this machine", 404);
+  const run = (cmd, args) => { const child = spawn(cmd, args, { detached: true, stdio: "ignore", windowsHide: false }); child.on("error", () => {}); child.unref(); };
+  if (process.platform === "win32") run("explorer.exe", [`/select,${resolved.replace(/\//g, "\\")}`]);
+  else if (process.platform === "darwin") run("open", ["-R", resolved]);
+  else if (process.env.WSL_DISTRO_NAME) run("explorer.exe", [`/select,${(await capture("wslpath", ["-w", resolved])).toString().trim()}`]);
+  else run("xdg-open", [info.isDirectory() ? resolved : path.dirname(resolved)]);
+  return { ok: true };
+}
+
+
+// ---- the folder and the repository a thread ran in ------------------------------------------------
+// The details panel can open the thread's folder in the file manager and its branch or repository on the
+// web. Both answer only for the folder the thread itself recorded, and only if it exists on this machine.
+export const webUrlOf = (remote) => {
+  const r = String(remote ?? "").trim().replace(/\.git$/, "");
+  const m = /^(?:git@|ssh:\/\/git@|git:\/\/)([^:/]+)[:/](.+)$/.exec(r) ?? /^https?:\/\/(?:[^@/]+@)?([^/]+)\/(.+)$/.exec(r);
+  return m ? `https://${m[1]}/${m[2]}` : null;
+};
+const branchUrlOf = (web, branch) => {
+  if (!web || !branch) return null;
+  const host = new URL(web).hostname;
+  return /gitlab/.test(host) ? `${web}/-/tree/${encodeURIComponent(branch).replace(/%2F/g, "/")}` : /bitbucket/.test(host) ? `${web}/branch/${encodeURIComponent(branch)}` : `${web}/tree/${encodeURIComponent(branch).replace(/%2F/g, "/")}`;
+};
+async function threadCwd(id) {
+  const entry = await loadEntry(id);
+  const cwd = normPath(entry.session?.cwd ?? "");
+  if (!cwd || !isAbs(cwd)) throw fail("this thread recorded no folder", 400);
+  return cwd;
+}
+
+export async function threadRepo(id, recordedBranch = "") {
+  const cwd = await threadCwd(id);
+  const info = await stat(cwd).catch(() => null);
+  if (!info?.isDirectory()) throw fail("that folder is not on this machine", 404);
+  const git = (args) => capture("git", ["-C", cwd, ...args], { timeout: 8000 }).then((b) => b.toString().trim()).catch(() => "");
+  const [root, remote, branch] = await Promise.all([git(["rev-parse", "--show-toplevel"]), git(["remote", "get-url", "origin"]), git(["rev-parse", "--abbrev-ref", "HEAD"])]);
+  const web = webUrlOf(remote), name = web ? web.split("/").slice(-2).join("/") : "";
+  return { cwd, root: root || null, remote: remote || null, web, name, branch: branch && branch !== "HEAD" ? branch : null, branchUrl: branchUrlOf(web, /^[\w./@+-]{1,200}$/.test(recordedBranch) ? recordedBranch : branch && branch !== "HEAD" ? branch : null) };
+}
+
+export async function openThreadFolder(id) {
+  const cwd = await threadCwd(id);
+  const info = await stat(cwd).catch(() => null);
+  if (!info?.isDirectory()) throw fail("that folder is not on this machine", 404);
+  const run = (cmd, args) => { const child = spawn(cmd, args, { detached: true, stdio: "ignore" }); child.on("error", () => {}); child.unref(); };
+  if (process.platform === "win32") run("explorer.exe", [cwd.replace(/\//g, "\\")]);
+  else if (process.platform === "darwin") run("open", [cwd]);
+  else if (process.env.WSL_DISTRO_NAME) run("explorer.exe", [(await capture("wslpath", ["-w", cwd])).toString().trim()]);
+  else run("xdg-open", [cwd]);
+  return { ok: true };
 }
 
 export async function resumeCommands(id, harnesses = []) {
