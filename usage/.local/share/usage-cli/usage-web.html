@@ -673,8 +673,8 @@
   .mdd[open] > summary::before { transform: rotate(45deg); }
   .mdd .wb, .mdd > pre.plain { padding: 2px 14px 10px; font-size: 13px; }
   pre.plain { white-space: pre-wrap; word-break: break-word; font-family: var(--mono); font-size: 12px; margin: 0; color: var(--muted); }
-  .attach { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; } .attachimgs { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0; } .attachimgs .mdimg { max-height: 220px; max-width: min(100%, 360px); }
-  .att span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 34ch; } .chip.att .ui { color: var(--accent); flex: none; }
+  .attach { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; } .attachimgs { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0; } .attachimgs .mdimg, .attinl .mdimg { max-height: 220px; max-width: min(100%, 360px); }
+  .attinl { display: block; margin: 6px 0; } .fileref.ghost { cursor: default; } .fileref.ghost:hover { background: var(--accent-soft); }
   .chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--raised); font-size: 11.5px; color: var(--text); }
   .chip small { color: var(--faint); } .chip.soft { background: var(--accent-soft); border-color: var(--accent-line); color: var(--text); }
   .cmd { display: inline-flex; gap: 8px; align-items: baseline; padding: 3px 11px; border-radius: 9px; background: var(--accent-soft); border: 1px solid var(--accent-line); font-family: var(--mono); font-size: 12.5px; margin-bottom: 6px; }
@@ -2157,7 +2157,7 @@ function mdInline(src) {
   const stash = [];
   const keep = (html) => `\u0000${stash.push(html) - 1}\u0000`;
   const link = (u, inner) => keep(`<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${inner}</a>`);
-  let s = String(src);
+  let s = String(src).replace(/\u0004(\d+)\u0004/g, (m, n) => keep(ATTACHED[Number(n)] ?? ""));   // attachment chips written in the text
   // Code spans (any run of backticks) and backslash escapes in one pass, so \` cannot open a span
   // and a backslash inside a span stays literal.
   s = s.replace(/(`+)([^`]|[^`][\s\S]*?[^`])\1(?!`)|\\([\\`*_{}[\]()#+\-.!|~>])/g, (m, f, c, escaped) => (escaped !== undefined ? keep(esc(escaped)) : looksLikePath(c.trim()) ? keep(pathChip(c.trim())) : keep(`<code class="i">${esc(c.trim())}</code>`)));
@@ -2365,42 +2365,56 @@ const mdCells = (line) => line.trim().replace(/`[^`]*`/g, (c) => c.replace(/\|/g
 // Harnesses mention what the user attached as bracketed markers in the text:
 //   [File: Org Chart.pdf; ref=file_5b86...]     [Image: shot.png; ref=image_e7d6...]
 //   [Attached file "a.pdf" is saved at: /p/a.pdf]     [Attached image "x" is saved at: /p.png]     [Image: source: /p.png]
-// They are not prose. A run of them becomes one row of chips (a path that can be opened is a clickable file
-// chip, the rest are plain chips) plus a thumbnail for each image that can be shown.
-const ATTACH_RE = /\[(?:Attached (file|image) "([^"\n]*)" is saved at: ([^\]\n]+)|(File|Image|Document|Audio|Video|Attachment)(?: #\d+)?: (?:source: ([^\]\n]+)|([^\]\n;]+?)(?:; ?ref=([^\]\n]+))?))\]/g;
+// plus a <t3_context> block listing the same files with their sizes. All of those describe the same
+// attachments, so they are read together and each attachment is drawn once, where the user wrote it:
+// a file chip (clickable when its path is known) and, for an image, the picture right under it.
+const MARK_RE = /\[(?:Attached (file|image) "([^"\n]*)" is saved at: ([^\]\n]+)|(File|Image|Document|Audio|Video|Attachment)(?: #\d+)?: (?:source: ([^\]\n]+)|([^\]\n;]+?)(?:; ?ref=([^\]\n]+))?))\]/g;
+const CTX_BLOCK_RE = /<t3_context\b[^>]*>[\s\S]*?<\/t3_context>/g;
 const ABS_PATH = /^(?:\/|~\/|[A-Za-z]:[\\/]|file:\/\/)/;
 const ATTACHED = [];
-function attachCard(items) {
-  const chips = items.map((a) => {
-    const icon = a.image ? "image" : "file-text", title = a.ref ? `${a.name} (${a.ref})` : a.name;
-    return a.path && ABS_PATH.test(a.path)
-      ? `<button type="button" class="fileref att" data-path="${esc(a.path)}" title="${esc(a.path)}">${ui(icon, 12)}<span>${esc(a.name)}</span></button>`
-      : `<span class="chip att" title="${esc(title)}">${ui(icon, 12)}<span>${esc(a.name)}</span></span>`;
-  }).join("");
-  const pics = items.filter((a) => a.image && a.path && ABS_PATH.test(a.path)).map((a) => imgTag(a.name, a.path)).join("");
-  return `<div class="attach">${chips}</div>${pics ? `<div class="attachimgs">${pics}</div>` : ""}`;
-}
-function imageMarkers(text) {
-  const hits = [...text.matchAll(ATTACH_RE)];
-  if (!hits.length) return text;
-  // Neighbouring markers (only blank space between them) are one group; a File marker and the
-  // "saved at" marker for the same name are one attachment.
-  const groups = []; let last = -1;
-  for (const m of hits) {
-    const kind = (m[1] ?? m[4] ?? "").toLowerCase(), name = (m[2] ?? m[6] ?? "").trim(), path = (m[3] ?? m[5] ?? "").trim();
-    const item = { image: kind === "image" || IMAGE_EXT.test(name || path), name: name || path.split(/[\\/]/).pop() || "attachment", path: m[3] || m[5] ? path : "", ref: (m[7] ?? "").trim() };
-    const g = groups.at(-1);
-    if (g && !text.slice(last, m.index).trim()) {
-      const dup = g.items.find((x) => x.name === item.name && (!x.path || !item.path));
-      if (dup) { dup.path ||= item.path; dup.ref ||= item.ref; dup.image ||= item.image; } else g.items.push(item);
-      g.end = m.index + m[0].length;
-    } else groups.push({ start: m.index, end: m.index + m[0].length, items: [item] });
-    last = m.index + m[0].length;
+const attChip = (a) => {
+  const icon = a.image ? "image" : "file-text";
+  return a.path && ABS_PATH.test(a.path)
+    ? `<button type="button" class="fileref" data-path="${esc(a.path)}" title="${esc(a.path)}">${ui(icon, 12)}<span>${esc(a.name)}</span></button>`
+    : `<span class="fileref ghost" title="${esc(a.ref ? `${a.name} (${a.ref})` : a.name)}">${ui(icon, 12)}<span>${esc(a.name)}</span></span>`;
+};
+const attPic = (a) => (a.image && a.path && ABS_PATH.test(a.path) ? imgTag(a.name, a.path) : "");
+function attachments(text) {
+  if (!/\[(?:Attached |File|Image|Document|Audio|Video|Attachment)|<t3_context/.test(text)) return text;
+  const info = new Map(), named = new Set(), saved = new Set(), anon = [];
+  const get = (name) => { let i = info.get(name); if (!i) info.set(name, (i = { name, image: false, path: "", ref: "" })); return i; };
+  for (const m of text.matchAll(MARK_RE)) {
+    if (m[3] !== undefined) { const i = get(m[2].trim()); i.path ||= m[3].trim(); i.image ||= m[1] === "image" || IMAGE_EXT.test(m[2]); saved.add(i.name); }
+    else if (m[5] !== undefined) anon.push(m[5].trim());
+    else { const i = get(m[6].trim()); i.ref ||= m[7]?.trim() ?? ""; i.image ||= m[4] === "Image" || IMAGE_EXT.test(i.name); named.add(i.name); }
   }
-  let out = "", at = 0;
-  for (const g of groups) { ATTACHED.push(attachCard(g.items)); out += text.slice(at, g.start) + `\n\n\u0003${ATTACHED.length - 1}\u0003\n\n`; at = g.end; }
-  return out + text.slice(at);
+  for (const c of text.matchAll(/<context\s+([^>]*)>([\s\S]*?)<\/context>/g)) {
+    const n = /name:\s*(.+)/.exec(c[2])?.[1]?.trim(); if (!n) continue;
+    const i = get(n); i.image ||= /kind="image"/.test(c[1]); i.ref ||= /\bid="([^"]*)"/.exec(c[1])?.[1] ?? "";
+  }
+  // An unnamed "source" picture is a copy of one the message already names: it supplies the path of a
+  // named image that has none, and is dropped when every named image has one.
+  const unpathed = [...info.values()].filter((i) => i.image && !i.path);
+  for (const i of unpathed) { const p = anon.shift(); if (p) i.path = p; }
+  const anyImage = [...info.values()].some((i) => i.image);
+  const here = (name) => named.has(name) || saved.has(name);
+  const card = (items) => ATTACHED.push(items.map((a) => `<div class="attach">${attChip(a)}</div>${attPic(a) ? `<div class="attachimgs">${attPic(a)}</div>` : ""}`).join("")) - 1;
+  const asBlock = (items) => (items.length ? `\n\n\u0003${card(items)}\u0003\n\n` : "");
+  // A chip in the middle of a sentence stays in the sentence; one on a line of its own is a block.
+  const place = (text_, at, len, item) => {
+    const ls = text_.lastIndexOf("\n", at - 1) + 1, le = text_.indexOf("\n", at + len), end = le < 0 ? text_.length : le;
+    if (!text_.slice(ls, at).trim() && !text_.slice(at + len, end).trim()) return asBlock([item]);
+    return `\u0004${ATTACHED.push(attChip(item) + (attPic(item) ? `<span class="attinl">${attPic(item)}</span>` : "")) - 1}\u0004`;
+  };
+  let out = text.replace(CTX_BLOCK_RE, (blk) => asBlock([...blk.matchAll(/<context\s+([^>]*)>([\s\S]*?)<\/context>/g)].map((c) => /name:\s*(.+)/.exec(c[2])?.[1]?.trim()).filter((n) => n && !here(n)).map((n) => info.get(n))));
+  out = out.replace(MARK_RE, (m, sk, sname, spath, kind, src, name, _ref, at) => {
+    if (spath !== undefined) return named.has(sname.trim()) ? "" : place(out, at, m.length, info.get(sname.trim()));
+    if (src !== undefined) return anyImage ? "" : place(out, at, m.length, { name: src.trim().split(/[\\/]/).pop() || "image", image: kind === "Image" || IMAGE_EXT.test(src), path: src.trim(), ref: "" });
+    return place(out, at, m.length, info.get(name.trim()));
+  });
+  return out;
 }
+function imageMarkers(text) { return attachments(text); }
 function md(text) {
   const lines = imageMarkers(String(text).replace(/\r\n?/g, "\n")).split("\n"), out = [];
   let para = [];
@@ -2545,6 +2559,7 @@ function renderText(text, role) {
   const cname = /<command-name>\s*([^<]+?)\s*<\/command-name>/.exec(text)?.[1], cargs = /<command-args>([\s\S]*?)<\/command-args>/.exec(text)?.[1]?.trim();
   let lead = "";
   if (cname) { lead = cmdChip(cname, cargs); text = text.replace(/<command-(message|name|args)>[\s\S]*?<\/command-\1>/g, ""); }
+  text = attachments(text);
   return lead + splitWrappers(text).map((p) => (p.tag ? wrapCard(p) : md(p.text))).join("");
 }
 const formatText = renderText;
@@ -3130,7 +3145,7 @@ async function openFile(file, host = "") {
     } else if (ev.target.closest("[data-host]")) openFile(file, ev.target.closest("[data-host]").dataset.host);
   };
 }
-document.addEventListener("click", (e) => { const c = e.target.closest(".fileref"); if (c) { e.preventDefault(); openFile(c.dataset.path); } });
+document.addEventListener("click", (e) => { const c = e.target.closest(".fileref[data-path]"); if (c) { e.preventDefault(); openFile(c.dataset.path); } });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && $("fv") && !XS.pop) { closeFile(); e.stopPropagation(); } }, true);
 function conversationHTML(messages) {
   const results = new Map(), used = new Set(), out = [];
