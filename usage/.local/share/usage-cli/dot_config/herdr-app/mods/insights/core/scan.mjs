@@ -5,6 +5,7 @@ import path from "node:path";
 import { pipeline } from "node:stream/promises";
 import * as zlib from "node:zlib";
 import { parseAdapterRecord, parseClineMessages } from "./adapters.mjs";
+import { readConversation } from "./antigravity.mjs";
 import {
   MAX_LINE_BYTES,
   expandHome,
@@ -53,6 +54,7 @@ function warningSink(warnings, stats, sourceState) {
 function isEligible(adapter, filePath) {
   if (adapter === "opencode") return path.basename(filePath) === "opencode.db";
   if (adapter === "cline") return filePath.endsWith(".messages.json");
+  if (adapter === "antigravity") return filePath.endsWith(".db");
   if (adapter === "codex") {
     return filePath.endsWith(".jsonl") || filePath.endsWith(".jsonl.zst");
   }
@@ -721,6 +723,105 @@ async function scanOpenCodeDb(store, source, filePath, sink, stats) {
 }
 
 /**
+ * Antigravity keeps one SQLite file per conversation (see antigravity.mjs for the
+ * row layout). Calls are immutable once written, so a full re-read through the
+ * max-upsert dedup is exact; the fingerprint covers the WAL as well, because an
+ * open conversation changes the WAL while the main file may stay put.
+ */
+async function scanAntigravityDb(store, source, filePath, sink, stats) {
+  let dbStat;
+  try {
+    dbStat = await stat(filePath);
+  } catch (error) {
+    if (error?.code !== "ENOENT") sink.warn(`antigravity ${filePath}: cannot stat file: ${error.message}`);
+    return false;
+  }
+  if (!dbStat.isFile()) return false;
+  let walStat = null;
+  try {
+    walStat = await stat(`${filePath}-wal`);
+  } catch { /* no WAL right now */ }
+  const fingerprint = `${dbStat.mtimeMs}:${dbStat.size}:${walStat?.mtimeMs ?? 0}:${walStat?.size ?? 0}`;
+
+  const key = fileKey(source.id, filePath);
+  let entry = store.files[key];
+  let dirty = false;
+  if (!entry) {
+    entry = newFileEntry(store, {
+      sourceId: source.id,
+      adapter: source.adapter,
+      path: filePath,
+      dev: String(dbStat.dev),
+      ino: String(dbStat.ino),
+      size: 0,
+      mtimeMs: 0,
+      compressed: false,
+    });
+    dirty = true;
+  }
+  if (entry.state.antigravityParserVersion === 1 && entry.state.antigravityFingerprint === fingerprint) {
+    stats.unchangedFiles += 1;
+    return dirty;
+  }
+
+  let sqlite;
+  try {
+    sqlite = await import("node:sqlite");
+  } catch {
+    if (entry.state.unsupported !== "sqlite") {
+      sink.warn(`antigravity ${filePath}: node:sqlite is unavailable in this Node runtime; skipped.`);
+      entry.state.unsupported = "sqlite";
+      dirty = true;
+    }
+    stats.unchangedFiles += 1;
+    return dirty;
+  }
+
+  let db;
+  let checkpoint;
+  let malformed = 0;
+  try {
+    db = new sqlite.DatabaseSync(filePath, { readOnly: true });
+    const conversation = readConversation(db, path.basename(filePath, ".db"));
+    malformed = conversation.malformed;
+    checkpoint = structuredClone(store);
+    resetFileEntry(store, entry);
+    delete entry.state.unsupported;
+    for (const call of conversation.generations) {
+      if (!call.timeMs || !Number.isFinite(new Date(call.timeMs).getTime())) { malformed += 1; continue; }
+      addUsage(store, entry, {
+        day: localDay(call.timeMs),
+        session: conversation.conversationId,
+        harness: source.id,
+        provider: "google",
+        model: call.model,
+        project: conversation.project,
+      }, call.tokens, dedupKeyFor("antigravity", "generation", call.key));
+    }
+  } catch (error) {
+    if (checkpoint) {
+      Object.assign(store, checkpoint);
+      prepareStore(store);
+    }
+    sink.warn(`antigravity ${filePath}: scan failed: ${error.message}`);
+    return dirty;
+  } finally {
+    try { db?.close(); } catch { /* close is best-effort */ }
+  }
+
+  entry.dev = String(dbStat.dev);
+  entry.ino = String(dbStat.ino);
+  entry.size = dbStat.size;
+  entry.mtimeMs = dbStat.mtimeMs;
+  entry.state.antigravityFingerprint = fingerprint;
+  entry.state.antigravityParserVersion = 1;
+  if (malformed) sink.warn(`antigravity ${filePath}: ${malformed} rows could not be read.`);
+  stats.filesRead += 1;
+  stats.bytesRead += dbStat.size + (walStat?.size ?? 0);
+  return true;
+}
+
+/**
  * Cline keeps each session as one JSON document with a `messages` array, so
  * there is no offset to resume from: the whole file is re-read on every change
  * and the global message-id dedup keeps re-reads exact. Sub-agent transcripts
@@ -893,6 +994,9 @@ async function scanOneFile(store, source, filePath, sink, stats) {
   }
   if (source.adapter === "cline") {
     return scanClineDocument(store, source, filePath, sourceSink, stats);
+  }
+  if (source.adapter === "antigravity") {
+    return scanAntigravityDb(store, source, filePath, sourceSink, stats);
   }
   let fileStat;
   try {

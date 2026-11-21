@@ -59,6 +59,14 @@ const CLINE_SOURCE = Object.freeze({
   roots: Object.freeze(["~/.cline/data/sessions"]),
 });
 
+const ANTIGRAVITY_SOURCE = Object.freeze({
+  id: "antigravity",
+  label: "Antigravity",
+  adapter: "antigravity",
+  enabled: true,
+  roots: Object.freeze(["~/.gemini/antigravity-cli/conversations"]),
+});
+
 // Stores written before Claude Code and Cline became default sources get the
 // same upgrade, but only when they still contain the untouched previous
 // defaults. Each generation lists what the store may legitimately contain.
@@ -74,6 +82,15 @@ const LEGACY_DEFAULT_SOURCES_V2 = Object.freeze([
   CLAUDE_SOURCE,
 ]);
 
+const LEGACY_DEFAULT_SOURCES_V3 = Object.freeze([
+  PI_SOURCE,
+  OMP_SOURCE,
+  CODEX_SOURCE,
+  OPENCODE_SOURCE,
+  CLAUDE_SOURCE,
+  CLINE_SOURCE,
+]);
+
 export const DEFAULT_CONFIG = Object.freeze({
   profile: { name: "Developer", handle: "", avatar: "" },
   palette: "blue",
@@ -87,6 +104,7 @@ export const DEFAULT_CONFIG = Object.freeze({
     OPENCODE_SOURCE,
     CLAUDE_SOURCE,
     CLINE_SOURCE,
+    ANTIGRAVITY_SOURCE,
   ]),
 });
 
@@ -97,6 +115,7 @@ export const BUILTIN_ADAPTERS = new Set([
   "codex",
   "opencode",
   "cline",
+  "antigravity",
 ]);
 export const ADAPTERS = new Set([...BUILTIN_ADAPTERS, "custom"]);
 
@@ -407,6 +426,7 @@ function sameSource(left, right) {
 const LEGACY_SOURCE_LISTS = Object.freeze([
   LEGACY_DEFAULT_SOURCES,
   LEGACY_DEFAULT_SOURCES_V2,
+  LEGACY_DEFAULT_SOURCES_V3,
 ]);
 
 // Migrated stores keep each source's enabled flag and roots from the old list,
