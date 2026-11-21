@@ -673,7 +673,8 @@
   .mdd[open] > summary::before { transform: rotate(45deg); }
   .mdd .wb, .mdd > pre.plain { padding: 2px 14px 10px; font-size: 13px; }
   pre.plain { white-space: pre-wrap; word-break: break-word; font-family: var(--mono); font-size: 12px; margin: 0; color: var(--muted); }
-  .attach { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+  .attach { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; } .attachimgs { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0; } .attachimgs .mdimg { max-height: 220px; max-width: min(100%, 360px); }
+  .att span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 34ch; } .chip.att .ui { color: var(--accent); flex: none; }
   .chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--raised); font-size: 11.5px; color: var(--text); }
   .chip small { color: var(--faint); } .chip.soft { background: var(--accent-soft); border-color: var(--accent-line); color: var(--text); }
   .cmd { display: inline-flex; gap: 8px; align-items: baseline; padding: 3px 11px; border-radius: 9px; background: var(--accent-soft); border: 1px solid var(--accent-line); font-family: var(--mono); font-size: 12.5px; margin-bottom: 6px; }
@@ -2361,11 +2362,44 @@ const IMAGE_EXT = /\.(png|jpe?g|gif|webp|bmp|avif|svg)$/i;
 const MD_RULE = /^\s*(-{3,}|\*{3,}|_{3,})\s*$/, MD_LIST = /^(\s*)([-*+]|\d+[.)])\s+(.*)$/, MD_TABLE_SEP = /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/;
 // A pipe inside backticks is text, not a column break.
 const mdCells = (line) => line.trim().replace(/`[^`]*`/g, (c) => c.replace(/\|/g, "\u0001")).replace(/^\|/, "").replace(/\|$/, "").split(/(?<!\\)\|/).map((c) => c.trim().replace(/\u0001/g, "|"));
-// "[Attached image "x" is saved at: /p.png]" and "[Image: source: /p.png]" are how harnesses mention a picture.
+// Harnesses mention what the user attached as bracketed markers in the text:
+//   [File: Org Chart.pdf; ref=file_5b86...]     [Image: shot.png; ref=image_e7d6...]
+//   [Attached file "a.pdf" is saved at: /p/a.pdf]     [Attached image "x" is saved at: /p.png]     [Image: source: /p.png]
+// They are not prose. A run of them becomes one row of chips (a path that can be opened is a clickable file
+// chip, the rest are plain chips) plus a thumbnail for each image that can be shown.
+const ATTACH_RE = /\[(?:Attached (file|image) "([^"\n]*)" is saved at: ([^\]\n]+)|(File|Image|Document|Audio|Video|Attachment)(?: #\d+)?: (?:source: ([^\]\n]+)|([^\]\n;]+?)(?:; ?ref=([^\]\n]+))?))\]/g;
+const ABS_PATH = /^(?:\/|~\/|[A-Za-z]:[\\/]|file:\/\/)/;
+const ATTACHED = [];
+function attachCard(items) {
+  const chips = items.map((a) => {
+    const icon = a.image ? "image" : "file-text", title = a.ref ? `${a.name} (${a.ref})` : a.name;
+    return a.path && ABS_PATH.test(a.path)
+      ? `<button type="button" class="fileref att" data-path="${esc(a.path)}" title="${esc(a.path)}">${ui(icon, 12)}<span>${esc(a.name)}</span></button>`
+      : `<span class="chip att" title="${esc(title)}">${ui(icon, 12)}<span>${esc(a.name)}</span></span>`;
+  }).join("");
+  const pics = items.filter((a) => a.image && a.path && ABS_PATH.test(a.path)).map((a) => imgTag(a.name, a.path)).join("");
+  return `<div class="attach">${chips}</div>${pics ? `<div class="attachimgs">${pics}</div>` : ""}`;
+}
 function imageMarkers(text) {
-  return text
-    .replace(/\[Attached image "([^"]*)" is saved at: ([^\]\n]+)\]/g, (m, name, p) => `\n\n![${name}](${p.trim()})\n\n`)
-    .replace(/\[Image(?: #\d+)?: source: ([^\]\n]+)\]/g, (m, p) => `\n\n![image](${p.trim()})\n\n`);
+  const hits = [...text.matchAll(ATTACH_RE)];
+  if (!hits.length) return text;
+  // Neighbouring markers (only blank space between them) are one group; a File marker and the
+  // "saved at" marker for the same name are one attachment.
+  const groups = []; let last = -1;
+  for (const m of hits) {
+    const kind = (m[1] ?? m[4] ?? "").toLowerCase(), name = (m[2] ?? m[6] ?? "").trim(), path = (m[3] ?? m[5] ?? "").trim();
+    const item = { image: kind === "image" || IMAGE_EXT.test(name || path), name: name || path.split(/[\\/]/).pop() || "attachment", path: m[3] || m[5] ? path : "", ref: (m[7] ?? "").trim() };
+    const g = groups.at(-1);
+    if (g && !text.slice(last, m.index).trim()) {
+      const dup = g.items.find((x) => x.name === item.name && (!x.path || !item.path));
+      if (dup) { dup.path ||= item.path; dup.ref ||= item.ref; dup.image ||= item.image; } else g.items.push(item);
+      g.end = m.index + m[0].length;
+    } else groups.push({ start: m.index, end: m.index + m[0].length, items: [item] });
+    last = m.index + m[0].length;
+  }
+  let out = "", at = 0;
+  for (const g of groups) { ATTACHED.push(attachCard(g.items)); out += text.slice(at, g.start) + `\n\n\u0003${ATTACHED.length - 1}\u0003\n\n`; at = g.end; }
+  return out + text.slice(at);
 }
 function md(text) {
   const lines = imageMarkers(String(text).replace(/\r\n?/g, "\n")).split("\n"), out = [];
@@ -2389,6 +2423,8 @@ function md(text) {
       flush(); out.push(`<details class="mdd"><summary>${mdInline(sum.replace(/<[^>]+>/g, ""))}</summary>${md(inner)}</details>`); i = j; continue;
     }
     if (!line.trim()) { flush(); continue; }
+    const att = /^\u0003(\d+)\u0003$/.exec(line);
+    if (att) { flush(); out.push(ATTACHED[Number(att[1])] ?? ""); continue; }
     const h = /^(#{1,6})\s+(.*?)\s*#*$/.exec(line);
     if (h) { flush(); out.push(`<h3 class="h${h[1].length}">${mdInline(h[2])}</h3>`); continue; }
     if (MD_RULE.test(line)) { flush(); out.push("<hr>"); continue; }
