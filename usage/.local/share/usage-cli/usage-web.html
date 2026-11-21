@@ -118,8 +118,7 @@
   .icon-btn:hover { color: var(--text); background: var(--hover); }
   .icon-btn.spin .ui { animation: spin .8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .custom { display: none; align-items: center; gap: 6px; }
-  .custom.on { display: inline-flex; }
+  
 
   /* ---- page ----------------------------------------------------------------- */
   main { padding: 28px var(--pad) 72px; display: grid; gap: 40px; align-content: start; max-width: var(--maxw); margin: 0 auto; min-height: calc(100vh - var(--hh)); }
@@ -460,7 +459,7 @@
   .meter-line { position: absolute; left: 0; right: 0; top: 52px; height: 2px; background: transparent; pointer-events: none; z-index: 2; }
   .meter-line.done i { opacity: 0; }
   .meter-line i { transition: opacity .6s var(--ease), transform .3s var(--ease); display: block; height: 100%; width: 100%; background: var(--accent); opacity: .55; transform-origin: left; transform: scaleX(var(--p, 0)); transition: transform .3s var(--ease); }
-  .jump { position: absolute; right: 22px; bottom: 18px; z-index: 3; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; background: var(--raised); border: 1px solid var(--line); color: var(--muted); cursor: pointer; box-shadow: 0 6px 18px rgba(0,0,0,.18);
+  .jump { z-index: 3; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; background: var(--raised); border: 1px solid var(--line); color: var(--muted); cursor: pointer; box-shadow: 0 6px 18px rgba(0,0,0,.18);
     opacity: 0; transform: translateY(10px) scale(.9); pointer-events: none; transition: opacity var(--t-med) var(--ease), transform var(--t-med) var(--ease), color var(--t-fast), background-color var(--t-fast); }
   .jump.on { opacity: 1; transform: none; pointer-events: auto; visibility: visible; }
   .jump:not(.on) { visibility: hidden; transition: opacity var(--t-med) var(--ease), transform var(--t-med) var(--ease), visibility 0s linear var(--t-med); }
@@ -487,6 +486,52 @@
     .tail.loading .dot, .tl .search.busy .wait { animation: pulse 1.4s ease-in-out infinite !important; }
     @keyframes pulse { 50% { opacity: .25; } }
   }
+
+  /* ---- motion, round two --------------------------------------------------------- */
+  /* Popups: the backdrop fades while the panel rises and settles, and both leave the same
+     way, so nothing blinks in or out. */
+  .ov { animation: ovin .2s var(--ease) both; }
+  .ov.out { animation: ovout .15s ease-in both; pointer-events: none; }
+  .pal { animation: palin .24s var(--ease) both; transform-origin: 50% 0; }
+  .ov.out .pal { animation: palout .15s ease-in both; }
+  @keyframes ovin { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes ovout { to { opacity: 0; } }
+  @keyframes palin { from { opacity: 0; transform: translateY(-12px) scale(.985); } to { opacity: 1; transform: none; } }
+  @keyframes palout { to { opacity: 0; transform: translateY(-8px) scale(.99); } }
+  .pal .it { transition: background-color .1s var(--ease), color .1s var(--ease); }
+  .pal .list { min-height: 220px; max-height: min(52vh, 420px); }
+  .help .cols > div { animation: rise .34s var(--ease) both; }
+  .help .cols > div:nth-child(2) { animation-delay: .04s; } .help .cols > div:nth-child(3) { animation-delay: .08s; }
+  .help .cols > div:nth-child(4) { animation-delay: .12s; } .help .cols > div:nth-child(n+5) { animation-delay: .16s; }
+  /* A page or tab change: the new content rises in, its first blocks a beat apart. A change
+     of filter, range or metric on the same page only fades, which is gentler and never
+     moves anything. Both are opacity and transform, so no layout is touched. */
+  main.enter > * { animation: enter .3s var(--ease) both; }
+  main.enter > *:nth-child(2) { animation-delay: .04s; } main.enter > *:nth-child(3) { animation-delay: .08s; } main.enter > *:nth-child(n+4) { animation-delay: .12s; }
+  @keyframes enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  main.swap > *, .swapcard { animation: swapin .22s var(--ease) both; }
+  @keyframes swapin { from { opacity: .35; } to { opacity: 1; } }
+  .seg button { transition: background-color .16s var(--ease), color .16s var(--ease), box-shadow .16s var(--ease), transform var(--t-fast) var(--ease); }
+  select.field, input.field, .btn { transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), color var(--t-fast) var(--ease), opacity var(--t-fast) var(--ease), transform var(--t-fast) var(--ease); }
+  tbody tr { transition: background-color .12s var(--ease); }
+  .hbar i, .hbar b, .stack i, .meter i { transition: width .4s var(--ease), flex-grow .4s var(--ease), opacity .2s; }
+
+  /* ---- custom range -------------------------------------------------------------- */
+  /* A popover under the range chips instead of a row that pushed them aside. It overlays the
+     page, so opening it moves nothing, and it keeps the same place whatever the view. */
+  .top > .custom { position: absolute; right: var(--pad); top: 100%; margin-top: 8px; z-index: 40; display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+    background: var(--raised); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 14px 40px rgba(0,0,0,.28);
+    opacity: 0; transform: translateY(-6px) scale(.98); transform-origin: 100% 0; visibility: hidden; pointer-events: none;
+    transition: opacity .18s var(--ease), transform .2s var(--ease), visibility 0s linear .2s; }
+  .top > .custom.on { opacity: 1; transform: none; visibility: visible; pointer-events: auto; transition-delay: 0s; }
+  .top > .custom .cl { color: var(--muted); font-size: 12px; font-weight: 500; margin-right: 2px; }
+  .top > .custom::before { content: ""; position: absolute; right: 38px; top: -6px; width: 10px; height: 10px; background: var(--raised); border-left: 1px solid var(--line); border-top: 1px solid var(--line); transform: rotate(45deg); border-radius: 2px 0 0 0; }
+
+  /* ---- jump buttons --------------------------------------------------------------- */
+  .jumps { position: absolute; right: 22px; bottom: 18px; z-index: 3; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+  .jumps .jump { position: static; pointer-events: none; }
+  .jumps .jump.on { pointer-events: auto; }
+  .jump.busy .ui { animation: spin .8s linear infinite; }
 </style>
 </head>
 <body>
@@ -527,9 +572,9 @@
     </span>
     <span class="muted" id="ctxnote"></span>
     <div class="spacer"></div>
-    <span class="custom" id="custom"><input class="field" type="date" id="from" aria-label="From"><span class="faint">to</span><input class="field" type="date" id="to" aria-label="To"></span>
     <div class="seg" id="range" role="group" aria-label="Range"></div>
   </div>
+  <div class="custom" id="custom" role="group" aria-label="Custom date range"><span class="cl">Custom range</span><input class="field" type="date" id="from" aria-label="From"><span class="faint">to</span><input class="field" type="date" id="to" aria-label="To"></div>
   <div class="busybar" aria-hidden="true"></div>
 </header>
 <main id="main"></main>
@@ -784,7 +829,9 @@ const get = async (url, signal) => {
   }
 };
 let usageCtl = null;
+const fromInput = () => performance.now() - lastInput < 700;
 async function loadUsage(fresh = false) {
+  const soft = fromInput();
   usageCtl?.abort();
   usageCtl = new AbortController();
   const q = new URLSearchParams({ range: state.range, group: state.group });
@@ -799,9 +846,10 @@ async function loadUsage(fresh = false) {
   state.data = data;
   stamp();
   if (same) return controls(); // a timer tick with identical numbers: leave the page alone
-  if (state.view === "usage") render(); else controls();
+  if (state.view === "usage") render(soft); else controls();
 }
 async function loadModels(fresh = false) {
+  const soft = fromInput();
   const q = new URLSearchParams({ range: state.range });
   if (fresh) q.set("fresh", "1");
   if (state.host !== "all") q.set("host", state.host);
@@ -809,12 +857,13 @@ async function loadModels(fresh = false) {
   if (state.range === "custom" && state.from && state.to) { q.set("from", state.from); q.set("to", state.to); }
   state.mod.data = await get("/api/models?" + q);
   stamp();
-  if (state.view === "models") render();
+  if (state.view === "models") render(soft);
 }
 async function loadLimits(fresh = false) {
+  const soft = fromInput();
   state.limits = await get("/api/limits" + (fresh ? "?fresh=1" : ""));
   stamp();
-  if (state.view === "limits") render();
+  if (state.view === "limits") render(soft);
 }
 let thrCtl = null;
 async function loadThreads(fresh = false, append = false) {
@@ -848,6 +897,13 @@ async function openThread(id) {
 const stamp = () => { $("stamp").textContent = "updated " + new Date().toLocaleTimeString("en-GB"); };
 
 // ==== header ===================================================================
+// Rebuilt only when its buttons change. Otherwise just the pressed state moves, so the
+// background and colour glide between buttons instead of being redrawn in place.
+function setSeg(el, items, current) {
+  const sig = items.map((i) => i[0] + i[1]).join("|");
+  if (el.dataset.sig !== sig) { el.innerHTML = segHTML(items, current); el.dataset.sig = sig; return; }
+  el.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === current)));
+}
 const segHTML = (items, current) => items.map(([k, l]) => `<button data-v="${k}" aria-pressed="${current === k}">${l}</button>`).join("");
 function fillSelect(el, all, items, current, nameOf = (x) => x) {
   const html = `<option value="all">${esc(all)}</option>` + items.map((v) => `<option value="${esc(v)}">${esc(nameOf(v))}</option>`).join("");
@@ -864,8 +920,8 @@ function controls() {
   $("ctxnote").textContent = CTX_NOTE[state.view] ?? "";
   $("tfilters").classList.toggle("hide", state.view !== "threads");
   threadControls();
-  $("range").innerHTML = segHTML(RANGES, state.range);
-  $("view").innerHTML = segHTML(VIEWS, usage ? state.metric : state.view);
+  setSeg($("range"), RANGES, state.range);
+  setSeg($("view"), VIEWS, usage ? state.metric : state.view);
   $("custom").classList.toggle("on", scoped && state.range === "custom");
   // The button keeps its place and only fades, so the search box never jumps.
   $("clear").classList.toggle("off", !(state.host !== "all" || state.agent !== "all" || state.project !== "all" || state.model !== "all" || state.q.trim()));
@@ -879,7 +935,10 @@ function controls() {
   }
   document.documentElement.style.setProperty("--hh", $("top").offsetHeight + "px");
 }
-function render() {
+function render(soft = false) {
+  const main = $("main"), landed = Boolean(main.querySelector(".sk, .skrow")), mine = soft || performance.now() - lastInput < 700;
+  if (landed && !main.classList.contains("enter")) replay(main, "swap", 300);       // data replacing its placeholder
+  else if (mine && !main.classList.contains("enter")) replay(main, "swap", 300);    // a change you just made
   controls();
   $("main").classList.toggle("flush", state.view === "threads");
   if (state.view === "limits") return renderLimits();
@@ -1242,11 +1301,11 @@ function drawTable() {
   const need = y0 + window.innerHeight - below - top;
   if (need > card.offsetHeight) card.style.minHeight = need + "px";
   if (window.scrollY !== y0) window.scrollTo(0, y0); // the reflow above may already have clamped it
-  card.querySelectorAll("[data-tab]").forEach((b) => b.addEventListener("click", () => { state.tab = b.dataset.tab; state.shown = 100; save(); drawTable(); }));
+  card.querySelectorAll("[data-tab]").forEach((b) => b.addEventListener("click", () => { state.tab = b.dataset.tab; state.shown = 100; save(); drawTable(); replay(card, "swapcard", 300); }));
   card.querySelectorAll("th[data-sort]").forEach((th) => th.addEventListener("click", () => {
     const k = th.dataset.sort;
     state.sort[state.tab] = [k, k === sk ? -sd : (def.cols.find((c) => c.k === k).left ? 1 : -1)];
-    drawTable();
+    drawTable(); replay(card, "swapcard", 300);
   }));
   card.querySelector("#more")?.addEventListener("click", () => { state.shown += 200; drawTable(); });
   card.querySelector("#csv")?.addEventListener("click", () => exportCsv(def, rows));
@@ -1613,10 +1672,18 @@ function renderThreadDetail() {
     el.innerHTML = `<header class="thead"><span class="p">${ui("folder", 14)}<span id="tfolder"></span></span><span class="sep">/</span><h2 id="ttitle"></h2><span class="prog" id="tprog" aria-live="off"></span></header>
       <div class="meter-line" id="tbar" aria-hidden="true"><i></i></div>
       <div class="scroll" id="tscroll" tabindex="0" role="region" aria-label="Conversation"><div class="conv" id="tconv"></div></div>
-      <button class="jump" id="tjump" aria-label="Back to the top" title="Back to the top">${ui("arrow-up", 16)}</button>`;
+      <div class="jumps"><button class="jump" id="tjump" aria-label="Back to the top" title="Back to the top">${ui("arrow-up", 16)}</button><button class="jump" id="tend" aria-label="Down to the end" title="Down to the end">${ui("arrow-down", 16)}</button></div>`;
     const sc = $("tscroll");
-    sc.addEventListener("scroll", () => $("tjump")?.classList.toggle("on", sc.scrollTop > 700), { passive: true });
-    $("tjump").addEventListener("click", () => sc.scrollTo({ top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }));
+    const edges = () => {
+      $("tjump")?.classList.toggle("on", sc.scrollTop > 700);
+      // The end button shows while there is more than a screen below, or more still to load.
+      const dt = state.thr.detail, more = dt && !dt.error && dt.messages.length < dt.total;
+      $("tend")?.classList.toggle("on", Boolean(dt && !dt.error) && (more || sc.scrollHeight - sc.scrollTop - sc.clientHeight > 700));
+    };
+    el._edges = edges;
+    sc.addEventListener("scroll", edges, { passive: true });
+    $("tjump").addEventListener("click", () => sc.scrollTo({ top: 0, behavior: reduced() ? "auto" : "smooth" }));
+    $("tend").addEventListener("click", jumpToEnd);
   }
   $("tfolder").textContent = t.sel ? tail(x.cwd, 1) : "Threads";
   $("ttitle").textContent = t.sel ? x.title || "(untitled)" : "Nothing open";
@@ -1635,6 +1702,7 @@ function renderThreadDetail() {
     conv.addEventListener("click", (e) => { if (e.target.closest("#cmore")) loadMoreMessages(); });
   }
   progress();
+  $("tdetail")?._edges?.();
   renderThreadSide();
 }
 const tailHTML = (dt, state_ = "") => {
@@ -1663,6 +1731,29 @@ function watchConvTail() {
   convObserver = new IntersectionObserver((entries) => { if (entries.some((e) => e.isIntersecting)) loadMoreMessages(); }, { root: $("tscroll"), rootMargin: "0px 0px 1000px 0px" });
   convObserver.observe(tailEl);
 }
+// Down to the last message. A long thread is only partly on the page, so the rest is
+// loaded first (250 at a time, from the server's cache) and then the view glides down.
+let jumping = false;
+async function jumpToEnd() {
+  const t = state.thr, id = t.sel, btn = $("tend"), sc = $("tscroll");
+  if (jumping || !sc) return;
+  jumping = true; btn?.classList.add("busy");
+  try {
+    for (let guard = 0; guard < 200 && t.sel === id && t.detail && t.detail.messages.length < t.detail.total; guard += 1) {
+      if (t.moreBusy) await new Promise((r) => setTimeout(r, 80)); else await loadMoreMessages();
+    }
+    if (t.sel === id) {
+      sc.scrollTo({ top: sc.scrollHeight, behavior: reduced() ? "auto" : "smooth" });
+      // Messages below the fold are drawn lazily and grow as they are reached, so the bottom
+      // keeps moving. Re-aim until it holds still.
+      for (let i = 0; i < 10 && t.sel === id; i += 1) {
+        await new Promise((r) => setTimeout(r, i === 0 ? 500 : 220));
+        if (sc.scrollHeight - sc.scrollTop - sc.clientHeight < 4) break;
+        sc.scrollTo({ top: sc.scrollHeight, behavior: "auto" });
+      }
+    }
+  } finally { jumping = false; btn?.classList.remove("busy"); }
+}
 // The next 250 messages, appended below what is already there. The sentinel keeps its
 // height, new messages rise in, and the browser's scroll anchoring holds the position.
 async function loadMoreMessages() {
@@ -1687,7 +1778,7 @@ async function loadMoreMessages() {
     if (t.sel === id) { const old = $("ctail"); if (old) old.outerHTML = tailHTML(dt, "error"); $("cretry")?.addEventListener("click", () => { $("ctail").outerHTML = tailHTML(dt, "loading"); loadMoreMessages(); }); }
   } finally {
     t.moreBusy = false;
-    if (t.sel === id) { progress(); watchConvTail(); }
+    if (t.sel === id) { progress(); watchConvTail(); $("tdetail")?._edges?.(); }
   }
 }
 // The panel: facts about the thread, its token split, and the resume commands.
@@ -1984,8 +2075,18 @@ matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => { i
 
 // ==== keyboard, command palette, help ==========================================
 const overlay = $("overlay");
-const closeOverlay = () => { overlay.innerHTML = ""; };
-const isOpen = () => Boolean(overlay.firstChild);
+// Closing plays the exit before the popup is removed. Until then it is "closing", not
+// open, so Ctrl K during the exit opens it again instead of closing it twice.
+let closing = null;
+const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+function closeOverlay() {
+  const ov = overlay.querySelector(".ov");
+  if (!ov || ov.classList.contains("out")) return;
+  if (reduced()) { overlay.innerHTML = ""; return; }
+  ov.classList.add("out");
+  closing = setTimeout(() => { if (ov.isConnected && ov.classList.contains("out")) overlay.innerHTML = ""; closing = null; }, 160);
+}
+const isOpen = () => Boolean(overlay.querySelector(".ov:not(.out)"));
 const pickView = (v) => { if (["cost", "tokens", "messages"].includes(v)) { state.metric = v; save(); setView("usage"); } else setView(v); };
 const pickRange = (v) => { state.range = v; save(); if (v === "custom" && state.data) { state.from = state.from || state.data.meta.start; state.to = state.to || state.data.meta.end; } controls(); if (v !== "custom" || (state.from && state.to)) reloadUsage(); };
 const TABS = ["models", "sessions", "projects", "sources", "agents", "days"];
@@ -2019,6 +2120,7 @@ const SHORTCUTS = [
 const keyChips = (k) => k.split(" ").map((p) => `<span class="kbd">${esc(p)}</span>`).join("");
 
 function openHelp() {
+  clearTimeout(closing);
   const groups = [...new Set(SHORTCUTS.map((s) => s[0]))];
   overlay.innerHTML = `<div class="ov" data-close><div class="pal help" role="dialog" aria-label="Keyboard shortcuts"><h3>Keyboard shortcuts<span class="spacer"></span><button class="icon-btn" data-close aria-label="Close">${ui("x", 15)}</button></h3>
     <div class="cols">${groups.map((g) => `<div><h4>${g}</h4>${SHORTCUTS.filter((s) => s[0] === g).map((s) => `<div class="k"><span>${esc(s[2])}</span><span>${keyChips(s[1])}</span></div>`).join("")}</div>`).join("")}</div></div></div>`;
@@ -2062,6 +2164,7 @@ function paletteFilter(items, text) {
   return scored.sort((a, b) => b[1] - a[1]).map((x) => x[0]).slice(0, 60);
 }
 function openPalette() {
+  clearTimeout(closing);
   if (!state.thr.list && !state.thr.unavailable) loadThreads().catch(() => {});
   if (!state.data) loadUsage().catch(() => {});
   overlay.innerHTML = `<div class="ov" data-close><div class="pal" role="dialog" aria-label="Command palette"><div class="in">${ui("command", 15)}<input id="palq" placeholder="Type a command, a filter, or a thread title" autocomplete="off" spellcheck="false"></div>
@@ -2111,10 +2214,20 @@ document.addEventListener("keydown", (e) => {
 // ==== wiring ===================================================================
 const fail = (e) => { if (e.name !== "AbortError") $("main").innerHTML = `<div class="empty">Could not load: ${esc(e.message)}</div>`; };
 const reloadUsage = () => (state.view === "models" ? Promise.all([loadModels(), loadUsage()]).catch(fail) : loadUsage().catch(fail));
+// Restarts a CSS animation by class: removed, reflowed once, added, and cleared when it ends.
+function replay(el, cls, ms) {
+  if (!el) return;
+  el.classList.remove("enter", "swap", "swapcard"); void el.offsetWidth; el.classList.add(cls);
+  clearTimeout(el._replay); el._replay = setTimeout(() => el.classList.remove(cls), ms);
+}
+// A change the person just made (a filter, a range, a metric) fades the page in softly; the
+// same render caused by data arriving a minute later does not, so a refresh never flickers.
+let lastInput = 0;
+for (const type of ["pointerdown", "keydown", "change"]) document.addEventListener(type, () => { lastInput = performance.now(); }, true);
 function setView(v) {
   const changed = v !== state.view;
   state.view = v; save();
-  if (changed) { window.scrollTo(0, 0); const m = $("main"); m.classList.remove("enter"); void m.offsetWidth; m.classList.add("enter"); setTimeout(() => m.classList.remove("enter"), 220); }
+  if (changed) { window.scrollTo(0, 0); replay($("main"), "enter", 420); }
   if (v !== "threads") history.replaceState(null, "", location.pathname);
   render();
   if (v === "limits") loadLimits().catch(fail);
@@ -2151,7 +2264,7 @@ let resizeTimer;
 new ResizeObserver(() => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { document.documentElement.style.setProperty("--hh", $("top").offsetHeight + "px"); if (state.view === "usage" && state.data && $("chart")) drawChart(); }, 120); }).observe(document.body);
 setInterval(() => {
   if (document.hidden) return;
-  if ($("overlay").firstChild) return;
+  if (isOpen()) return;
   if (state.view === "usage") reloadUsage();
   else if (state.view === "limits") loadLimits().catch(() => {});
 }, 60000);
