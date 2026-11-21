@@ -975,7 +975,8 @@ function usage() {
     "      --stdout              print the snapshot instead of writing it (used by the hub)",
     "  usage sync                same as collect: refresh every machine's snapshot now",
     "  usage web [--port N] [--host H] [--no-open] [--offline]",
-    "                            dashboard in the browser (default http://127.0.0.1:8787)",
+    "                            dashboard in the browser (default http://127.0.0.1:8787);",
+    "                            opens the one already running instead of starting another",
     "  usage web install         keep the dashboard running in the background (Windows task or systemd user unit)",
     "  usage web status|start|stop|restart|uninstall",
     "  usage hosts               published snapshots and their age",
@@ -1046,12 +1047,14 @@ async function main() {
         return 1;
       }
       const { startWeb } = await import("./usage-web.mjs");
-      await startWeb({
+      const server = await startWeb({
         port: flags.port,
         host: flags.host || "127.0.0.1",
         open: !flags["no-open"],
         offline: Boolean(flags.offline),
       });
+      // Already running somewhere: startWeb opened that one and there is nothing to keep alive.
+      if (!server) return 0;
       // The server keeps the event loop alive; main()'s exit() must not run.
       return new Promise(() => {});
     }

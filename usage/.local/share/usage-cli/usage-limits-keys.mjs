@@ -53,14 +53,27 @@ function credentialKey(entry) {
 // provider id -> first key found. `aliases` lets one provider answer to the ids
 // different tools use for it.
 export function findKeys({ home, env }) {
+  // Command Code's own login comes first. pi, omp and opencode can each hold an
+  // older copy of that key under their own name; the first one found used to win,
+  // so a stale copy in pi's auth.json made the card say "refused the key" right
+  // after a fresh `cmd login`.
   const files = [
+    path.join(home, ".commandcode", "auth.json"),
     path.join(home, ".local", "share", "opencode", "auth.json"),
     path.join(env.PI_CODING_AGENT_DIR || path.join(home, ".pi", "agent"), "auth.json"),
     path.join(home, ".omp", "agent", "auth.json"),
-    path.join(home, ".commandcode", "auth.json"),
   ];
   const found = new Map();
-  const put = (id, key) => { if (key && !found.has(id)) found.set(id, key); };
+  // Every other distinct key seen for a provider, in the order found, so a detector
+  // can fall back when the first one is refused.
+  const alternates = new Map();
+  const put = (id, key) => {
+    if (!key) return;
+    if (!found.has(id)) { found.set(id, key); return; }
+    if (found.get(id) === key) return;
+    const list = alternates.get(id) ?? [];
+    if (!list.includes(key)) alternates.set(id, [...list, key]);
+  };
 
   put("openrouter", str(env.OPENROUTER_API_KEY));
   put("commandcode", str(env.COMMAND_CODE_API_KEY) ?? str(env.COMMANDCODE_API_KEY));
@@ -73,12 +86,16 @@ export function findKeys({ home, env }) {
     if (!existsSync(file)) continue;
     const auth = readJson(file);
     if (!auth || typeof auth !== "object") continue;
-    for (const [rawId, entry] of Object.entries(auth)) {
-      const id = aliases[rawId] ?? rawId;
-      put(id, credentialKey(entry));
+    // The official CLI's file has no provider entries, only { apiKey, userId, ... }.
+    if (path.basename(path.dirname(file)) === ".commandcode") {
+      put("commandcode", str(auth.apiKey));
+      continue;
     }
-    put("commandcode", str(auth.apiKey)); // the official CLI's legacy field
+    for (const [rawId, entry] of Object.entries(auth)) {
+      put(aliases[rawId] ?? rawId, credentialKey(entry));
+    }
   }
+  found.alternates = alternates;
   return found;
 }
 
@@ -203,12 +220,19 @@ export function parseCommandCode(credits, subscription) {
 }
 
 async function commandcode(keys, fetchImpl) {
-  const key = keys.get("commandcode");
-  if (!key) return null;
+  const first = keys.get("commandcode");
+  if (!first) return null;
   const base = { id: "commandcode", name: "Command Code", windows: [], source: "Command Code API", asOf: null };
   const root = "https://api.commandcode.ai";
   try {
-    const who = await getJson(fetchImpl, `${root}/alpha/whoami`, key);
+    // A refused key is not final: try every other key found for this provider.
+    let key = first;
+    let who = await getJson(fetchImpl, `${root}/alpha/whoami`, key);
+    for (const other of keys.alternates?.get("commandcode") ?? []) {
+      if (!rejected(who.status)) break;
+      key = other;
+      who = await getJson(fetchImpl, `${root}/alpha/whoami`, key);
+    }
     if (!who.ok) return failure(base, who.status, "Command Code", "Run `cmd login` or create a new key in Command Code Studio.");
     const orgId = str(who.body?.org?.id);
     const q = orgId ? `?orgId=${encodeURIComponent(orgId)}` : "";

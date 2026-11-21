@@ -62,7 +62,7 @@ WantedBy=default.target
 }
 
 // The port the installed unit serves on, so `status` and `restart` agree with it.
-function installedPort(env) {
+export function installedPort(env = process.env) {
   try {
     return Number(/--port (\d+)/.exec(readFileSync(unitFile(env), "utf8"))?.[1]) || DEFAULT_PORT;
   } catch {
@@ -89,7 +89,10 @@ async function linux(action, { scriptDir, port, env = process.env }) {
     mkdirSync(unitDir(env), { recursive: true });
     writeFileSync(file, renderUnit({ scriptDir, port: port || DEFAULT_PORT }));
     systemctl("daemon-reload");
-    const result = systemctl("enable", "--now", UNIT);
+    // restart, not `enable --now`: installing again with another port must replace a
+    // running instance, and `--now` leaves an already-active unit untouched.
+    systemctl("enable", UNIT);
+    const result = systemctl("restart", UNIT);
     if (result.status !== 0) { console.error(result.stderr.trim()); return 1; }
     console.log(`Installed ${UNIT} (starts with your user session, restarts if it stops) and started it.`);
     console.log(`  http://127.0.0.1:${port || DEFAULT_PORT}`);

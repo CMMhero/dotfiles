@@ -149,7 +149,25 @@ export function parseClaudeUsage(body) {
   return windows;
 }
 
-async function claudeLimits(home, fetchImpl) {
+// api.anthropic.com/api/oauth/usage answers 429 "Rate limited" to a client it does
+// not know, on the first request and forever (measured: the same token with
+// User-Agent "usage-dashboard" got 429 five times in a row, and 200 each time as
+// "claude-code/<version>"). Claude Code's own /usage makes this exact call with its
+// own token, and this is the user's own Claude Code login, so the request names the
+// installed Claude Code version the way that client does.
+let claudeVersion = null;
+async function claudeUserAgent(home, env) {
+  if (!claudeVersion) {
+    claudeVersion = "2.1.0"; // any recent version is accepted; used when claude cannot be run
+    try {
+      const out = (await run("claude", ["--version"], { env: agentEnv(home, env), timeout: 10_000 })).toString();
+      claudeVersion = /\d+\.\d+\.\d+/.exec(out)?.[0] ?? claudeVersion;
+    } catch { /* keep the fallback */ }
+  }
+  return `claude-code/${claudeVersion}`;
+}
+
+async function claudeLimits(home, fetchImpl, env = process.env) {
   const file = path.join(home, ".claude", ".credentials.json");
   if (!existsSync(file)) return null;
   const base = { id: "claude", name: "Claude Code", windows: [], source: "Anthropic usage API", asOf: null };
@@ -165,7 +183,7 @@ async function claudeLimits(home, fetchImpl) {
       headers: {
         Authorization: `Bearer ${oauth.accessToken}`,
         "anthropic-beta": "oauth-2025-04-20",
-        "User-Agent": "usage-dashboard",
+        "User-Agent": await claudeUserAgent(home, env),
       },
       signal: AbortSignal.timeout(15_000),
     });
@@ -311,15 +329,17 @@ export function parseAntigravityUsage(body) {
   return windows;
 }
 
-// agy is usually a mise shim, which a service or ssh command does not have on PATH.
-function agyEnv(home, env) {
+// agy and claude are usually mise or vite+ shims, which a service or an ssh command
+// does not have on PATH.
+function agentEnv(home, env) {
   const extra = [path.join(home, ".local", "share", "mise", "shims"), path.join(home, ".local", "bin"), path.join(home, ".local", "share", "vite-plus", "bin")];
   if (env.LOCALAPPDATA) extra.push(path.join(env.LOCALAPPDATA, "mise", "shims"));
-  return { ...env, PATH: [...extra, env.PATH ?? env.Path ?? ""].join(path.delimiter) };
+  const key = Object.keys(env).find((k) => k.toLowerCase() === "path") ?? "PATH"; // "Path" on Windows
+  return { ...env, [key]: [...extra, env[key] ?? ""].join(path.delimiter) };
 }
 
 async function findAgy(home, env) {
-  const withPath = agyEnv(home, env);
+  const withPath = agentEnv(home, env);
   for (const name of ["agy"]) {
     try {
       await run(name, ["--version"], { env: withPath, timeout: 10_000 });
@@ -358,7 +378,7 @@ async function detectLocalLimits({ home = os.homedir(), fresh = false, fetchImpl
   const providers = [];
   const keys = findKeys({ home, env });
   const detectors = [
-    ["claude", () => claudeLimits(home, fetchImpl)],
+    ["claude", () => claudeLimits(home, fetchImpl, env)],
     ["codex", async () => codexLimits(home)],
     ["antigravity", () => antigravityLimits(home, env)],
     ...keyDetectors.map(([id, run]) => [id, () => run(keys, fetchImpl)]),

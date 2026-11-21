@@ -27,6 +27,7 @@ import { detectBilling } from "./usage-billing.mjs";
 import { detectLimits } from "./usage-limits.mjs";
 import { listThreads, resumeCommands, sessionIndex, showThread } from "./usage-threads.mjs";
 import { loadPriceCache, refreshPrices, usageDir } from "./usage.mjs";
+import { installedPort } from "./usage-web-service.mjs";
 import { catalogIsStale, modelsReport, refreshCatalog } from "./usage-models.mjs";
 import { resetSnapshots, summarize } from "./usage-summary.mjs";
 
@@ -98,6 +99,7 @@ function createServer(bound) {
           (error) => send(res, 500, "application/json", JSON.stringify({ error: error.message })),
         );
       }
+      if (url.pathname === "/api/ping") return send(res, 200, "application/json", JSON.stringify({ app: "usage-web", pid: process.pid }));
       if (url.pathname === "/favicon.ico") return serveAsset(res, "/assets/favicon.svg");
       if (url.pathname === "/api/limits") {
         return detectLimits({ fresh: Boolean(url.searchParams.get("fresh")) }).then(
@@ -186,7 +188,24 @@ function safeRead(file) {
   }
 }
 
-async function startWeb({ port = DEFAULT_PORT, host = "127.0.0.1", open = true, offline = false } = {}) {
+// Is a usage dashboard already answering on one of these loopback ports? /api/ping
+// names it exactly; a server older than that route is recognised by its page title.
+export async function findRunningWeb(ports, timeoutMs = 700) {
+  for (const port of ports) {
+    const base = `http://127.0.0.1:${port}`;
+    try {
+      const ping = await fetch(`${base}/api/ping`, { signal: AbortSignal.timeout(timeoutMs) });
+      if (ping.ok && (await ping.json().catch(() => null))?.app === "usage-web") return port;
+      if (ping.status === 404) {
+        const page = await fetch(`${base}/`, { signal: AbortSignal.timeout(timeoutMs) });
+        if (page.ok && (await page.text()).includes("<title>Usage</title>")) return port;
+      }
+    } catch { /* nothing listening there, or not ours */ }
+  }
+  return null;
+}
+
+async function startWeb({ port, host = "127.0.0.1", open = true, offline = false } = {}) {
   runOffline = offline;
   if (!offline) {
     if (catalogIsStale()) refreshCatalog().catch((error) => console.log(`models: refresh failed (${error.message})`));
@@ -198,6 +217,22 @@ async function startWeb({ port = DEFAULT_PORT, host = "127.0.0.1", open = true, 
         (result) => console.log(`prices: refreshed ${result.count} models`),
         (error) => console.log(`prices: refresh failed (${error.message}); using the cached table`),
       );
+    }
+  }
+
+  // `usage web` with a browser means "show me the dashboard". If the background
+  // service (or an earlier run) already serves one, open that instead of starting a
+  // second server on the next free port. --no-open is how the service itself starts,
+  // so it never defers, or a service restart would exit and be restarted in a loop.
+  if (open && (host === "127.0.0.1" || host === "localhost")) {
+    const wanted = Number(port);
+    const candidates = wanted ? [wanted] : [installedPort(), ...Array.from({ length: 20 }, (_, i) => DEFAULT_PORT + i)];
+    const running = await findRunningWeb([...new Set(candidates)]);
+    if (running) {
+      const existing = `http://127.0.0.1:${running}/`;
+      console.log(`usage web: already running at ${existing}`);
+      openBrowser(existing);
+      return null;
     }
   }
 
