@@ -981,6 +981,15 @@
   .fvpdf, .fvhtml { width: 100%; height: calc(100vh - 190px); min-height: 360px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
   .fvmedia { display: grid; place-items: center; padding: 16px 0; } .fvmedia audio { width: 100%; } .fvmedia video { max-width: 100%; max-height: calc(100vh - 220px); border-radius: 10px; background: #000; }
   .fvtabs { margin-bottom: 10px; }
+  .ftree { font-family: var(--mono); font-size: 13px; line-height: 1.5; }
+  .ftree .tr { display: flex; align-items: center; gap: 7px; min-height: 26px; padding: 0 6px; border-radius: 6px; list-style: none; cursor: default; }
+  .ftree summary.tr { cursor: pointer; } .ftree summary.tr::-webkit-details-marker { display: none; }
+  .ftree .tr:hover { background: var(--hover, color-mix(in srgb, var(--text) 6%, transparent)); }
+  .ftree .tr .ui { flex: none; color: var(--faint); } .ftree .td > summary .ui:nth-of-type(2) { color: var(--accent); }
+  .ftree .tw { display: inline-flex; width: 14px; flex: none; } .ftree .tw .ui { transition: transform var(--t-fast) var(--ease); }
+  .ftree .td[open] > summary .tw .ui { transform: rotate(90deg); }
+  .ftree .tn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ftree small { margin-left: auto; color: var(--faint); font-size: 11px; }
+  .ftree .tk { margin-left: 13px; padding-left: 8px; border-left: 1px solid var(--line-2); }
   .fvtable { overflow: auto; max-height: calc(100vh - 230px); border: 1px solid var(--line); border-radius: 10px; }
   .fvtable table { border-collapse: separate; border-spacing: 0; font-size: 12.5px; width: max-content; min-width: 100%; }
   .fvtable th, .fvtable td { padding: 6px 12px; border-bottom: 1px solid var(--line-2); text-align: left; white-space: nowrap; max-width: 360px; overflow: hidden; text-overflow: ellipsis; }
@@ -2315,7 +2324,18 @@ function looksLikePath(t) {
   const segs = t.split(/[\\/]/).filter(Boolean);
   return /\.[A-Za-z0-9]{1,8}$/.test(t) || segs.length >= 3;
 }
-const pathChip = (p, label) => `<button type="button" class="fileref" data-path="${esc(p)}" title="${esc(p)}">${ui(IMAGE_EXT.test(p) ? "image" : "file-text", 12)}<span>${esc(label ?? (p.split(/[\\/]/).filter(Boolean).pop() || p))}</span></button>`;
+// A chip shows a folder icon for a path that is one: written with a trailing slash, learned from opening it,
+// or (a guess) a last segment with no dot and not one of the usual extensionless files.
+const KNOWN_DIRS = new Set(), KNOWN_FILES = new Set();
+const PLAIN_FILES = /^(makefile|dockerfile|license|licence|readme|changelog|procfile|gemfile|rakefile|justfile|jenkinsfile|vagrantfile|brewfile|cname|authors|notice|copying|codeowners)$/i;
+function isDirPath(p) {
+  if (KNOWN_DIRS.has(p)) return true;
+  if (KNOWN_FILES.has(p) || /[\\/]$/.test(p)) return /[\\/]$/.test(p);
+  const last = p.split(/[\\/]/).filter(Boolean).pop() ?? "";
+  return !!last && !last.includes(".") && !PLAIN_FILES.test(last);
+}
+const pathIcon = (p) => (IMAGE_EXT.test(p) ? "image" : isDirPath(p) ? "folder" : "file-text");
+const pathChip = (p, label) => `<button type="button" class="fileref" data-path="${esc(p)}" title="${esc(p)}">${ui(pathIcon(p), 12)}<span>${esc(label ?? (p.split(/[\\/]/).filter(Boolean).pop() || p))}</span></button>`;
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|bmp|avif|svg)$/i;
 // ---- block markdown -----------------------------------------------------------------
 const MD_RULE = /^\s*(-{3,}|\*{3,}|_{3,})\s*$/, MD_LIST = /^(\s*)([-*+]|\d+[.)])\s+(.*)$/, MD_TABLE_SEP = /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/;
@@ -2976,12 +2996,28 @@ function csvTable(text, sep) {
   const head = rows[0], rest = rows.slice(1);
   return `<div class="fvtable"><table><thead><tr><th class="idx"></th>${Array.from({ length: width }, (_, i) => `<th>${esc(head[i] ?? "")}</th>`).join("")}</tr></thead><tbody>${rest.map((r, n) => `<tr><td class="idx">${n + 1}</td>${Array.from({ length: width }, (_, i) => `<td>${esc(r[i] ?? "")}</td>`).join("")}</tr>`).join("")}</tbody></table>${rows.length > 500 ? '<div class="note">Showing the first 500 rows.</div>' : ""}</div>`;
 }
+// A folder's entries (paths in reading order) as a tree: folders open and close, the top two levels start open.
+function dirTree(entries, truncated) {
+  if (!entries.length) return '<div class="empty">This folder is empty.</div>';
+  const root = { kids: [] }, at = new Map([["", root]]);
+  for (const e of entries) {
+    const i = e.p.lastIndexOf("/"), parent = at.get(i < 0 ? "" : e.p.slice(0, i)) ?? root;
+    const node = { name: i < 0 ? e.p : e.p.slice(i + 1), dir: e.d, skipped: e.skipped, kids: [] };
+    parent.kids.push(node); if (e.d) at.set(e.p, node);
+  }
+  const row = (n, depth) => {
+    if (!n.dir) return `<div class="tr"><span class="tw"></span>${ui(IMAGE_EXT.test(n.name) ? "image" : "file-text", 14)}<span class="tn">${esc(n.name)}</span></div>`;
+    const inner = n.skipped ? '<div class="tr faint"><span class="tw"></span><span class="tn">not expanded</span></div>' : n.kids.length ? n.kids.map((k) => row(k, depth + 1)).join("") : '<div class="tr faint"><span class="tw"></span><span class="tn">empty</span></div>';
+    return `<details class="td"${depth < 2 ? " open" : ""}><summary class="tr"><span class="tw">${ui("chevron-right", 12)}</span>${ui("folder", 14)}<span class="tn">${esc(n.name)}</span>${n.skipped ? "" : `<small>${n.kids.length}</small>`}</summary><div class="tk">${inner}</div></details>`;
+  };
+  return `<div class="ftree">${root.kids.map((k) => row(k, 0)).join("")}${truncated ? '<div class="note">Showing the first part of a large folder.</div>' : ""}</div>`;
+}
 async function openFile(file, host = "") {
   $("fv")?.remove();
   const id = state.thr.sel, name = file.split(/[\\/]/).filter(Boolean).pop() || file;
   const fv = document.createElement("div");
   fv.id = "fv"; fv.className = "fv";
-  fv.innerHTML = `<div class="fvs" data-fvclose></div><aside class="fvp" role="dialog" aria-label="File ${esc(name)}"><header><span class="fvt">${ui("file-text", 15)}<b title="${esc(file)}">${esc(name)}</b></span><span class="spacer"></span><button type="button" class="icon-btn" data-fvclose aria-label="Close">${ui("x", 16)}</button></header><div class="fvmeta mono">${esc(file)}</div><div class="fvact" id="fvact"></div><div class="fvb" id="fvb"><div class="skrow">${sk(18, "60%")}${sk(14)}${sk(14, "90%")}${sk(14, "75%")}${sk(14)}</div></div></aside>`;
+  fv.innerHTML = `<div class="fvs" data-fvclose></div><aside class="fvp" role="dialog" aria-label="File ${esc(name)}"><header><span class="fvt">${ui(pathIcon(file) === "folder" ? "folder" : "file-text", 15)}<b title="${esc(file)}">${esc(name)}</b></span><span class="spacer"></span><button type="button" class="icon-btn" data-fvclose aria-label="Close">${ui("x", 16)}</button></header><div class="fvmeta mono">${esc(file)}</div><div class="fvact" id="fvact"></div><div class="fvb" id="fvb"><div class="skrow">${sk(18, "60%")}${sk(14)}${sk(14, "90%")}${sk(14, "75%")}${sk(14)}</div></div></aside>`;
   document.body.append(fv);
   fv.querySelector(".fvp").focus?.();
   const body = $("fvb"), act = $("fvact");
@@ -2989,8 +3025,15 @@ async function openFile(file, host = "") {
   try {
     const r = await get(`/api/threads/file?id=${encodeURIComponent(id)}&path=${encodeURIComponent(file)}${host ? "&host=" + encodeURIComponent(host) : ""}`);
     if (!$("fv")) return;
-    act.innerHTML = `${copy}${r.via === "this machine" ? `<button type="button" class="btn sm" data-reveal>${ui("folder", 12)}Show in file manager</button>` : ""}<span class="faint">${esc(r.via)}${r.size != null ? " · " + esc(fmtBytes(r.size)) : ""}${r.mtime ? " · " + esc(ago(r.mtime)) : ""}</span>`;
-    if (r.kind === "image") {
+    (r.kind === "dir" ? KNOWN_DIRS : KNOWN_FILES).add(file);
+    const kindIcon = r.kind === "dir" ? "folder" : null;
+    if (kindIcon) {
+      fv.querySelector(".fvt .ui")?.replaceWith(Object.assign(document.createElement("span"), { innerHTML: ui("folder", 15) }).firstElementChild);
+      document.querySelectorAll(".fileref").forEach((c) => { if (c.dataset.path === file) c.querySelector(".ui")?.replaceWith(Object.assign(document.createElement("span"), { innerHTML: ui("folder", 12) }).firstElementChild); });
+    }
+    act.innerHTML = `${copy}${r.kind === "dir" ? `<button type="button" class="btn sm" data-openfolder>${ui("folder", 12)}Open in Zed</button>` : ""}${r.via === "this machine" ? `<button type="button" class="btn sm" data-reveal>${ui("folder", 12)}Show in file manager</button>` : ""}<span class="faint">${r.kind === "dir" ? esc(int(r.entries.length)) + (r.truncated ? "+" : "") + " items · " : ""}${esc(r.via)}${r.size != null ? " · " + esc(fmtBytes(r.size)) : ""}${r.mtime ? " · " + esc(ago(r.mtime)) : ""}</span>`;
+    if (r.kind === "dir") body.innerHTML = dirTree(r.entries, r.truncated);
+    else if (r.kind === "image") {
       const src = r.dataUrl ?? `/api/threads/image?id=${encodeURIComponent(id)}&path=${encodeURIComponent(file)}`;
       body.innerHTML = `<div class="fvimg"><img class="mdimg" src="${esc(src)}" alt="${esc(name)}" data-name="${esc(name)}"></div>`;
     } else if (["pdf", "audio", "video"].includes(r.kind)) {
@@ -3022,7 +3065,13 @@ async function openFile(file, host = "") {
     if (ev.target.closest("[data-fvclose]")) closeFile();
     else if (ev.target.closest("[data-copypath]")) navigator.clipboard?.writeText(file);
     else if (ev.target.closest("[data-reveal]")) fetch(`/api/threads/reveal?id=${encodeURIComponent(id)}&path=${encodeURIComponent(file)}`, { method: "POST", headers: { "x-usage-action": "1" } }).catch(() => {});
-    else if (ev.target.closest("[data-host]")) openFile(file, ev.target.closest("[data-host]").dataset.host);
+    else if (ev.target.closest("[data-openfolder]")) {
+      const b = ev.target.closest("[data-openfolder]"), was = b.innerHTML;
+      fetch(`/api/threads/folder?id=${encodeURIComponent(id)}&path=${encodeURIComponent(file)}`, { method: "POST", headers: { "x-usage-action": "1" } })
+        .then(async (res) => { const j = await res.json().catch(() => ({})); if (!res.ok) throw new Error(j.error || "failed"); b.textContent = j.opened === "zed" ? "Opened in Zed" : "Opened"; })
+        .catch((e) => { b.textContent = /Install Zed/.test(e.message) ? "Zed is not installed" : "Could not open"; b.title = e.message; })
+        .finally(() => setTimeout(() => { if (b.isConnected) b.innerHTML = was; }, 1800));
+    } else if (ev.target.closest("[data-host]")) openFile(file, ev.target.closest("[data-host]").dataset.host);
   };
 }
 document.addEventListener("click", (e) => { const c = e.target.closest(".fileref"); if (c) { e.preventDefault(); openFile(c.dataset.path); } });
@@ -3220,7 +3269,7 @@ function renderThreadSide() {
       <button class="cmdbox" id="cmdbox" ${off} title="Copy"><code id="cmdtext" class="mono">${has ? "Getting the command" : "No thread open"}</code>${ui("copy", 13)}</button>
       <button class="btn primary" id="resume" ${off}>${ui("copy", 13)}<span>Copy command</span></button>
       <div class="cmdnote faint" id="cmdnote">${has ? "" : "Open a thread to get the command that resumes it."}</div>
-      <hr>${link("folder", "Folder", "openfolder", has && x.cwd ? tail(x.cwd, 2) : "-", x.cwd ? `Open ${x.cwd} in the file manager` : "No folder recorded")}${link("branch", "Branch", "brlink", x.branch || "-", "Looking for the repository")}${link("link", "Repository", "repolink", "-", "Looking for the repository")}${fact("bot", "Agent", has ? agentName(x.harness) + (x.model ? " · " + x.model : "") : "-")}${fact("monitor", "Machine", x.machine || "-")}
+      <hr>${link("folder", "Folder", "openfolder", has && x.cwd ? tail(x.cwd, 2) : "-", x.cwd ? `Open ${x.cwd} in Zed (over ssh if it is on another machine), or the file manager` : "No folder recorded")}${link("branch", "Branch", "brlink", x.branch || "-", "Looking for the repository")}${link("link", "Repository", "repolink", "-", "Looking for the repository")}${fact("bot", "Agent", has ? agentName(x.harness) + (x.model ? " · " + x.model : "") : "-")}${fact("monitor", "Machine", x.machine || "-")}
       <hr>${fact("message-square", "Messages", has ? int(x.messages) : "-")}${fact("calendar", "Started", x.startedAt ? new Date(x.startedAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" }) : "-")}${fact("clock", "Last active", x.updatedAt ? ago(x.updatedAt) : "-")}
       <div class="f">${ui("hash", 14)}<span class="k">Session</span><button class="v link mono" id="copyid" ${off} title="Copy the session id">${has ? esc(String(x.session).slice(0, 13)) + "…" : "-"}</button></div>
       <hr><div class="h">Tokens <span class="mono faint">${compact(tok)}</span></div>${[["Input", k.input], ["Output", k.output], ["Cache read", k.cache_read], ["Cache write", k.cache_write]].map(([l, v]) => meter(l, pct(v ?? 0, tok), compact(v ?? 0))).join("")}
@@ -3229,7 +3278,7 @@ function renderThreadSide() {
   const flash = (el, html) => { const old = el.innerHTML; el.innerHTML = html; setTimeout(() => { if (el.isConnected) el.innerHTML = old; }, 1200); };
   const copyCmd = (el, html) => { if (t.cmd?.text) { copy(t.cmd.text); flash(el, html); } };
   $("copyid").addEventListener("click", (e) => { copy(x.session); flash(e.currentTarget, "copied"); });
-  // Folder: opens in this machine's file manager. A thread from another machine says so instead.
+  // Folder: opens in Zed (over ssh when the thread ran on another machine), else the file manager.
   const folder = $("openfolder");
   if (x.cwd) folder.addEventListener("click", async () => {
     if (folder.dataset.busy) return; folder.dataset.busy = "1";
@@ -3237,8 +3286,9 @@ function renderThreadSide() {
     try {
       const r = await fetch("/api/threads/folder?id=" + encodeURIComponent(x.id), { method: "POST", headers: { "x-usage-action": "1" } });
       if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "failed");
-      folder.textContent = "opened";
-    } catch (e) { folder.textContent = /not on this machine/.test(e.message) ? "not on this machine" : "could not open"; }
+      const done = await r.json().catch(() => ({}));
+      folder.textContent = done.opened === "zed" ? (done.host ? "opening in Zed over ssh" : "opened in Zed") : "opened";
+    } catch (e) { folder.textContent = /Install Zed/.test(e.message) ? "needs Zed" : /not on this machine|none of the other/.test(e.message) ? "not found on any machine" : "could not open"; folder.title = e.message; }
     setTimeout(() => { delete folder.dataset.busy; if (folder.isConnected) folder.textContent = was; }, 1500);
   });
   // Branch and repository: the origin remote of that folder, turned into a web address. Only the

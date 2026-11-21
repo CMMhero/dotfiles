@@ -246,7 +246,7 @@ function serveThreads(res, url) {
   }
   if (url.pathname === "/api/threads/folder") {
     if (res.req.method !== "POST" || res.req.headers["x-usage-action"] !== "1") return json(405, { error: "POST with x-usage-action: 1" });
-    openThreadFolder(q.get("id") ?? "").then((body) => json(200, body), (error) => json(error.status ?? 400, { error: error.message }));
+    openThreadFolder(q.get("id") ?? "", q.get("path") ?? "").then((body) => json(200, body), (error) => json(error.status ?? 400, { error: error.message }));
     return;
   }
   if (url.pathname === "/api/threads/reveal") {

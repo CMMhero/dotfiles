@@ -19,7 +19,7 @@
 // ==============================================================================
 
 import { execFile, spawn } from "node:child_process";
-import { open, readFile, stat } from "node:fs/promises";
+import { open, readdir, readFile, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { findTool } from "./usage-env.mjs";
@@ -434,6 +434,76 @@ git -C "$p" remote get-url origin 2>/dev/null
 echo ---
 git -C "$p" rev-parse --abbrev-ref HEAD 2>/dev/null
 exit 0`;
+// ---- folders: the same lookup, but the answer is a tree ---------------------------------------------
+// A path that turns out to be a folder is listed (four levels, 1500 entries) instead of read. Folders
+// that are big and never interesting are shown but not entered.
+const TREE_DEPTH = 4, TREE_MAX = 1500;
+const TREE_SKIP = ["node_modules", ".git", ".venv", "__pycache__", ".next", ".cache", "target"];
+const dirScript = (kind, target) => kind === "windows"
+  ? `[Console]::OutputEncoding=[Text.Encoding]::UTF8
+$p=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${b64(target)}'))
+if(-not [IO.Directory]::Exists($p)){exit 3}
+$skip=@(${TREE_SKIP.map((n) => `'${n}'`).join(",")});$script:c=0;$root=$p.TrimEnd('\\','/').Length
+function W($d,$n){if($n -gt ${TREE_DEPTH} -or $script:c -gt ${TREE_MAX}){return}
+Get-ChildItem -LiteralPath $d -Force -ErrorAction SilentlyContinue|ForEach-Object{$script:c++;$r=$_.FullName.Substring($root).TrimStart('\\','/').Replace('\\','/')
+if($_.PSIsContainer){Write-Output ('D'+[char]9+$r);if($skip -notcontains $_.Name){W $_.FullName ($n+1)}}else{Write-Output ('F'+[char]9+$r)}}}
+W $p 1
+exit 0`
+  : `p=$(printf %s '${b64(target)}' | base64 -d)
+case "$p" in "~/"*) p="$HOME/\${p#\\~/}";; esac
+[ -d "$p" ] || exit 3
+cd "$p" || exit 3
+skip='${TREE_SKIP.map((n) => `-name ${n}`).join(" -o ")}'
+find . -mindepth 1 -maxdepth ${TREE_DEPTH} \\( $skip \\) -prune -print -o -type d -print 2>/dev/null | head -n ${TREE_MAX} | sed 's|^\\./||;s|^|D\t|'
+find . -mindepth 1 -maxdepth ${TREE_DEPTH} \\( $skip \\) -prune -o ! -type d -print 2>/dev/null | head -n ${TREE_MAX} | sed 's|^\\./||;s|^|F\t|'
+exit 0`;
+
+// "D\tsrc" / "F\tsrc/a.js" lines (or a local walk) into entries in reading order: folders first, then
+// files, each by name, every folder followed by what is in it.
+function treeOf(rows) {
+  const root = { kids: new Map() };
+  let total = 0;
+  for (const { p, d } of rows) {
+    const parts = String(p).split("/").filter(Boolean);
+    if (!parts.length) continue;
+    let at = root;
+    parts.forEach((name, i) => {
+      if (!at.kids.has(name)) at.kids.set(name, { name, dir: i < parts.length - 1, kids: new Map() });
+      at = at.kids.get(name);
+      if (i === parts.length - 1 && d) at.dir = true;
+    });
+    total += 1;
+  }
+  const out = [];
+  const walk = (node, prefix) => {
+    const kids = [...node.kids.values()].sort((a, b) => Number(b.dir) - Number(a.dir) || a.name.localeCompare(b.name, undefined, { sensitivity: "base", numeric: true }));
+    for (const k of kids) {
+      const rel = prefix ? `${prefix}/${k.name}` : k.name;
+      out.push({ p: rel, d: k.dir, skipped: k.dir && TREE_SKIP.includes(k.name) && !k.kids.size });
+      if (k.dir) walk(k, rel);
+    }
+  };
+  walk(root, "");
+  return { entries: out, truncated: total >= TREE_MAX };
+}
+
+async function walkLocal(dir) {
+  const rows = [];
+  const go = async (d, rel, depth) => {
+    if (depth > TREE_DEPTH || rows.length >= TREE_MAX) return;
+    const list = await readdir(d, { withFileTypes: true }).catch(() => []);
+    for (const e of list) {
+      if (rows.length >= TREE_MAX) return;
+      const r = rel ? `${rel}/${e.name}` : e.name;
+      const isDir = e.isDirectory() || (e.isSymbolicLink() && (await stat(path.join(d, e.name)).catch(() => null))?.isDirectory());
+      rows.push({ p: r, d: Boolean(isDir) });
+      if (isDir && !e.isSymbolicLink() && !TREE_SKIP.includes(e.name)) await go(path.join(d, e.name), r, depth + 1);
+    }
+  };
+  await go(dir, "", 1);
+  return treeOf(rows);
+}
+
 const runRemote = (host, kind, script, timeout = 25_000, maxBuffer = 16 * 1024 * 1024) =>
   capture("ssh", [...SSH_OPTS, host, kind === "windows" ? psCommand(script) : `echo ${b64(script)} | base64 -d | sh`], { timeout, maxBuffer });
 
@@ -484,6 +554,22 @@ async function readRemote(entry, given, limit, only = "") {
     }
     // Exit code 3 is the script saying "no such file"; anything else is ssh or the host failing.
     throw new Error(`${host}: ${!last ? "no spelling of that path fits this host" : last.code === 3 ? "not found" : last.code === 255 ? `ssh failed (${last.message})` : `failed (${last.message})`}`);
+  };
+  if (only) return { host: only, value: await ask(only, await kindOf(only)) };
+  return fromAnyHost(entry, ask, given);
+}
+
+async function listRemote(entry, given, only = "") {
+  const ask = async (host, kind) => {
+    let last = null;
+    for (const target of kind === "windows" ? pathVariants(given, kind) : given.startsWith("~/") ? [given] : pathVariants(given, kind)) {
+      try {
+        const lines = (await runRemote(host, kind, dirScript(kind, target), 60_000)).toString().split(/\r?\n/);
+        const rows = lines.map((l) => /^([DF])\t(.+)$/.exec(l.replace(/\r$/, ""))).filter(Boolean).map((m) => ({ d: m[1] === "D", p: m[2] }));
+        return { path: target, ...treeOf(rows) };
+      } catch (e) { last = e; }
+    }
+    throw new Error(`${host}: ${!last ? "no spelling of that path fits this host" : last.code === 3 ? "not found" : `failed (${last.message})`}`);
   };
   if (only) return { host: only, value: await ask(only, await kindOf(only)) };
   return fromAnyHost(entry, ask, given);
@@ -608,12 +694,22 @@ export async function threadFile(id, file, { host = "" } = {}) {
     if (looksBinary(value.buf)) return { path: value.path, via, kind: "binary", size: value.size, ext };
     return { path: value.path, via, kind: "text", size: value.size, text: value.buf.subarray(0, TEXT_LIMIT).toString("utf8"), truncated: value.size > TEXT_LIMIT, ext };
   };
+  const viaDir = ({ host: via, value }) => ({ path: value.path, via, kind: "dir", entries: value.entries, truncated: value.truncated });
+  // A path that is no file there may be a folder: the file error stays if it is not.
+  const remoteThing = async (only = "") => {
+    try { return viaRemote(await readRemote(entry, given, MEDIA[ext] ? 1 : image ? IMAGE_LIMIT : TEXT_LIMIT, only)); }
+    catch (e) {
+      if (e.status !== 404) throw e;
+      try { return viaDir(await listRemote(entry, given, only)); } catch { throw e; }
+    }
+  };
   if (host) {
     if (!(await sshCandidates()).includes(host)) throw fail("not one of the configured hosts", 400);
-    return viaRemote(await readRemote(entry, given, MEDIA[ext] ? 1 : image ? IMAGE_LIMIT : TEXT_LIMIT, host));
+    return remoteThing(host);
   }
   for (const here of await localPaths(file)) {
     const info = await stat(here).catch(() => null);
+    if (info?.isDirectory()) return { path: here, via: "this machine", kind: "dir", mtime: info.mtime.toISOString(), ...(await walkLocal(here)) };
     if (!info?.isFile()) continue;
     const base = { path: here, via: "this machine", size: info.size, mtime: info.mtime.toISOString(), ext };
     if (image) return { ...base, kind: "image" };
@@ -628,7 +724,7 @@ export async function threadFile(id, file, { host = "" } = {}) {
     } finally { await handle.close(); }
   }
   // Not here: ask the other machines, all at once. 404 (with the hosts) only if none has it.
-  return viaRemote(await readRemote(entry, given, MEDIA[ext] ? 1 : image ? IMAGE_LIMIT : TEXT_LIMIT));
+  return remoteThing();
 }
 
 // Show the file in the system file manager (selected, where the platform can). Only a file that exists
@@ -697,16 +793,43 @@ export async function threadRepo(id, recordedBranch = "") {
   return { cwd, via, root: root || null, remote: remote || null, web, name, branch: head, branchUrl: branchUrlOf(web, /^[\w./@+-]{1,200}$/.test(recordedBranch) ? recordedBranch : head) };
 }
 
-export async function openThreadFolder(id) {
-  const { given } = await threadCwd(id);
+// Where Zed is told to open a folder that lives on another machine: ssh://alias/path. Zed runs ssh itself,
+// so the alias from ~/.ssh/config (key, user, port, jump host) applies as it does in a terminal.
+export const zedSshUrl = (host, target) => {
+  const t = String(target).replace(/\\/g, "/");
+  const p = /^[A-Za-z]:\//.test(t) ? `/${t}` : t.startsWith("~/") ? `/${t}` : t.startsWith("/") ? t : `/${t}`;
+  return `ssh://${host}${encodeURI(p).replace(/#/g, "%23").replace(/\?/g, "%3F")}`;
+};
+
+// Open the thread's folder (or a folder the thread names) for the person at this machine: in Zed when it is
+// installed, over ssh when the folder is on the machine the thread ran on, else in the file manager.
+// USAGE_EDITOR=files turns Zed off.
+export async function openThreadFolder(id, file = "") {
+  let entry, given;
+  if (file) { await guard(id, file); entry = await loadEntry(id); given = normSpelling(file); }
+  else ({ entry, given } = await threadCwd(id));
+  const zed = process.env.USAGE_EDITOR === "files" ? null : findTool("zed");
+  const launch = (cmd, args, tool) => { const child = spawn(cmd, args, { detached: true, stdio: "ignore", env: tool?.env ?? process.env, shell: Boolean(tool?.shell), windowsHide: true }); child.on("error", () => {}); child.unref(); };
   const cwd = await localFolder(given);
-  if (!cwd) throw fail("that folder is not on this machine", 404);
-  const run = (cmd, args) => { const child = spawn(cmd, args, { detached: true, stdio: "ignore" }); child.on("error", () => {}); child.unref(); };
-  if (process.platform === "win32") run("explorer.exe", [cwd.replace(/\//g, "\\")]);
-  else if (process.platform === "darwin") run("open", [cwd]);
-  else if (process.env.WSL_DISTRO_NAME) run("explorer.exe", [(await capture("wslpath", ["-w", cwd])).toString().trim()]);
-  else run("xdg-open", [cwd]);
-  return { ok: true };
+  if (cwd) {
+    if (zed) { launch(zed.cmd, [cwd], zed); return { ok: true, opened: "zed", where: cwd }; }
+    if (process.platform === "win32") launch("explorer.exe", [cwd.replace(/\//g, "\\")]);
+    else if (process.platform === "darwin") launch("open", [cwd]);
+    else if (process.env.WSL_DISTRO_NAME) launch("explorer.exe", [(await capture("wslpath", ["-w", cwd])).toString().trim()]);
+    else launch("xdg-open", [cwd]);
+    return { ok: true, opened: "files", where: cwd };
+  }
+  // Not on this machine: find the one that has it, and hand Zed an ssh address.
+  const ask = async (host, kind) => {
+    for (const target of kind === "windows" ? pathVariants(given, kind) : given.startsWith("~/") ? [given] : pathVariants(given, kind)) {
+      try { await runRemote(host, kind, gitScript(kind, target), 20_000); return { target }; } catch { /* not at that spelling */ }
+    }
+    throw new Error(`${host}: no such folder`);
+  };
+  const got = await fromAnyHost(entry, ask, given);
+  if (!zed) throw fail(`that folder is on ${got.host}. Install Zed on this machine to open it over ssh.`, 404, { host: got.host });
+  launch(zed.cmd, [zedSshUrl(got.host, got.value.target)], zed);
+  return { ok: true, opened: "zed", where: got.value.target, host: got.host };
 }
 
 export async function resumeCommands(id, harnesses = []) {
@@ -735,4 +858,4 @@ export async function resumeCommands(id, harnesses = []) {
 }
 
 // Exposed for the tests of the remote scripts; not part of the page's API.
-export const _remote = { readScript, gitScript, psCommand, pathVariants };
+export const _remote = { readScript, gitScript, dirScript, treeOf, psCommand, pathVariants };
