@@ -17,16 +17,29 @@
 //           token_count event. Nothing is sent anywhere; the figure is as old as
 //           the last Codex turn, and says so.
 //
+//   remote  other machines are asked over ssh (see detectRemoteLimits): this file and
+//           usage-limits-keys.mjs are piped to the host, run there with its own node,
+//           and print the same JSON. Logins and keys never leave that machine; only
+//           percentages come back.
+//
+//   keys    OpenRouter, Command Code, DeepSeek and Moonshot are asked for their
+//           balance and caps with the key the agents already store (see
+//           usage-limits-keys.mjs). OpenCode Zen has no such endpoint.
+//
 // Each provider answers with the same shape so the page can draw them alike:
-//   { id, name, status, plan, windows: [{ id, label, percent, resetsAt, stale }],
-//     asOf, source, note }
-// status is one of: ok, expired, error. A provider that is not installed is left
-// out of the list instead of being reported as broken.
+//   { id, name, status, plan, windows: [{ id, label, percent, resetsAt, stale, windowMs,
+//     detail?, share?, breakdown? }],
+//     facts?: [{ label, value }], asOf, source, note }
+// status is one of: ok, expired, error, unsupported. A provider that is not
+// installed is left out of the list instead of being reported as broken.
 // ==============================================================================
 
-import { existsSync, readFileSync, readdirSync, statSync, openSync, readSync, closeSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync, openSync, readSync, closeSync, realpathSync } from "node:fs";
+import { spawn } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { findKeys, keyDetectors } from "./usage-limits-keys.mjs";
 
 const CLAUDE_USAGE_URL = "https://api.anthropic.com/api/oauth/usage";
 const CACHE_TTL_MS = 60_000;
@@ -74,6 +87,16 @@ function claudePlan(oauth) {
   return multiplier ? `${sub} ${multiplier}x` : sub;
 }
 
+const HOUR_MS = 3_600_000;
+const WINDOW_MS = { session: 5 * HOUR_MS, weekly: 168 * HOUR_MS };
+const slug = (text) => String(text).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+const windowFor = (id, label, percent, resetsAt, extra = {}) => ({
+  id, label, percent, resetsAt: resetsAt ?? null, stale: false,
+  windowMs: id === "session" ? WINDOW_MS.session : id.startsWith("weekly") ? WINDOW_MS.weekly : null,
+  ...extra,
+});
+
 export function parseClaudeUsage(body) {
   const windows = [];
   // Every window is an object with a utilization and a reset time. The endpoint
@@ -83,14 +106,41 @@ export function parseClaudeUsage(body) {
     if (!value || typeof value !== "object" || typeof value.utilization !== "number") continue;
     if (key === "extra_usage") continue;
     const [id, label] = CLAUDE_LABELS[key] ?? [key.replace(/_/g, "-"), humanize(key)];
-    windows.push({ id, label, percent: value.utilization, resetsAt: value.resets_at ?? null, stale: false });
+    windows.push(windowFor(id, label, value.utilization, value.resets_at));
   }
+
+  // Newer models (Fable) have no legacy seven_day_* key. They arrive in the
+  // limits array as a weekly_scoped entry named after the model, and
+  // weekly_scoped_shares says how much of the weekly total that model may use.
+  const shares = Array.isArray(body?.weekly_scoped_shares) ? body.weekly_scoped_shares : [];
+  (Array.isArray(body?.limits) ? body.limits : []).forEach((entry, index) => {
+    if (entry?.kind !== "weekly_scoped" || typeof entry.percent !== "number") return;
+    const name = entry.scope?.model?.display_name ?? entry.scope?.surface?.display_name;
+    if (!name) return;
+    const id = `weekly-${slug(name)}`;
+    if (windows.some((w) => w.id === id)) return; // already reported under its legacy key
+    const share = shares.find((x) => x.limit_index === index);
+    windows.push(windowFor(id, `Weekly, ${name}`, entry.percent, entry.resets_at, share
+      ? { share: { usedOfWeekly: share.used_percent_of_weekly, allowanceOfWeekly: share.allowance_percent_of_weekly } }
+      : {}));
+  });
+
+  // Where the weekly total went (Claude Code, chats, Cowork...), attached to the
+  // all-models window it explains.
+  const rows = (body?.seven_day_breakdown?.rows ?? []).filter((r) => typeof r.percent === "number");
+  const weekly = windows.find((w) => w.id === "weekly");
+  if (weekly && rows.length) {
+    weekly.breakdown = rows.map((r) => ({ label: r.display_name ?? humanize(r.key), percent: r.percent }));
+    weekly.startedAt = body.seven_day_breakdown.window_started_at ?? null;
+  }
+
   const order = Object.values(CLAUDE_LABELS).map(([id]) => id);
-  windows.sort((a, b) => (order.indexOf(a.id) + 1 || 99) - (order.indexOf(b.id) + 1 || 99));
+  const rank = (id) => order.indexOf(id) + 1 || (id.startsWith("weekly-") ? 2.5 : 99);
+  windows.sort((a, b) => rank(a.id) - rank(b.id));
 
   const extra = body?.extra_usage;
   if (extra?.is_enabled && typeof extra.utilization === "number") {
-    windows.push({ id: "extra", label: "Extra usage", percent: extra.utilization, resetsAt: null, stale: false });
+    windows.push({ id: "extra", label: "Extra usage", percent: extra.utilization, resetsAt: null, stale: false, windowMs: null });
   }
   return windows;
 }
@@ -188,7 +238,7 @@ export function parseCodexRateLimits(limits, recordedAt, now = Date.now()) {
     // A window that reset after the record was written no longer has this
     // percentage. Keep it, marked, instead of presenting a dead number as live.
     const stale = resetsAt ? Date.parse(resetsAt) < now : false;
-    windows.push({ id, label: minutes ? codexLabel(minutes) : humanize(slot), percent: w.used_percent, resetsAt, stale });
+    windows.push({ id, label: minutes ? codexLabel(minutes) : humanize(slot), percent: w.used_percent, resetsAt, stale, windowMs: minutes ? minutes * 60_000 : null });
   }
   return windows;
 }
@@ -230,11 +280,13 @@ function codexLimits(home) {
 
 // ------------------------------------------------------------------------------
 
-export async function detectLimits({ home = os.homedir(), fresh = false, fetchImpl = fetch } = {}) {
+async function detectLocalLimits({ home = os.homedir(), fresh = false, fetchImpl = fetch, env = process.env } = {}) {
   const providers = [];
+  const keys = findKeys({ home, env });
   const detectors = [
     ["claude", () => claudeLimits(home, fetchImpl)],
     ["codex", async () => codexLimits(home)],
+    ...keyDetectors.map(([id, run]) => [id, () => run(keys, fetchImpl)]),
   ];
   for (const [id, run] of detectors) {
     const result = await cached(id, fresh, run).catch((error) => ({
@@ -242,5 +294,97 @@ export async function detectLimits({ home = os.homedir(), fresh = false, fetchIm
     }));
     if (result) providers.push(result);
   }
-  return { generatedAt: new Date().toISOString(), providers, checked: detectors.map(([id]) => id) };
+  return { generatedAt: new Date().toISOString(), host: os.hostname(), providers, checked: detectors.map(([id]) => id) };
+}
+
+// ------------------------------------------------------------------------------
+// Other machines, over ssh
+// ------------------------------------------------------------------------------
+
+// The same ssh aliases usage.mjs collects from. usage.mjs is too large to import
+// for one constant and is the only other place that reads this variable, so the
+// default is repeated here: change both together.
+export const remoteHosts = (env = process.env) =>
+  (env.USAGE_REMOTE_HOSTS ?? "main,dev,it@space-pp").split(",").map((h) => h.trim()).filter(Boolean);
+
+const SELF_DIR = path.dirname(fileURLToPath(import.meta.url));
+const REMOTE_DIR = "$HOME/.local/share/usage/limits"; // not the collector's dir: that one keeps an incremental store
+
+// stderr from a failed ssh can be a banner, ANSI colour, or a shell's multi-line
+// error with a row of ^~~~ under the bad spot. Keep the first lines that say
+// something, on one line.
+export function readableError(text) {
+  const lines = String(text).replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "").split(/\r?\n/)
+    .map((l) => l.trim()).filter((l) => l && !/^[\^~\s]+$/.test(l));
+  return lines.slice(0, 2).join(" | ").slice(0, 240);
+}
+
+function run(cmd, args, { input, timeout = 30_000 } = {}) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(cmd, args, { stdio: ["pipe", "pipe", "pipe"], windowsHide: true });
+    const out = [], err = [];
+    const timer = setTimeout(() => { child.kill(); reject(new Error(`timed out after ${timeout / 1000}s`)); }, timeout);
+    child.stdout.on("data", (c) => out.push(c));
+    child.stderr.on("data", (c) => err.push(c));
+    child.on("error", (e) => { clearTimeout(timer); reject(e); });
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      if (code === 0) resolve(Buffer.concat(out));
+      else reject(new Error(readableError(Buffer.concat(err).toString()) || `${cmd} exited ${code}`));
+    });
+    child.stdin.on("error", () => {}); // ssh may close early; the exit code explains why
+    child.stdin.end(input);
+  });
+}
+
+async function remoteLimits(host) {
+  const archive = await run("tar", ["-czf", "-", "-C", SELF_DIR, "usage-limits.mjs", "usage-limits-keys.mjs"]);
+  // The login shell on these boxes is fish, which rejects `N=$(...)` and `[ ] || { }`
+  // ("Unsupported use of '='"). So the work is handed to sh, quoted once for
+  // whatever shell receives it. vite+ owns node here and a non-login ssh PATH
+  // does not include it, so its known location is tried second.
+  const work = [
+    `mkdir -p ${REMOTE_DIR} && tar -xzf - -C ${REMOTE_DIR}`,
+    `N=$(command -v node || ls "$HOME/.local/share/vite-plus/bin/node" 2>/dev/null)`,
+    `if [ -z "$N" ]; then echo "node is not installed" >&2; exit 3; fi`,
+    `"$N" ${REMOTE_DIR}/usage-limits.mjs --json`,
+  ].join("; ");
+  const script = `sh -c '${work}'`;
+  const stdout = await run("ssh", ["-o", "BatchMode=yes", "-o", "ConnectTimeout=8", "-o", "LogLevel=ERROR", host, script], { input: archive });
+  const body = JSON.parse(stdout.toString());
+  if (!Array.isArray(body?.providers)) throw new Error("answer had no providers");
+  return body;
+}
+
+export async function detectRemoteLimits({ hosts = remoteHosts(), fresh = false } = {}) {
+  return Promise.all(hosts.map(async (alias) => {
+    const label = alias.includes("@") ? alias.split("@").pop() : alias;
+    try {
+      const body = await cached(`ssh:${alias}`, fresh, () => remoteLimits(alias));
+      return { alias, host: body.host || label, ok: true, providers: body.providers, checked: body.checked };
+    } catch (error) {
+      // A machine that is off is normal. Say so on its own card instead of failing the page.
+      return { alias, host: label, ok: false, providers: [], checked: [], note: `Could not reach ${label}: ${error.message}` };
+    }
+  }));
+}
+
+export async function detectLimits({ remote = true, ...options } = {}) {
+  const local = await detectLocalLimits(options);
+  const others = remote ? await detectRemoteLimits({ fresh: options.fresh }) : [];
+  // The page may run on one of the listed machines (the dashboard on main, with
+  // main in USAGE_REMOTE_HOSTS). That host is already shown as local, so an ssh
+  // answer carrying the same hostname is dropped instead of drawn twice.
+  const hosts = [
+    { alias: null, host: local.host, ok: true, local: true, providers: local.providers, checked: local.checked },
+    ...others.filter((h) => !(h.ok && h.host === local.host)),
+  ];
+  // Flat list kept for older callers: each provider is tagged with its machine.
+  const providers = hosts.flatMap((h) => h.providers.map((p) => ({ ...p, host: h.host })));
+  return { generatedAt: local.generatedAt, hosts, providers, checked: local.checked };
+}
+
+// `node usage-limits.mjs --json` is what a remote host runs for us.
+if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href && process.argv.includes("--json")) {
+  detectLocalLimits({ fresh: true }).then((body) => process.stdout.write(JSON.stringify(body)));
 }

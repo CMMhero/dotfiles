@@ -34,7 +34,7 @@
 // ==============================================================================
 
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, statSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -973,8 +973,11 @@ function usage() {
     "                            scan this host and every other machine (WSL, ssh remotes)",
     "      --local-only          this host only",
     "      --stdout              print the snapshot instead of writing it (used by the hub)",
+    "  usage sync                same as collect: refresh every machine's snapshot now",
     "  usage web [--port N] [--host H] [--no-open] [--offline]",
     "                            dashboard in the browser (default http://127.0.0.1:8787)",
+    "  usage web install         keep the dashboard running in the background (Windows task or systemd user unit)",
+    "  usage web status|start|stop|restart|uninstall",
     "  usage hosts               published snapshots and their age",
     "  usage prices update       refresh model prices from OpenRouter",
     "",
@@ -1032,6 +1035,11 @@ async function main() {
       return result.status ?? 0;
     }
     case "web": {
+      // `usage web install|uninstall|start|stop|restart|status` manage the
+      // background service (a scheduled task on Windows, a systemd user unit on
+      // Linux). Plain `usage web` runs the server right here.
+      const { WEB_ACTIONS, manageWeb } = await import("./usage-web-service.mjs");
+      if (WEB_ACTIONS.includes(sub)) return manageWeb(sub, { scriptDir: SCRIPT_DIR, port: flags.port });
       const web = path.join(SCRIPT_DIR, "usage-web.mjs");
       if (!existsSync(web)) {
         console.error(`usage: usage-web.mjs not found next to usage.mjs (${web})`);
@@ -1055,6 +1063,7 @@ async function main() {
         offline: Boolean(flags.offline),
       });
     case "collect":
+    case "sync": // the name people reach for; same pass as collect
       collectLocal({ rebuild: Boolean(flags.rebuild), stdout: Boolean(flags.stdout) });
       if (flags.stdout) return 0;
       if (!flags["local-only"]) {
@@ -1124,7 +1133,11 @@ export {
 // Run the CLI only when this file is the process entrypoint. Without this an
 // `import` of usage.mjs for its data layer would immediately run `usage report`
 // and exit, which is exactly what the TUI must not do.
-const invokedDirectly = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
+// Node reports import.meta.url as the real path but argv[1] as typed, so a
+// symlinked usage.mjs (stow links the vendored files one by one) must be compared
+// after realpath, or the CLI would silently do nothing.
+const realPath = (file) => { try { return realpathSync(file); } catch { return path.resolve(file); } };
+const invokedDirectly = process.argv[1] && realPath(process.argv[1]) === realPath(fileURLToPath(import.meta.url));
 if (invokedDirectly) {
   main().then(
     (code) => process.exit(code ?? 0),

@@ -3,7 +3,7 @@
 # scripts/sync-usage.sh - refresh the vendored copy of the usage CLI.
 #
 # The tool is written once, in dotfiles-win (usage.mjs, usage-tui.mjs,
-# usage-web.mjs + usage-web.html, and the herdr Insights collector it runs as its
+# usage-web.mjs + usage-web.html, usage-web-service.mjs, and the herdr Insights collector it runs as its
 # parser). This repo carries a copy under usage/.local/share/usage-cli so a Linux
 # box that only has ~/dotfiles still gets `usage`, `usage tui` and `usage web`.
 # Copy, don't rewrite: the two repos must never disagree on how a token is
@@ -31,7 +31,8 @@ done
 INSIGHTS=dot_config/herdr-app/mods/insights
 FILES=(
   usage.mjs usage-tui.mjs usage-web.mjs usage-web.html
-  usage-limits.mjs usage-threads.mjs usage-summary.mjs usage-models.mjs usage-billing.mjs
+  usage-limits.mjs usage-limits-keys.mjs usage-threads.mjs usage-summary.mjs usage-models.mjs usage-billing.mjs
+  usage-web-service.mjs
   dot_config/usage/prices.json
   "$INSIGHTS/collector.mjs"
 )
