@@ -2175,7 +2175,14 @@ function mdInline(src) {
 // ---- code: highlighting, copy, preview ---------------------------------------------------
 const LANGS = { js: "js", javascript: "js", jsx: "js", ts: "js", typescript: "js", tsx: "js", mjs: "js", cjs: "js", go: "js", rust: "js", rs: "js", java: "js", kotlin: "js", swift: "js", c: "js", cpp: "js", "c++": "js", cs: "js", csharp: "js", php: "js", dart: "js",
   json: "json", jsonc: "json", json5: "json", py: "py", python: "py", rb: "py", ruby: "py", sh: "sh", bash: "sh", zsh: "sh", shell: "sh", fish: "sh", console: "sh", powershell: "sh", ps1: "sh", pwsh: "sh", bat: "sh",
-  html: "html", xml: "html", svg: "html", vue: "html", svelte: "html", css: "css", scss: "css", less: "css", diff: "diff", patch: "diff", yaml: "yaml", yml: "yaml", toml: "yaml", ini: "yaml", env: "yaml", sql: "sql", md: "md", markdown: "md" };
+  html: "html", xml: "html", svg: "html", vue: "html", svelte: "html", css: "css", scss: "css", less: "css", diff: "diff", patch: "diff", yaml: "yaml", yml: "yaml", toml: "yaml", ini: "yaml", env: "yaml", sql: "sql", md: "md", markdown: "md",
+  // more source files, by extension
+  mts: "js", cts: "js", kt: "js", kts: "js", scala: "js", sc: "js", groovy: "js", gradle: "js", h: "js", hpp: "js", hh: "js", cc: "js", cxx: "js", cu: "js", ino: "js", m: "js", mm: "js", objc: "js", zig: "js", sol: "js", proto: "js", glsl: "js", wgsl: "js", hlsl: "js", graphql: "js", gql: "js", v: "js",
+  ex: "py", exs: "py", pl: "py", pm: "py", r: "py", jl: "py", cr: "py", coffee: "py", nix: "py", tf: "py", hcl: "py", tfvars: "py", mk: "sh", cmake: "sh", awk: "sh", ksh: "sh", cmd: "sh", psm1: "sh", psd1: "sh",
+  lua: "lua", hs: "lua", elm: "lua", jsonl: "json", ndjson: "json", webmanifest: "json", htm: "html", xhtml: "html", plist: "html", csproj: "html", xaml: "html", rss: "html", atom: "html", astro: "html", mdx: "md", rst: "md",
+  conf: "yaml", cfg: "yaml", properties: "yaml", editorconfig: "yaml", gitconfig: "yaml", pcss: "css", styl: "css", sass: "css",
+  // files known by name (the text after the last dot, or the whole name)
+  dockerfile: "sh", containerfile: "sh", makefile: "sh", justfile: "sh", rakefile: "py", gemfile: "py", procfile: "yaml", brewfile: "py", vagrantfile: "py", jenkinsfile: "js", gitignore: "sh", gitattributes: "sh", dockerignore: "sh", npmrc: "sh", envrc: "sh", bashrc: "sh", zshrc: "sh", profile: "sh", babelrc: "json", eslintrc: "json", prettierrc: "json" };
 const KW = {
   js: "const let var function return if else for while do switch case break continue new class extends import from export default async await try catch finally throw typeof instanceof in of null true false undefined this super yield static public private protected readonly interface type enum implements void delete as satisfies keyof declare namespace module abstract get set",
   go: "package import func return if else for range switch case default break continue go defer chan select struct interface map type var const nil true false make new len cap append panic recover fallthrough goto",
@@ -2188,11 +2195,12 @@ const KW = {
   css: "important inherit initial unset none auto",
   yaml: "true false null yes no on off",
   json: "true false null",
+  lua: "and break do else elseif end false for function goto if in local nil not or repeat return then true until while let where data module import case of type class instance deriving newtype",
   md: "", html: "", diff: "",
 };
 // Which keyword list a language uses, and which comment style.
-const LANG_KW = { js: "js", go: "go", rs: "rs", java: "java", c: "c", py: "py", sh: "sh", sql: "sql", css: "css", yaml: "yaml", json: "json", html: "", md: "" };
-const COMMENT = { js: "\\/\\/[^\\n]*|\\/\\*[\\s\\S]*?\\*\\/", go: "\\/\\/[^\\n]*|\\/\\*[\\s\\S]*?\\*\\/", rs: "\\/\\/[^\\n]*|\\/\\*[\\s\\S]*?\\*\\/", java: "\\/\\/[^\\n]*|\\/\\*[\\s\\S]*?\\*\\/", c: "\\/\\/[^\\n]*|\\/\\*[\\s\\S]*?\\*\\/",
+const LANG_KW = { lua: "lua", js: "js", go: "go", rs: "rs", java: "java", c: "c", py: "py", sh: "sh", sql: "sql", css: "css", yaml: "yaml", json: "json", html: "", md: "" };
+const COMMENT = { lua: "--\\[\\[[\\s\\S]*?\\]\\]|--[^\\n]*", js: "\\/\\/[^\\n]*|\\/\\*[\\s\\S]*?\\*\\/", go: "\\/\\/[^\\n]*|\\/\\*[\\s\\S]*?\\*\\/", rs: "\\/\\/[^\\n]*|\\/\\*[\\s\\S]*?\\*\\/", java: "\\/\\/[^\\n]*|\\/\\*[\\s\\S]*?\\*\\/", c: "\\/\\/[^\\n]*|\\/\\*[\\s\\S]*?\\*\\/",
   css: "\\/\\*[\\s\\S]*?\\*\\/", py: "#[^\\n]*", sh: "(?<=^|\\s)#[^\\n]*", yaml: "(?<=^|\\s)#[^\\n]*", sql: "--[^\\n]*|\\/\\*[\\s\\S]*?\\*\\/", html: "<!--[\\s\\S]*?-->" };
 // The language families that share a grammar with js for strings, numbers, calls and types.
 const CLIKE = new Set(["js", "go", "rs", "java", "c"]);
@@ -2229,9 +2237,21 @@ function hlRegex(lang) {
   return (hlCache[lang] = new RegExp(parts.join("|"), "gm"));
 }
 const TK = { c: "tk-c", s: "tk-s", s2: "tk-s", n: "tk-n", w: "tk-w", k: "tk-k", t: "tk-t", f: "tk-f", y: "tk-y", v: "tk-v", p: "tk-p", d: "tk-d", h: "tk-h", a: "tk-a" };
+const HL_PIECE = 40000, HL_MAX = 900000;
 function hlCode(code, lang) {
-  if (!lang || lang === "text" || code.length > 40000) return esc(code);
+  if (!lang || lang === "text" || code.length > HL_MAX) return esc(code);
   if (lang === "diff") return hlDiff(code);
+  if (code.length > HL_PIECE) {
+    // A long file is highlighted a piece at a time, each cut at the end of a line, so it stays fast and
+    // keeps its colours. (A comment or string that runs across a cut loses its colour after it.)
+    let out = "", at = 0;
+    while (at < code.length) {
+      let end = Math.min(code.length, at + HL_PIECE);
+      if (end < code.length) { const nl = code.lastIndexOf("\n", end); if (nl > at) end = nl + 1; }
+      out += hlCode(code.slice(at, end), lang); at = end;
+    }
+    return out;
+  }
   const re = hlRegex(lang);
   re.lastIndex = 0;
   let out = "", at = 0, m;
@@ -2286,7 +2306,7 @@ function hlNumbered(text, lang) {
 const guessLang = (code) => (/^\s*[{[]/.test(code) && /[}\]]\s*$/.test(code) ? "json" : /^(diff --git|@@ |--- a\/|\*\*\* Begin Patch|\+\+\+ )/m.test(code) ? "diff" : /^\s*(\$ |#!\/)/.test(code) ? "sh" : /^\s*<(!DOCTYPE|html|div|svg)\b/i.test(code) ? "html" : "");
 // `info` is the fence's language word; `hint` is a language to use when there is none (a diff's file).
 function codeBlock(code, info = "", hint = "", numbered = false) {
-  const raw = String(info).trim().split(/[\s{]/)[0].toLowerCase(), lang = raw === "text" ? "" : LANGS[raw] ?? (raw ? "" : guessLang(code));
+  const raw = String(info).trim().split(/[\s{]/)[0].toLowerCase(), lang = raw === "text" || /^(txt|plain|plaintext|output|log|logs|none)$/.test(raw) ? "" : LANGS[raw] ?? guessLang(code);
   const label = raw || lang || "";
   const previewable = lang === "html" && (raw === "html" || raw === "svg");
   let body = lang === "diff" ? hlDiff(code, hint) : hlCode(code, lang);
@@ -3046,7 +3066,7 @@ async function openFile(file, host = "") {
     } else {
       const ext = (r.ext || "").slice(1), md = ext === "md" || ext === "markdown", sep = ext === "csv" ? "," : ext === "tsv" ? "\t" : "", web = ext === "html" || ext === "htm";
       const note = r.truncated ? `<div class="note">Showing the first ${esc(fmtBytes(r.text.length))}.</div>` : "";
-      const code = () => codeBlock(r.text, ext, "", true);
+      const code = () => codeBlock(r.text, ext || name.toLowerCase(), "", true);
       if (md) body.innerHTML = note + `<div class="body fvmd">${renderText(r.text, "assistant")}</div>`;
       else if (sep || web) {
         // A table or a rendered page, with the source one click away.
