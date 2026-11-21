@@ -1355,6 +1355,22 @@ if test -x "$HOME/dotfiles/scripts/usage-timer.sh"; then
 fi
 
 # ------------------------------------------------------------------------------
+# 10b3. Usage dashboard in the background
+# ------------------------------------------------------------------------------
+# `usage web install` writes a systemd user service (usage-web.service) that
+# serves the dashboard on http://127.0.0.1:8787 and restarts it if it stops. The
+# counterpart of dotfiles-win's UsageWeb task. Idempotent; without a systemd user
+# session it only prints what to run by hand.
+if test -x "$HOME/.local/bin/usage"; then
+  if "$HOME/.local/bin/usage" web install >/dev/null 2>&1; then
+    log_ok "Usage dashboard runs in the background (usage web status)."
+  else
+    log_warn "Could not start the usage dashboard service (no systemd user session?)."
+    log_info "Retry with: usage web install"
+  fi
+fi
+
+# ------------------------------------------------------------------------------
 # 10c. Tailscale + T3 Code
 # ------------------------------------------------------------------------------
 # This machine is a paired remote environment for the T3 Code desktop app on
