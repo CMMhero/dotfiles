@@ -149,11 +149,11 @@ function serveThreads(res, url) {
   if (url.pathname === "/api/threads") {
     job = listThreads({
       q: q.get("q") ?? "", harness: q.get("harness") ?? "all", host: q.get("host") ?? "all", model: q.get("model") ?? "all",
-      project: q.get("project") ?? "all", days: q.get("days") ?? 0, limit: q.get("limit") ?? 200,
+      project: q.get("project") ?? "all", days: q.get("days") ?? 0, limit: q.get("limit") ?? 200, offset: q.get("offset") ?? 0,
       subagents: q.get("subagents") === "1", fresh: q.get("fresh") === "1",
     });
   } else if (url.pathname === "/api/threads/show") {
-    job = showThread(q.get("id") ?? "", { offset: q.get("offset") });
+    job = showThread(q.get("id") ?? "", { offset: q.get("offset"), limit: q.get("limit") });
   } else if (url.pathname === "/api/threads/resume") {
     job = resumeCommands(q.get("id") ?? "", RESUME_TARGETS);
   } else {

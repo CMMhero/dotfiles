@@ -20,6 +20,7 @@
 
 import { execFile } from "node:child_process";
 import { findTool } from "./usage-env.mjs";
+import { prepare, scoreThread } from "./usage-fuzzy.mjs";
 
 const ID = /^[A-Za-z0-9][A-Za-z0-9_-]{3,63}$/;
 const HARNESS = /^[a-z][a-z0-9-]{1,20}$/;
@@ -116,6 +117,7 @@ async function nameMachines(threads) {
   machines = labelMachines(threads, localHost);
 }
 
+const preparedCache = new WeakMap(); // thread object -> its searchable fields, built once per list refresh
 let listCache = null;
 async function allThreads(fresh) {
   if (!fresh && listCache && Date.now() - listCache.at < LIST_TTL_MS) return listCache.threads;
@@ -144,20 +146,35 @@ const counted = (threads, key) => {
   return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([value, count]) => ({ value, count }));
 };
 
-export async function listThreads({ q = "", harness = "all", host = "all", model = "all", project = "all", days = 0, subagents = false, limit = 200, fresh = false } = {}) {
+export async function listThreads({ q = "", harness = "all", host = "all", model = "all", project = "all", days = 0, subagents = false, limit = 200, offset = 0, fresh = false } = {}) {
   if (harness !== "all" && !HARNESS.test(harness)) throw new Error("bad harness");
   const all = await allThreads(fresh);
   let threads = all;
   const query = String(q).trim();
   if (query) {
-    // Atuin's own full-text search (titles, messages, reasoning, tool calls), best
-    // match first. Words are separate argv entries after `--`, so a query that
-    // starts with a dash is still a query. The other filters are applied to its
-    // answer here, so search and filters combine.
-    const args = ["threads", "search", "--limit", "0", "--style", "json"];
-    if (harness !== "all") args.push("--harness", harness);
-    args.push("--", ...query.split(/\s+/).slice(0, 12));
-    threads = JSON.parse(await run(args)).map((hit) => hit.session ?? hit);
+    // Two searches, merged. atuin's full text search reads messages, reasoning and tool
+    // calls but is exact; the fuzzy score reads titles, folders, branches and models and
+    // forgives typos and half-remembered words. A thread found by either is a result, and
+    // one found by both ranks first. Words are separate argv entries after `--`, so a query
+    // that starts with a dash is still a query. The other filters apply to the merged list.
+    const fullText = new Map();
+    try {
+      const args = ["threads", "search", "--limit", "0", "--style", "json"];
+      if (harness !== "all") args.push("--harness", harness);
+      args.push("--", ...query.split(/\s+/).slice(0, 12));
+      JSON.parse(await run(args)).forEach((hit, rank, hits) => fullText.set((hit.session ?? hit).atuin_id, 1 - rank / hits.length));
+    } catch { /* atuin search failed: the fuzzy half still answers */ }
+    const scored = [];
+    for (const thread of all) {
+      let prepared = preparedCache.get(thread);
+      if (!prepared) preparedCache.set(thread, (prepared = prepare(thread)));
+      const fuzzy = scoreThread(prepared, query);
+      const text = fullText.get(thread.atuin_id);
+      if (!fuzzy && text === undefined) continue;
+      scored.push({ thread, score: fuzzy + (text === undefined ? 0 : 1.2 + 1.5 * text) });
+    }
+    scored.sort((a, b) => b.score - a.score || Date.parse(b.thread.updated_at ?? 0) - Date.parse(a.thread.updated_at ?? 0));
+    threads = scored.map((x) => x.thread);
   }
   const since = Number(days) > 0 ? Date.now() - Number(days) * 86_400_000 : 0;
   const keep = (thread) =>
@@ -168,7 +185,7 @@ export async function listThreads({ q = "", harness = "all", host = "all", model
     (!since || Date.parse(thread.updated_at) >= since);
   const matched = threads.filter(keep);
   const visible = subagents ? matched : matched.filter((thread) => thread.parent_kind !== "subagent");
-  const top = Math.max(1, Math.min(2000, Number(limit) || 200));
+  const top = Math.max(1, Math.min(5000, Number(limit) || 200));
   return {
     total: visible.length,
     hiddenSubagents: matched.length - visible.length,
@@ -180,7 +197,8 @@ export async function listThreads({ q = "", harness = "all", host = "all", model
       projects: counted(all, (thread) => folderOf(thread.cwd)).slice(0, 80),
     },
     harnesses: [...new Set(all.map((thread) => thread.harness))].sort(),
-    threads: visible.slice(0, top).map(brief),
+    offset: Math.max(0, Number(offset) || 0),
+    threads: visible.slice(Math.max(0, Number(offset) || 0), Math.max(0, Number(offset) || 0) + top).map(brief),
     ranked: Boolean(query),
   };
 }
@@ -210,16 +228,27 @@ function block(entry) {
 // Roles that carry no conversation: bookkeeping rows atuin keeps for completeness.
 const SKIP_ROLES = new Set(["attachment", "custom-title"]);
 
-export async function showThread(id, { offset = 0 } = {}) {
+// One `atuin threads show` of a long thread takes seconds, and scrolling asks for the
+// next page every few hundred milliseconds, so the parsed thread is kept briefly.
+const showCache = new Map(); // id -> { at, session, messages }
+const SHOW_TTL_MS = 30_000;
+
+export async function showThread(id, { offset = 0, limit = MAX_MESSAGES } = {}) {
   if (!ID.test(id)) throw new Error("bad thread id");
-  const body = JSON.parse(await run(["threads", "show", id, "--style", "json"], 60_000));
-  const messages = (body.messages ?? []).filter((m) => !SKIP_ROLES.has(m.role) && m.content?.length);
+  let entry = showCache.get(id);
+  if (!entry || Date.now() - entry.at > SHOW_TTL_MS) {
+    const body = JSON.parse(await run(["threads", "show", id, "--style", "json"], 60_000));
+    entry = { at: Date.now(), session: body.session, messages: (body.messages ?? []).filter((m) => !SKIP_ROLES.has(m.role) && m.content?.length) };
+    showCache.set(id, entry);
+    if (showCache.size > 8) showCache.delete(showCache.keys().next().value);
+  }
   const start = Math.max(0, Number(offset) || 0);
+  const count = Math.max(1, Math.min(MAX_MESSAGES, Number(limit) || MAX_MESSAGES));
   return {
-    thread: brief(body.session),
-    total: messages.length,
+    thread: brief(entry.session),
+    total: entry.messages.length,
     offset: start,
-    messages: messages.slice(start, start + MAX_MESSAGES).map((m) => ({
+    messages: entry.messages.slice(start, start + count).map((m) => ({
       role: m.role,
       at: m.timestamp ?? null,
       model: m.model ?? null,
@@ -229,9 +258,6 @@ export async function showThread(id, { offset = 0 } = {}) {
   };
 }
 
-// The command that resumes a thread on this machine. `--print` makes atuin say
-// what it would run instead of running it. The fork and cross-agent lines are
-// built here as text and never executed (see the header).
 export async function resumeCommands(id, harnesses = []) {
   if (!ID.test(id)) throw new Error("bad thread id");
   // A thread that went on separately on another machine cannot be caught up by a
