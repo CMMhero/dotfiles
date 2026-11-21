@@ -33,7 +33,7 @@ const MAX_BUFFER = 256 * 1024 * 1024;
 
 // Caps for the detail view. Tool output can run to megabytes and a browser does
 // not need it to follow a conversation.
-const CAP = { text: 8000, thinking: 1500, input: 2000, result: 2500, diff: 4000 };
+const CAP = { text: 8000, thinking: 6000, input: 2000, result: 2500, diff: 4000 };
 const MAX_MESSAGES = 500;
 
 function run(args, timeout = 20_000) {
@@ -310,6 +310,178 @@ export async function showThread(id, { offset = 0, limit = MAX_MESSAGES, fresh =
 }
 
 
+
+// ---- reaching the machine a thread ran on -------------------------------------------------------------
+// A thread from another machine names paths that do not exist here. Rather than ask which machine to
+// try, the server asks them all: every host in USAGE_REMOTE_HOSTS, in parallel, with a short timeout,
+// and uses the first that has the path. The host that answered is remembered per atuin host id, so the
+// next request for that machine goes straight to it. A host can be Linux or macOS (sh) or Windows
+// (OpenSSH with PowerShell); the first ssh finds out which. Both kinds are handed their script as
+// base64, so no path or quote can break out of it.
+const b64 = (text) => Buffer.from(text, "utf8").toString("base64");
+const SSH_OPTS = ["-o", "BatchMode=yes", "-o", "ConnectTimeout=8", "-o", "LogLevel=ERROR"];
+const psCommand = (script) => `powershell -NoProfile -NonInteractive -EncodedCommand ${Buffer.from(script, "utf16le").toString("base64")}`;
+const kinds = new Map();      // ssh host -> { kind: "posix" | "windows" | "none", at }
+const KIND_TTL_MS = 60_000;   // an unreachable host is asked again after a minute
+
+async function hostKind(host) {
+  const hit = kinds.get(host);
+  if (hit && (hit.kind !== "none" || Date.now() - hit.at < KIND_TTL_MS)) return hit.kind;
+  const probe = async () => {
+    try { if (/^(Linux|Darwin|FreeBSD)/.test((await capture("ssh", [...SSH_OPTS, host, "uname -s"], { timeout: 12_000 })).toString().trim())) return "posix"; } catch { /* not a posix shell */ }
+    try { if (/^\d+/.test((await capture("ssh", [...SSH_OPTS, host, psCommand("$PSVersionTable.PSVersion.Major")], { timeout: 15_000 })).toString().trim())) return "windows"; } catch { /* not windows either */ }
+    return "none";
+  };
+  const pending = probe().then((kind) => { kinds.set(host, { kind, at: Date.now() }); return kind; });
+  kinds.set(host, { kind: pending, at: Date.now() });
+  return pending;
+}
+const kindOf = async (host) => { const k = kinds.get(host)?.kind; return typeof k === "string" ? k : hostKind(host); };
+
+// The same place, spelled the way each kind of machine spells it: D:\x on Windows is /mnt/d/x on WSL.
+export function pathVariants(given, kind) {
+  const win = /^[A-Za-z]:[\\/]/.test(given), mnt = /^\/mnt\/([a-z])\/(.*)$/i.exec(given);
+  if (kind === "windows") {
+    if (win) return [given];
+    return mnt ? [`${mnt[1].toUpperCase()}:\\${mnt[2].replace(/\//g, "\\")}`] : [];
+  }
+  if (win) return [`/mnt/${given[0].toLowerCase()}/${given.slice(3).replace(/\\/g, "/")}`];
+  return [given];
+}
+
+
+// Hosts to ask. USAGE_REMOTE_HOSTS, when set, is the whole list. When it is not, the defaults are joined
+// by every alias in ~/.ssh/config (so `linux` for WSL, a Windows PC, a VPS are all tried without being
+// listed), with aliases that point to the same host:port:user counted once.
+let discovered = { at: 0, list: [] };
+async function sshAliases() {
+  if (Date.now() - discovered.at < 10 * 60_000) return discovered.list;
+  let names = [];
+  try {
+    const text = await readFile(path.join(os.homedir(), ".ssh", "config"), "utf8");
+    for (const m of text.matchAll(/^\s*Host\s+(.+)$/gim)) for (const n of m[1].trim().split(/\s+/)) if (!/[*?!]/.test(n) && !/-public$/i.test(n)) names.push(n);
+  } catch { /* no config: nothing to add */ }
+  names = [...new Set(names)].slice(0, 24);
+  const seen = new Map();
+  await Promise.all(names.map(async (name) => {
+    try {
+      const cfg = Object.fromEntries((await capture("ssh", ["-G", name], { timeout: 5000 })).toString().split("\n").map((l) => { const i = l.indexOf(" "); return [l.slice(0, i), l.slice(i + 1)]; }));
+      const key = `${cfg.user}@${cfg.hostname}:${cfg.port}`;
+      if (!seen.has(key) || names.indexOf(name) < names.indexOf(seen.get(key))) seen.set(key, name);
+    } catch { /* an alias ssh cannot read */ }
+  }));
+  const list = names.filter((n) => [...seen.values()].includes(n));
+  discovered = { at: Date.now(), list };
+  return list;
+}
+async function sshCandidates() {
+  if (process.env.USAGE_REMOTE_HOSTS) return remoteHosts();
+  // The same machine can appear as "it@space-pp" and as the alias "space-pp": ask each place once.
+  const seen = new Map();
+  for (const name of [...remoteHosts(), ...(await sshAliases())]) {
+    let key = name;
+    try {
+      const cfg = Object.fromEntries((await capture("ssh", ["-G", name], { timeout: 5000 })).toString().split("\n").map((l) => { const i = l.indexOf(" "); return [l.slice(0, i), l.slice(i + 1)]; }));
+      key = `${cfg.user}@${cfg.hostname}:${cfg.port}`;
+    } catch { /* keep the name as its own key */ }
+    if (!seen.has(key)) seen.set(key, name);
+  }
+  return [...seen.values()].slice(0, 10);
+}
+
+// The WSL distros of a Windows machine are folders to it: \\wsl.localhost\Ubuntu\home\me\x.
+let distros = { at: 0, list: [] };
+async function wslDistros() {
+  if (process.platform !== "win32") return [];
+  if (Date.now() - distros.at < 5 * 60_000) return distros.list;
+  let list = [];
+  try { list = (await capture("wsl.exe", ["-l", "-q"], { timeout: 6000 })).toString("utf16le").replace(/\u0000/g, "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean); } catch { /* no WSL */ }
+  distros = { at: Date.now(), list };
+  return list;
+}
+// Every place on this machine a path written on any system could be.
+async function localPaths(given) {
+  const out = [normPath(given)];
+  for (const v of pathVariants(given, process.platform === "win32" ? "windows" : "posix")) if (!out.includes(v)) out.push(v);
+  if (process.platform === "win32" && given.startsWith("/") && !/^\/mnt\/[a-z]\//i.test(given)) {
+    for (const d of await wslDistros()) out.push(`\\\\wsl.localhost\\${d}${given.replace(/\//g, "\\")}`);
+  }
+  return out;
+}
+
+const readScript = (kind, target, limit) => kind === "windows"
+  ? `$p=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${b64(target)}'))
+if(-not [IO.File]::Exists($p)){exit 3}
+$f=[IO.File]::OpenRead($p)
+try{$n=[int][Math]::Min($f.Length,${limit});$b=New-Object byte[] $n;[void]$f.Read($b,0,$n);Write-Output $f.Length;Write-Output ([Convert]::ToBase64String($b))}finally{$f.Dispose()}`
+  : `p=$(printf %s '${b64(target)}' | base64 -d)
+case "$p" in "~/"*) p="$HOME/\${p#\\~/}";; esac
+[ -f "$p" ] || exit 3
+wc -c < "$p" | tr -d ' '
+head -c ${limit} -- "$p" | base64 | tr -d '\\n'
+echo`;
+const gitScript = (kind, target) => kind === "windows"
+  ? `$p=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${b64(target)}'))
+if(-not [IO.Directory]::Exists($p)){exit 3}
+git -C $p remote get-url origin 2>$null
+Write-Output '---'
+git -C $p rev-parse --abbrev-ref HEAD 2>$null
+exit 0`
+  : `p=$(printf %s '${b64(target)}' | base64 -d)
+case "$p" in "~/"*) p="$HOME/\${p#\\~/}";; esac
+[ -d "$p" ] || exit 3
+git -C "$p" remote get-url origin 2>/dev/null
+echo ---
+git -C "$p" rev-parse --abbrev-ref HEAD 2>/dev/null
+exit 0`;
+const runRemote = (host, kind, script, timeout = 25_000) =>
+  capture("ssh", [...SSH_OPTS, host, kind === "windows" ? psCommand(script) : `echo ${b64(script)} | base64 -d | sh`], { timeout });
+
+const winners = new Map();   // atuin host id -> ssh host that had that machine's files
+const remoteCache = new Map(); // "host|path|limit" -> { at, value }
+const REMOTE_TTL_MS = 60_000;
+
+// Ask the candidate hosts which has the thing; `ask(host, kind)` resolves with a value or rejects. The
+// host that answered last time for this machine goes first, and the others follow in the same instant.
+async function fromAnyHost(entry, ask) {
+  const machine = entry.session?.host ?? "";
+  const all = await sshCandidates();
+  const pref = winners.get(machine);
+  const order = pref && all.includes(pref) ? [pref, ...all.filter((h) => h !== pref)] : all;
+  if (!order.length) throw fail("no remote hosts are configured (USAGE_REMOTE_HOSTS)", 404, { hosts: [] });
+  const tries = order.map((host) => (async () => {
+    const kind = await kindOf(host);
+    if (kind === "none") throw new Error(`${host}: not reachable`);
+    return { host, value: await ask(host, kind) };
+  })());
+  try {
+    const { host, value } = await Promise.any(tries);
+    if (machine) winners.set(machine, host);
+    return { host, value };
+  } catch (e) {
+    throw fail("that is not on this machine, and none of the other machines have it", 404, { hosts: all, tried: (e.errors ?? []).map((x) => x.message).slice(0, 8) });
+  }
+}
+
+async function readRemote(entry, given, limit, only = "") {
+  const ask = async (host, kind) => {
+    for (const target of kind === "windows" ? pathVariants(given, kind) : given.startsWith("~/") ? [given] : pathVariants(given, kind)) {
+      const key = `${host}|${target}|${limit}`, hit = remoteCache.get(key);
+      if (hit && Date.now() - hit.at < REMOTE_TTL_MS) return hit.value;
+      try {
+        const [size, data = ""] = (await runRemote(host, kind, readScript(kind, target, limit))).toString().trim().split(/\r?\n/);
+        const value = { path: target, size: Number(size), buf: Buffer.from(data.trim(), "base64") };
+        remoteCache.set(key, { at: Date.now(), value });
+        if (remoteCache.size > 24) remoteCache.delete(remoteCache.keys().next().value);
+        return value;
+      } catch { /* not at that spelling */ }
+    }
+    throw new Error(`${host}: no such file`);
+  };
+  if (only) return { host: only, value: await ask(only, await kindOf(only)) };
+  return fromAnyHost(entry, ask);
+}
+
 // ---- images --------------------------------------------------------------------------
 // Messages point at pictures by path (a pasted screenshot, a saved attachment, a markdown
 // image). The browser cannot open a path on disk, so the server reads it, but only an image
@@ -317,6 +489,7 @@ export async function showThread(id, { offset = 0, limit = MAX_MESSAGES, fresh =
 // read arbitrary files: it can only show what the conversation itself already names.
 const IMAGE_TYPES = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp", ".bmp": "image/bmp", ".avif": "image/avif", ".svg": "image/svg+xml" };
 const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
+const IMAGE_LIMIT = 4 * 1024 * 1024;
 
 function mentions(entry, file) {
   const needle = file.replace(/\\/g, "/").toLowerCase();
@@ -333,13 +506,19 @@ export async function threadImage(id, file) {
   const entry = await loadEntry(id);
   const text = String(file ?? "").replace(/^file:\/\//, "");
   const resolved = decodeURIComponent(text).replace(/^\/([A-Za-z]:[\\/])/, "$1"); // file:///C:/x -> C:/x
-  const type = IMAGE_TYPES[path.extname(resolved).toLowerCase()];
-  if (!type || !path.isAbsolute(resolved)) throw Object.assign(new Error("not an image path"), { status: 400 });
+  const type = IMAGE_TYPES[(/\.[A-Za-z0-9]+$/.exec(resolved)?.[0] ?? "").toLowerCase()];
+  if (!type || !isAbs(resolved)) throw Object.assign(new Error("not an image path"), { status: 400 });
   if (!mentions(entry, text) && !mentions(entry, resolved)) throw Object.assign(new Error("this thread does not mention that file"), { status: 403 });
-  const info = await stat(resolved).catch(() => null);
-  if (!info?.isFile()) throw Object.assign(new Error("file not found on this machine"), { status: 404 });
-  if (info.size > MAX_IMAGE_BYTES) throw Object.assign(new Error("image too large"), { status: 413 });
-  return { type, data: await readFile(resolved) };
+  for (const here of await localPaths(text)) {
+    const info = await stat(here).catch(() => null);
+    if (!info?.isFile()) continue;
+    if (info.size > MAX_IMAGE_BYTES) throw Object.assign(new Error("image too large"), { status: 413 });
+    return { type, data: await readFile(here) };
+  }
+  // Not on this machine: the one the thread ran on has it.
+  const { value } = await readRemote(entry, text, IMAGE_LIMIT);
+  if (value.size > IMAGE_LIMIT) throw Object.assign(new Error("image too large to fetch from another machine"), { status: 413 });
+  return { type, data: value.buf, via: value.host };
 }
 
 
@@ -349,13 +528,17 @@ export async function threadImage(id, file) {
 // from one of the hosts in USAGE_REMOTE_HOSTS. Same rule as images: only a path that is written in
 // the thread being read, and only read access, so this is no way to browse the disk.
 const TEXT_LIMIT = 400 * 1024;
-const IMAGE_LIMIT = 4 * 1024 * 1024;
 function normPath(file) {
   let t = String(file ?? "").replace(/^file:\/\//, "");
   try { t = decodeURIComponent(t); } catch { /* keep it raw */ }
   t = t.replace(/^\/([A-Za-z]:[\\/])/, "$1");
   return t.startsWith("~/") ? path.join(os.homedir(), t.slice(2)) : t;
 }
+const normSpelling = (file) => {
+  let t = String(file ?? "").replace(/^file:\/\//, "");
+  try { t = decodeURIComponent(t); } catch { /* keep it raw */ }
+  return t.replace(/^\/([A-Za-z]:[\\/])/, "$1");
+};
 const isAbs = (p) => path.isAbsolute(p) || /^[A-Za-z]:[\\/]/.test(p);
 const fail = (message, status, extra = {}) => Object.assign(new Error(message), { status, ...extra });
 const looksBinary = (buf) => buf.subarray(0, 8192).includes(0);
@@ -369,43 +552,48 @@ function capture(cmd, args, { timeout = 20_000, maxBuffer = 16 * 1024 * 1024 } =
 async function guard(id, file) {
   const entry = await loadEntry(id);
   const given = String(file ?? ""), resolved = normPath(given);
-  if (!isAbs(resolved)) throw fail("not an absolute path", 400);
+  if (!isAbs(resolved) && !/^~\//.test(given)) throw fail("not an absolute path", 400);
   if (!mentions(entry, given) && !mentions(entry, resolved)) throw fail("this thread does not mention that file", 403);
   return resolved;
 }
 
 export async function threadFile(id, file, { host = "" } = {}) {
-  const resolved = await guard(id, file), ext = path.extname(resolved).toLowerCase();
+  const resolved = await guard(id, file), ext = (/\.[A-Za-z0-9]+$/.exec(resolved)?.[0] ?? "").toLowerCase();
+  const entry = await loadEntry(id), given = normSpelling(file);
+  const image = IMAGE_TYPES[ext];
+  const viaRemote = ({ host: via, value }) => {
+    if (image) return { path: value.path, via, kind: "image", size: value.size, dataUrl: value.buf.length && value.size <= IMAGE_LIMIT ? `data:${image};base64,${value.buf.toString("base64")}` : null, ext };
+    if (looksBinary(value.buf)) return { path: value.path, via, kind: "binary", size: value.size, ext };
+    return { path: value.path, via, kind: "text", size: value.size, text: value.buf.subarray(0, TEXT_LIMIT).toString("utf8"), truncated: value.size > TEXT_LIMIT, ext };
+  };
   if (host) {
-    if (!remoteHosts().includes(host)) throw fail("not one of the configured hosts", 400);
-    // The path becomes one single-quoted argument of a remote sh, so only plain path characters are allowed.
-    if (!/^[\w@%+=:,./~ -]+$/.test(resolved)) throw fail("that path has characters that are not read remotely", 400);
-    const image = IMAGE_TYPES[ext];
-    const script = image ? `head -c ${IMAGE_LIMIT + 1} -- '${resolved}' | base64 -w0` : `head -c ${TEXT_LIMIT + 1} -- '${resolved}'`;
-    const out = await capture("ssh", ["-o", "BatchMode=yes", "-o", "ConnectTimeout=8", "-o", "LogLevel=ERROR", host, `sh -c "${script.replace(/"/g, '\\"')}"`]);
-    if (image) { const b64 = out.toString().trim(); return { path: resolved, via: host, kind: "image", dataUrl: b64 && b64.length < IMAGE_LIMIT * 1.4 ? `data:${image};base64,${b64}` : null, ext }; }
-    if (looksBinary(out)) return { path: resolved, via: host, kind: "binary", size: out.length, ext };
-    return { path: resolved, via: host, kind: "text", text: out.subarray(0, TEXT_LIMIT).toString("utf8"), truncated: out.length > TEXT_LIMIT, ext };
+    if (!(await sshCandidates()).includes(host)) throw fail("not one of the configured hosts", 400);
+    return viaRemote(await readRemote(entry, given, image ? IMAGE_LIMIT : TEXT_LIMIT, host));
   }
-  const info = await stat(resolved).catch(() => null);
-  if (!info?.isFile()) throw fail("that file is not on this machine", 404, { hosts: remoteHosts() });
-  const base = { path: resolved, via: "this machine", size: info.size, mtime: info.mtime.toISOString(), ext };
-  if (IMAGE_TYPES[ext]) return { ...base, kind: "image" };
-  const handle = await open(resolved, "r");
-  try {
-    const buf = Buffer.alloc(Math.min(info.size, TEXT_LIMIT + 1));
-    const { bytesRead } = await handle.read(buf, 0, buf.length, 0);
-    const data = buf.subarray(0, bytesRead);
-    if (looksBinary(data)) return { ...base, kind: "binary" };
-    return { ...base, kind: "text", text: data.subarray(0, TEXT_LIMIT).toString("utf8"), truncated: info.size > TEXT_LIMIT };
-  } finally { await handle.close(); }
+  for (const here of await localPaths(file)) {
+    const info = await stat(here).catch(() => null);
+    if (!info?.isFile()) continue;
+    const base = { path: here, via: "this machine", size: info.size, mtime: info.mtime.toISOString(), ext };
+    if (image) return { ...base, kind: "image" };
+    const handle = await open(here, "r");
+    try {
+      const buf = Buffer.alloc(Math.min(info.size, TEXT_LIMIT + 1));
+      const { bytesRead } = await handle.read(buf, 0, buf.length, 0);
+      const data = buf.subarray(0, bytesRead);
+      if (looksBinary(data)) return { ...base, kind: "binary" };
+      return { ...base, kind: "text", text: data.subarray(0, TEXT_LIMIT).toString("utf8"), truncated: info.size > TEXT_LIMIT };
+    } finally { await handle.close(); }
+  }
+  // Not here: ask the other machines, all at once. 404 (with the hosts) only if none has it.
+  return viaRemote(await readRemote(entry, given, image ? IMAGE_LIMIT : TEXT_LIMIT));
 }
 
 // Show the file in the system file manager (selected, where the platform can). Only a file that exists
 // here and is named in the thread.
 export async function revealFile(id, file) {
-  const resolved = await guard(id, file);
-  const info = await stat(resolved).catch(() => null);
+  const first = await guard(id, file);
+  let resolved = first, info = null;
+  for (const here of await localPaths(file)) { info = await stat(here).catch(() => null); if (info) { resolved = here; break; } }
   if (!info) throw fail("that file is not on this machine", 404);
   const run = (cmd, args) => { const child = spawn(cmd, args, { detached: true, stdio: "ignore", windowsHide: false }); child.on("error", () => {}); child.unref(); };
   if (process.platform === "win32") run("explorer.exe", [`/select,${resolved.replace(/\//g, "\\")}`]);
@@ -431,25 +619,45 @@ const branchUrlOf = (web, branch) => {
 };
 async function threadCwd(id) {
   const entry = await loadEntry(id);
-  const cwd = normPath(entry.session?.cwd ?? "");
-  if (!cwd || !isAbs(cwd)) throw fail("this thread recorded no folder", 400);
-  return cwd;
+  const given = normSpelling(entry.session?.cwd ?? "");
+  if (!given || !isAbs(given)) throw fail("this thread recorded no folder", 400);
+  return { entry, given };
+}
+async function localFolder(given) {
+  for (const here of await localPaths(given)) { const info = await stat(here).catch(() => null); if (info?.isDirectory()) return here; }
+  return null;
 }
 
 export async function threadRepo(id, recordedBranch = "") {
-  const cwd = await threadCwd(id);
-  const info = await stat(cwd).catch(() => null);
-  if (!info?.isDirectory()) throw fail("that folder is not on this machine", 404);
-  const git = (args) => capture("git", ["-C", cwd, ...args], { timeout: 8000 }).then((b) => b.toString().trim()).catch(() => "");
-  const [root, remote, branch] = await Promise.all([git(["rev-parse", "--show-toplevel"]), git(["remote", "get-url", "origin"]), git(["rev-parse", "--abbrev-ref", "HEAD"])]);
+  const { entry, given } = await threadCwd(id);
+  let cwd = await localFolder(given), via = "this machine", remote = "", branch = "", root = null;
+  if (cwd) {
+    const git = (args) => capture("git", ["-C", cwd, ...args], { timeout: 8000 }).then((b) => b.toString().trim()).catch(() => "");
+    [root, remote, branch] = await Promise.all([git(["rev-parse", "--show-toplevel"]), git(["remote", "get-url", "origin"]), git(["rev-parse", "--abbrev-ref", "HEAD"])]);
+  } else {
+    // The folder is on the machine the thread ran on: ask that machine's git.
+    const ask = async (host, kind) => {
+      for (const target of pathVariants(given, kind)) {
+        try {
+          const lines = (await runRemote(host, kind, gitScript(kind, target), 20_000)).toString().split(/\r?\n/).map((l) => l.trim());
+          const cut = lines.indexOf("---");
+          return { target, remote: cut > 0 ? lines.slice(0, cut).join("") : "", branch: cut >= 0 ? lines[cut + 1] ?? "" : "" };
+        } catch { /* not at that spelling */ }
+      }
+      throw new Error(`${host}: no such folder`);
+    };
+    const got = await fromAnyHost(entry, ask);
+    via = got.host; cwd = got.value.target; remote = got.value.remote; branch = got.value.branch;
+  }
   const web = webUrlOf(remote), name = web ? web.split("/").slice(-2).join("/") : "";
-  return { cwd, root: root || null, remote: remote || null, web, name, branch: branch && branch !== "HEAD" ? branch : null, branchUrl: branchUrlOf(web, /^[\w./@+-]{1,200}$/.test(recordedBranch) ? recordedBranch : branch && branch !== "HEAD" ? branch : null) };
+  const head = branch && branch !== "HEAD" ? branch : null;
+  return { cwd, via, root: root || null, remote: remote || null, web, name, branch: head, branchUrl: branchUrlOf(web, /^[\w./@+-]{1,200}$/.test(recordedBranch) ? recordedBranch : head) };
 }
 
 export async function openThreadFolder(id) {
-  const cwd = await threadCwd(id);
-  const info = await stat(cwd).catch(() => null);
-  if (!info?.isDirectory()) throw fail("that folder is not on this machine", 404);
+  const { given } = await threadCwd(id);
+  const cwd = await localFolder(given);
+  if (!cwd) throw fail("that folder is not on this machine", 404);
   const run = (cmd, args) => { const child = spawn(cmd, args, { detached: true, stdio: "ignore" }); child.on("error", () => {}); child.unref(); };
   if (process.platform === "win32") run("explorer.exe", [cwd.replace(/\//g, "\\")]);
   else if (process.platform === "darwin") run("open", [cwd]);
@@ -482,3 +690,6 @@ export async function resumeCommands(id, harnesses = []) {
     continueIn: Object.fromEntries(harnesses.filter((h) => HARNESS.test(h)).map((h) => [h, `atuin threads resume ${id} --in ${h}`])),
   };
 }
+
+// Exposed for the tests of the remote scripts; not part of the page's API.
+export const _remote = { readScript, gitScript, psCommand, pathVariants };

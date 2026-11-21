@@ -17,6 +17,8 @@
 <link rel="preload" href="/assets/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
 <style>
   @font-face { font-family: "Geist"; src: url("/assets/fonts/Geist-Variable.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
+  @font-face { font-family: "Symbols Nerd Font Mono"; src: local("Symbols Nerd Font Mono"), url("/assets/fonts/SymbolsNerdFontMono.woff2") format("woff2"); font-display: swap;
+    unicode-range: U+E000-F8FF, U+F0000-FFFFD, U+23FB-23FE, U+2665, U+26A1, U+2B58, U+E5FA-E6AC; }
   @font-face { font-family: "Geist Mono"; src: url("/assets/fonts/GeistMono-Variable.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
   /* Catppuccin: Macchiato when dark, Latte when light. Every colour on the page
      comes from these variables, so a theme is one block. */
@@ -30,8 +32,8 @@
     --heat-0: #2e3248; --heat-1: #4a4470; --heat-2: #6c5fa3; --heat-3: #9a80d6; --heat-4: #c6a0f6;
     --c1: #c6a0f6; --c2: #8aadf4; --c3: #8bd5ca; --c4: #f5a97f; --c5: #eed49f; --c6: #f5bde6; --c7: #a6da95;
     --t1: #5b6078; --t2: #8087a2; --t3: #a5adcb; --t4: #cad3f5;
-    --sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-    --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --sans: "Geist", "Symbols Nerd Font Mono", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "Geist Mono", "GeistMono NFP", "GeistMono Nerd Font Mono", "Symbols Nerd Font Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
     --pad: clamp(18px, 3vw, 56px);
     --hh: 96px;
     --maxw: 1680px;
@@ -477,7 +479,7 @@
   .tl .scroll.searching { opacity: .55; transition: opacity var(--t-med) var(--ease); }
   .tl .scroll { transition: opacity var(--t-med) var(--ease); }
   .tl .search { position: relative; }
-  .tl .search .wait { position: absolute; right: 10px; top: 50%; width: 13px; height: 13px; margin-top: -6.5px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--accent); opacity: 0; transition: opacity var(--t-fast); pointer-events: none; }
+  .tl .search .wait { position: absolute; right: 12px; top: 50%; width: 14px; height: 14px; margin-top: -7px; box-sizing: border-box; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--accent); opacity: 0; transition: opacity var(--t-fast); pointer-events: none; }
   .tl .search.busy .wait { opacity: 1; animation: spin .8s linear infinite; }
   .ti { content-visibility: auto; contain-intrinsic-size: auto 76px; }
   .conv > .turn, .conv > details.run, .conv > .steps { content-visibility: auto; contain-intrinsic-size: auto 80px; }
@@ -776,7 +778,7 @@
     body { font-size: 13.5px; }
     .conv { max-width: 980px; }
     .threads { grid-template-columns: 340px minmax(0, 1fr) 360px; }
-    .heat-wrap { max-width: none; }
+    .heat-wrap { max-width: 1560px; }
   }
   @media (min-width: 2500px) {
     :root { --maxw: 2480px; --pad: clamp(40px, 3vw, 72px); }
@@ -809,9 +811,10 @@
   .msgmeta button { width: 26px; height: 26px; display: grid; place-items: center; background: none; border: 0; border-radius: 7px; color: var(--faint); cursor: pointer; transition: background-color var(--t-fast), color var(--t-fast); }
   .msgmeta button:hover { background: var(--hover); color: var(--text); }
   .msgmeta button.ok { color: var(--good); }
-  .turn.assistant .msgmeta { opacity: 0; transition: opacity var(--t-med) var(--ease); }
-  .turn.assistant:hover .msgmeta, .turn.assistant:focus-within .msgmeta { opacity: 1; }
-  @media (hover: none) { .turn.assistant .msgmeta { opacity: .8; } }
+  /* The time and the buttons show while the message is hovered or focused. The row keeps its height, so nothing moves. */
+  .turn .msgmeta { opacity: 0; transition: opacity var(--t-med) var(--ease); }
+  .turn:hover .msgmeta, .turn:focus-within .msgmeta { opacity: 1; }
+  @media (hover: none) and (pointer: coarse) { .turn .msgmeta { opacity: .8; } }
   /* ---- skills, links and custom tags ----------------------------------------------------------- */
   .cmd { border-color: color-mix(in srgb, var(--skill) 45%, transparent); background: color-mix(in srgb, var(--skill) 14%, transparent); }
   .cmd b { color: var(--skill); }
@@ -836,11 +839,12 @@
 
   /* ---- wide screens, round two: what the testers found ------------------------------------ */
   @media (min-width: 1900px) {
-    .heat svg, .heat-foot { max-width: none; }
+    .heat svg { max-width: none; } .heat-foot { max-width: 1560px; }
     .conv p, .conv li { max-width: 92ch; }
     .turn.user { max-width: min(82%, 78ch); }
     .tside { align-content: start; } .tside .card { position: sticky; top: 14px; }
-    .table-wrap table { max-width: 1900px; }
+    /* The table keeps the full width; the number columns grow with the screen so the gap between a name and its figures stays readable. */
+    #tablecard th.num { width: clamp(96px, 5.2vw, 190px); } #tablecard th.txt { width: clamp(190px, 9vw, 320px); } #tablecard th.idx { width: 44px; }
     .foot > div { max-width: 120ch; }
   }
   @media (min-width: 2500px) {
@@ -919,6 +923,51 @@
     .pal input { font-size: 16px; } .pal .ft { display: none; }
     .conv .empty { display: grid; gap: 8px; justify-items: center; padding: 40px 16px; text-align: center; }
   }
+  /* ---- thinking: shown as text, nothing to open ---------------------------------------------- */
+  .think { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; column-gap: 10px; align-items: center; padding: 5px 0; color: var(--muted); font-size: 13px; }
+  .think > .ui { color: var(--faint); } .think .l { font-weight: 500; } .think .at { color: var(--faint); font-size: 11px; }
+  .think .tt { grid-column: 2 / -1; margin: 3px 0 4px; color: var(--muted); max-height: 280px; overflow: auto; overscroll-behavior: contain; line-height: 1.55; }
+  .think .tt > :first-child { margin-top: 0; } .think .tt > :last-child { margin-bottom: 0; }
+  /* ---- terminal output ----------------------------------------------------------------------- */
+  .t-ok { color: var(--good); } .t-bad { color: var(--bad); } .t-warn { color: var(--warn); } .t-info { color: var(--c2); } .t-dim { color: var(--faint); }
+  .t-hash { color: var(--c5); } .t-hl { color: var(--c3); font-weight: 500; } .t-head { color: var(--text); font-weight: 600; }
+  .t-ref { color: var(--c3); } .t-ref.head { color: var(--c4); font-weight: 600; } .t-ref.tag { color: var(--c5); } .t-ref.remote { color: var(--c7); }
+  /* The clear button and the loading ring share one slot: while it loads the ring takes the button's place. */
+  .search .sclear .ui { position: static; display: block; color: inherit; }
+  .search .sclear { border-radius: 50%; }
+  .search.busy .sclear { opacity: 0; transform: scale(.7); pointer-events: none; }
+  .search.busy .skbd { opacity: 0; }
+  .pal .it .psub { margin-left: auto; padding-left: 12px; max-width: 46%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--faint); font-size: 11.5px; }
+  .fvtried { margin-top: 10px; font-size: 12px; text-align: left; display: inline-block; } .fvtried ul { margin: 4px 0 0; padding-left: 18px; font-family: var(--mono); font-size: 11.5px; }
+
+  /* ---- one control height: tabs, dropdowns, search, buttons and icon buttons all match ------------- */
+  :root { --ctl: 32px; }
+  @media (max-width: 820px) { :root { --ctl: 36px; } }
+  .btn, .btn.sm, .field, .xs.field, .xs.xs-pick, .search input.field { height: var(--ctl); min-height: var(--ctl); padding-top: 0; padding-bottom: 0; box-sizing: border-box; }
+  .btn, .btn.sm { display: inline-flex; align-items: center; justify-content: center; }
+  .seg, .seg.sm { height: var(--ctl); box-sizing: border-box; align-items: stretch; }
+  .seg button, .seg.sm button, #view button, #range button, .bdhead .seg button { min-height: 0; height: 100%; padding-top: 0; padding-bottom: 0; }
+  .icon-btn { width: var(--ctl); height: var(--ctl); min-width: var(--ctl); min-height: var(--ctl); }
+  .btn.palbtn { height: var(--ctl); }
+
+  /* ---- one text size and weight for every control ------------------------------------------------- */
+  .btn, .btn.sm, .btn.palbtn, .seg button, .seg.sm button, .field, .xs, .xs.field, .search input, .icon-btn { font-size: 1em; line-height: 1.2; }
+  .btn, .btn.sm, .seg button, .xs.field, .xs.xs-pick { font-weight: 500; }
+  .search input, .search input::placeholder { font-weight: 400; }
+  /* The search box grows with the screen, so its hint is never cut: room for the icon on the left and the key hint on the right. */
+  .search input { width: clamp(280px, 22vw, 520px); }
+  .tl .bar .search input { width: 100%; }
+  @media (max-width: 820px) { .search input { width: min(240px, 60vw); } .tl .bar .search input { width: 100%; } }
+
+  /* ---- a question and the options that were picked ------------------------------------------------- */
+  .aqo li { grid-template-columns: 18px minmax(0, 1fr) auto; align-items: start; gap: 2px 10px; transition: border-color var(--t-fast), background-color var(--t-fast), opacity var(--t-fast); }
+  .aqo li > div { display: grid; gap: 1px; min-width: 0; }
+  .aqo li .tick { width: 16px; height: 16px; margin-top: 1px; border: 1.5px solid var(--faint); border-radius: 50%; display: grid; place-items: center; color: var(--on-accent); }
+  .aqo li.sel { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--bg)); }
+  .aqo li.sel .tick { background: var(--accent); border-color: var(--accent); }
+  .aqo li.dim { opacity: .55; } .aq.multi .aqo li .tick { border-radius: 5px; }
+  .aqo li .chosen { color: var(--accent); font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; align-self: center; }
+  .aqo li.other b { font-weight: 500; white-space: pre-wrap; overflow-wrap: anywhere; }
 </style>
 </head>
 <body>
@@ -1254,7 +1303,7 @@ const get = async (url, signal) => {
   try {
     const res = await fetch(url, { signal });
     const body = await res.json();
-    if (!res.ok || body.error) throw new Error(body.error || res.statusText);
+    if (!res.ok || body.error) throw Object.assign(new Error(body.error || res.statusText), { status: res.status, hosts: body.hosts, tried: body.tried });
     return body;
   } finally {
     document.body.classList.toggle("busy", --inFlight > 0);
@@ -2079,6 +2128,7 @@ function mdInline(src) {
   s = s.replace(/(`+)([^`]|[^`][\s\S]*?[^`])\1(?!`)|\\([\\`*_{}[\]()#+\-.!|~>])/g, (m, f, c, escaped) => (escaped !== undefined ? keep(esc(escaped)) : looksLikePath(c.trim()) ? keep(pathChip(c.trim())) : keep(`<code class="i">${esc(c.trim())}</code>`)));
   s = s.replace(/!\[([^\]\n]*)\]\(\s*<?((?:[^()\s>]|\([^()\s]*\))+)>?(?:\s+"[^"]*")?\s*\)/g, (m, alt, u) => keep(imgTag(alt, u)));
   s = s.replace(/\[([^\]\n]+)\]\(\s*<?(https?:\/\/(?:[^()\s>]|\([^()\s]*\))+)>?(?:\s+"[^"]*")?\s*\)/g, (m, t, u) => link(u, mdEm(esc(t))));
+  s = s.replace(/(^|[\s(])git@([\w.-]+):([\w.-]+\/[\w./-]*[\w-])(?:\.git)?(?=[\s),;:!?]|$)/g, (m, pre, host, repo) => pre + link(`https://${host}/${repo}`, esc(`git@${host}:${repo}`)));
   s = s.replace(/<(https?:\/\/[^\s>]+)>/g, (m, u) => link(u, esc(u)));
   s = s.replace(/(^|[\s(])(https?:\/\/[^\s<>)\]]*[^\s<>)\].,;:!?'"])/g, (m, pre, u) => pre + link(u, esc(u)));          // bare links
   s = s.replace(/(^|[\s(])((?:~\/|\/(?=[\w.])|[A-Za-z]:[\\/])[\w.@%+=,~-]+(?:[\\/][\w.@%+=,~-]+)*)(?<![.,=+])(?=$|[\s),;:!?.'"])/g, (m, pre, path) => (looksLikePath(path) ? pre + keep(pathChip(path)) : m)); // bare paths
@@ -2180,7 +2230,7 @@ function hlDiff(code, given = "") {
 function hlNumbered(text, lang) {
   const lines = text.split("\n"), re = /^(\s*\d+)([:→|\t]\s?|\s{2,})/;
   const hits = lines.filter((l) => re.test(l)).length;
-  if (!lang || hits < Math.max(2, lines.length * 0.6)) return null;
+  if (hits < Math.max(2, lines.length * 0.6)) return null;
   return lines.map((l) => { const m = re.exec(l); return m ? `<span class="tk-ln">${esc(m[0])}</span>${hlCode(l.slice(m[0].length), lang)}` : hlCode(l, lang); }).join("\n");
 }
 const guessLang = (code) => (/^\s*[{[]/.test(code) && /[}\]]\s*$/.test(code) ? "json" : /^(diff --git|@@ |--- a\/|\*\*\* Begin Patch|\+\+\+ )/m.test(code) ? "diff" : /^\s*(\$ |#!\/)/.test(code) ? "sh" : /^\s*<(!DOCTYPE|html|div|svg)\b/i.test(code) ? "html" : "");
@@ -2493,7 +2543,89 @@ function grepView(text) {
   for (const l of hits) { const [, f, n, t] = re.exec(l); (groups.get(f) ?? groups.set(f, []).get(f)).push([n, t]); }
   return `<div class="grep">${[...groups].slice(0, 60).map(([f, rows]) => `<div class="gf"><div class="gn">${ui("file-text", 12)}<span>${esc(f)}</span><small>${rows.length}</small></div>${rows.slice(0, 40).map(([n, t]) => `<div class="gl"><span class="tk-ln">${esc(n)}</span>${hlCode(t, langOfPath(f)) || esc(t)}</div>`).join("")}</div>`).join("")}</div>`;
 }
-function resultBlock(res, hintLang = "") {
+// Plain terminal output (no colours of its own) read for what it is: git status, log and diff --stat,
+// build and test lines, errors and warnings, and a trailing exit status. Every rule works on one line,
+// so a line it does not know is left exactly as it was.
+const GIT_MARK = { modified: "t-warn", "new file": "t-ok", deleted: "t-bad", renamed: "t-info", copied: "t-info", "both modified": "t-bad", "both added": "t-bad", "deleted by us": "t-bad", "deleted by them": "t-bad", typechange: "t-warn" };
+const SHORT_MARK = { M: "t-warn", A: "t-ok", D: "t-bad", R: "t-info", C: "t-info", U: "t-bad", "?": "t-dim", "!": "t-dim" };
+function termLine(raw) {
+  const e = esc(raw);
+  let m;
+  // git status, long form
+  if ((m = /^(\s*)(modified|new file|deleted|renamed|copied|both modified|both added|deleted by us|deleted by them|typechange):(\s+)(.*)$/.exec(raw))) return `${esc(m[1])}<span class="${GIT_MARK[m[2]]}">${esc(m[2])}:</span>${esc(m[3])}${esc(m[4])}`;
+  if ((m = /^(On branch |HEAD detached at |Your branch is )(.*)$/.exec(raw))) return `<span class="t-dim">${esc(m[1])}</span><span class="t-hl">${esc(m[2])}</span>`;
+  if (/^(Changes to be committed|Changes not staged for commit|Untracked files|Unmerged paths|nothing to commit|nothing added to commit|no changes added to commit)/.test(raw)) return `<span class="t-head">${e}</span>`;
+  if (/^\s+\(use "git /.test(raw)) return `<span class="t-dim">${e}</span>`;
+  // git status --short
+  if ((m = /^([ MADRCU?!])([ MADRCU?!])( )(\S.*)$/.exec(raw)) && (m[1] !== " " || m[2] !== " ") && /[MADRCU?!]/.test(m[1] + m[2]) && !/^[A-Z][a-z]/.test(raw)) {
+    const a = m[1], b = m[2], cls = (c) => SHORT_MARK[c] ?? "";
+    return `<span class="${cls(a)}">${esc(a)}</span><span class="${cls(b)}">${esc(b)}</span> ${esc(m[4])}`;
+  }
+  // git log
+  if ((m = /^(commit )([0-9a-f]{7,40})(.*)$/.exec(raw))) return `<span class="t-dim">${esc(m[1])}</span><span class="t-hash">${esc(m[2])}</span>${termRefs(m[3])}`;
+  if ((m = /^(Author|Date|Merge):(\s+)(.*)$/.exec(raw))) return `<span class="t-dim">${esc(m[1])}:</span>${esc(m[2])}${esc(m[3])}`;
+  if ((m = /^([0-9a-f]{7,12})( \(.*?\))?( .*)$/.exec(raw)) && !/^\d+$/.test(m[1])) return `<span class="t-hash">${esc(m[1])}</span>${m[2] ? termRefs(m[2]) : ""}${esc(m[3])}`;
+  if ((m = /^(\*[ |\\/*]*)([0-9a-f]{7,12})( \(.*?\))?( .*)?$/.exec(raw))) return `<span class="t-dim">${esc(m[1])}</span><span class="t-hash">${esc(m[2])}</span>${m[3] ? termRefs(m[3]) : ""}${esc(m[4] ?? "")}`;
+  // git diff --stat and commit summaries
+  if ((m = /^(\s*)(\S.*?)(\s+\|\s+)(\d+)(\s*)([+]*)([-]*)\s*$/.exec(raw))) return `${esc(m[1])}${esc(m[2])}<span class="t-dim">${esc(m[3])}</span>${esc(m[4])}${esc(m[5])}<span class="t-ok">${m[6]}</span><span class="t-bad">${m[7]}</span>`;
+  if (/^\s*\d+ files? changed/.test(raw)) return e.replace(/(\d+ insertions?\(\+\))/, '<span class="t-ok">$1</span>').replace(/(\d+ deletions?\(-\))/, '<span class="t-bad">$1</span>');
+  // errors, warnings, results
+  if (/^\s*(?:(?:fatal|error|ERR!?|ERROR|Error|Traceback|panic|FAIL|FAILED)\b|[✗✘×])/.test(raw) || /^\s*(npm ERR!|error\[|error:|Uncaught)/.test(raw)) return `<span class="t-bad">${e}</span>`;
+  if (/^\s*(warning|warn|WARN|WARNING|Warning|deprecated|DEPRECATED)\b/.test(raw) || /^\s*(npm warn|warning:)/.test(raw)) return `<span class="t-warn">${e}</span>`;
+  if (/^\s*(?:(?:PASS|PASSED|OK|ok|Done|done|Success|success|Finished)\b|[✓✔])/.test(raw)) return `<span class="t-ok">${e}</span>`;
+  if (/\b(\d+ (?:failed|failing|errors?))\b/.test(raw)) return e.replace(/(\d+ (?:failed|failing|errors?))/g, '<span class="t-bad">$1</span>').replace(/(\d+ (?:passed|passing))/g, '<span class="t-ok">$1</span>');
+  if (/\b\d+ (?:passed|passing)\b/.test(raw)) return e.replace(/(\d+ (?:passed|passing))/g, '<span class="t-ok">$1</span>').replace(/(\d+ (?:skipped|pending))/g, '<span class="t-warn">$1</span>');
+  if ((m = /^(\$|>|PS [^>]*>|#) (.*)$/.exec(raw))) return `<span class="t-dim">${esc(m[1])}</span> ${esc(m[2])}`;
+  return e;
+}
+// (HEAD -> main, origin/main, tag: v1)
+function termRefs(text) {
+  const m = /^(\s*)\((.*)\)(.*)$/.exec(text);
+  if (!m) return esc(text);
+  const refs = m[2].split(", ").map((r) => /^HEAD/.test(r) ? `<span class="t-ref head">${esc(r)}</span>` : /^tag: /.test(r) ? `<span class="t-ref tag">${esc(r)}</span>` : /^origin\//.test(r) ? `<span class="t-ref remote">${esc(r)}</span>` : `<span class="t-ref">${esc(r)}</span>`).join('<span class="t-dim">, </span>');
+  return `${esc(m[1])}<span class="t-dim">(</span>${refs}<span class="t-dim">)</span>${esc(m[3])}`;
+}
+// Does this look like something termLine can improve? Cheap, so a long dump of plain text is left alone.
+const termHtml = (text) => text.split("\n").map(termLine).join("\n");
+// A trailing "exit code 1", "exit status 2", "Command exited with code 3", "[exit code: 0]" becomes a chip.
+function exitStatus(text) {
+  const m = /\n?\s*(?:\[?\s*(?:Command )?(?:exited with(?: exit)? code|exit(?:ed)?(?: code| status)?)[:\s]+(-?\d+)\s*\]?|<exited with exit code (-?\d+)>)\s*$/i.exec(text);
+  if (!m) return null;
+  const code = m[1] ?? m[2];
+  return { code, body: text.slice(0, m.index).replace(/\s+$/, ""), chip: `<span class="chip ${code === "0" ? "ok" : "bad"}">exit ${esc(code)}</span>` };
+}
+// What a piece of output is, when nothing said so: markup, YAML, a shebang script. Cheap tests on the
+// first lines only, and a wrong guess just means less colour, never changed text.
+function sniffLang(text) {
+  const head = text.slice(0, 4000), lines = head.split("\n").filter((l) => l.trim());
+  if (/^\s*<(!doctype html|html|\?xml|svg|!--)/i.test(head)) return "html";
+  if (/^#!\/.*\b(ba|z|fi)?sh\b/.test(head)) return "sh";
+  if (/^#!\/.*python/.test(head)) return "py";
+  if (/^#!\/.*node/.test(head)) return "js";
+  if (lines.length >= 4 && lines.filter((l) => /^\s*(?:- |[\w.-]+:(?:\s|$))/.test(l)).length >= lines.length * 0.75 && lines.some((l) => /^\s*[\w.-]+:(\s|$)/.test(l))) return "yaml";
+  if (lines.length >= 3 && lines.filter((l) => /^\s*(?:\[[\w .-]+\]|[\w.-]+ *= *\S)/.test(l)).length >= lines.length * 0.8) return "yaml";
+  return "";
+}
+// A command that prints a file (cat, head, sed -n, bat) shows that file's language.
+function shellLang(cmd) {
+  const t = String(Array.isArray(cmd) ? cmd.join(" ") : cmd ?? "");
+  if (!/\b(cat|head|tail|sed|bat|nl|less|more|type|Get-Content|gc|awk)\b/.test(t)) return "";
+  for (const m of t.matchAll(/[\w./~\\-]+\.(\w{1,6})\b/g)) { const l = LANGS[m[1].toLowerCase()]; if (l) return l; }
+  return "";
+}
+// curl -i and friends: the status line, the headers, then a body that is read as what it is.
+function httpView(text) {
+  const m = /^(HTTP\/[\d.]+) (\d{3})([^\n]*)\n((?:[A-Za-z][\w-]*: ?[^\n]*\n)*)\r?\n?([\s\S]*)$/.exec(text.replace(/\r\n/g, "\n"));
+  if (!m) return null;
+  const code = +m[2], cls = code < 300 ? "t-ok" : code < 400 ? "t-info" : code < 500 ? "t-warn" : "t-bad";
+  const heads = m[4].split("\n").filter(Boolean).map((l) => { const i = l.indexOf(":"); return `<span class="tk-k">${esc(l.slice(0, i))}</span><span class="t-dim">:</span>${esc(l.slice(i + 1))}`; }).join("\n");
+  const body = m[5].trim();
+  let inner = "";
+  if (body) { try { inner = codeBlock(JSON.stringify(JSON.parse(body), null, 2), "json"); } catch { inner = codeBlock(body, /^\s*[{[]/.test(body) ? "json" : sniffLang(body)); } }
+  return `<div class="code out"><div class="ch"><span class="cl">response</span></div><pre><code><span class="${cls}">${esc(m[1])} ${esc(m[2])}${esc(m[3])}</span>\n${heads}</code></pre></div>${inner}`;
+}
+const looksMarkdown = (t) => /(^|\n)(#{1,6} \S|[-*] \S|\d+\. \S|> \S)|\*\*\S|\]\(https?:|```/.test(t);
+function resultBlock(res, hintLang = "", kind = "") {
   const raw = String(res?.text ?? "");
   if (!res || !raw.trim()) return "";
   const label = res.isError ? "Error" : "Result", cls = res.isError ? "bad" : "";
@@ -2506,30 +2638,98 @@ function resultBlock(res, hintLang = "") {
   const sh = shellWrapper(raw.replace(/\u001b\[[0-9;]*m/g, ""));
   const text = sh ? sh.body : raw, chips = sh ? sh.chips : "";
   const plain = text.replace(/\u001b\[[0-9;]*m/g, "");
-  if (/^\s*[{[]/.test(plain)) { try { return wrap(codeBlock(JSON.stringify(JSON.parse(plain), null, 2), "json"), chips); } catch { /* not JSON after all */ } }
+  if (/^\s*[{[]/.test(plain)) {
+    try { return wrap(codeBlock(JSON.stringify(JSON.parse(plain), null, 2), "json"), chips); } catch { /* clipped or not JSON: still coloured as JSON when it reads like it */ }
+    if (/^\s*[{[]\s*["\w{\[]/.test(plain) && /"[^"\n]*"\s*:/.test(plain.slice(0, 600))) return wrap(codeBlock(plain, "json"), chips);
+  }
+  const http = !res.isError || /^HTTP\//.test(plain) ? httpView(plain) : null;
+  if (http) return wrap(http, chips);
   if (/^(diff --git|@@ |--- a\/|\*\*\* Begin Patch)/m.test(plain)) return wrap(codeBlock(plain, "diff", hintLang), chips);
   const grep = res.isError ? null : grepView(plain);
   if (grep) return wrap(grep, chips);
-  const numbered = !res.isError && hintLang ? hlNumbered(plain, hintLang) : null;
+  const numbered = !res.isError ? hlNumbered(plain, hintLang || sniffLang(plain.replace(/^\s*\d+(?:[:→|\t]\s?|\s{2,})/gm, ""))) : null;
   if (numbered) return wrap(plainBlock(numbered, hintLang), chips);
-  // Anything else is terminal output: keep its colours, make its links clickable.
-  return wrap(plainBlock(/\u001b\[/.test(text) ? ansiHtml(text) : ansiHtml(plain)), chips);
+  // A page, a document or a file printed by a command: read as markdown for a web fetch, as its own language otherwise.
+  if (!res.isError && kind === "web" && looksMarkdown(plain) && !/^\s*</.test(plain)) return wrap(`<div class="wb">${md(plain)}</div>`, chips);
+  const lang = hintLang || sniffLang(plain);
+  if (!res.isError && lang && lang !== "text" && plain.split("\n").length > 2) return wrap(codeBlock(plain, lang), chips);
+  // Anything else is terminal output: keep its colours if it has them, otherwise read it as git, build
+  // or test output, and turn a trailing exit status into a chip.
+  const coloured = /\u001b\[/.test(text), ex = sh || coloured ? null : exitStatus(plain), body = ex ? ex.body : plain;
+  const html = coloured ? ansiHtml(text) : termHtml(body);
+  return wrap(plainBlock(html), chips + (ex ? `<div class="rchips">${ex.chip}</div>` : ""));
 }
 function todoBody(a) {
   const items = pick(a, "todos", "items", "plan") ?? [];
   if (!Array.isArray(items)) return "";
   return `<ul class="todos">${items.map((t) => { const st = String(t.status ?? ""), label = t.content ?? t.text ?? t.step ?? t.activeForm ?? JSON.stringify(t); return `<li class="${st}"><span class="box" aria-hidden="true">${st === "completed" ? ui("check", 11) : st === "in_progress" ? '<i></i>' : ""}</span><span>${esc(String(label))}</span></li>`; }).join("")}</ul>`;
 }
+// Which options were picked, read from the answer each harness writes back:
+//   Claude Code, opencode:  User has answered your questions: "Question"="Label", "Other"="A, B". ...
+//   Codex:                  {"answers":{"id":{"answers":["Label"]}}}
+//   a single question:      just the chosen label (optionally after "Selected:" or "Answer:")
+// Returns one { picked: [option indexes], other: "text typed in" } per question, or null when it cannot tell.
+function parseAnswers(text, qs) {
+  const raw = String(text ?? "").trim();
+  if (!raw || !qs.length) return null;
+  const keyOf = (q) => [q.question, q.header, q.id, q.key].filter(Boolean).map((x) => String(x).trim().toLowerCase());
+  const answers = new Map();   // question index -> answer string(s)
+  const place = (key, val) => {
+    const k = String(key).trim().toLowerCase();
+    let i = qs.findIndex((q) => keyOf(q).includes(k));
+    if (i < 0) i = qs.findIndex((q) => keyOf(q).some((x) => x && (k.includes(x) || x.includes(k))));
+    if (i >= 0) answers.set(i, Array.isArray(val) ? val.map(String) : [String(val)]);
+  };
+  try {
+    const j = JSON.parse(raw), map = j?.answers ?? j;
+    if (map && typeof map === "object" && !Array.isArray(map)) for (const [k, v] of Object.entries(map)) place(k, v?.answers ?? v?.answer ?? v?.value ?? v);
+  } catch { /* not JSON */ }
+  if (!answers.size) for (const m of raw.matchAll(/"((?:[^"\\]|\\.)*)"\s*=\s*"((?:[^"\\]|\\.)*)"/g)) place(m[1].replace(/\\"/g, '"'), m[2].replace(/\\"/g, '"'));
+  if (!answers.size && qs.length === 1) answers.set(0, [raw.replace(/^(?:User has answered your questions?:|User selected:|Selected:|Answer:)\s*/i, "").replace(/\.?\s*You can now continue.*$/s, "").replace(/^"|"$/g, "")]);
+  if (!answers.size) return null;
+  return qs.map((q, i) => {
+    const given = answers.get(i);
+    if (!given) return null;
+    const opts = (q.options ?? []).map((o) => String(o.label ?? o).trim());
+    const picked = new Set();
+    let rest = [];
+    for (const part of given) {
+      const whole = part.trim();
+      const exact = opts.findIndex((o) => o.toLowerCase() === whole.toLowerCase());
+      if (exact >= 0) { picked.add(exact); continue; }
+      // several labels joined in one string: take every label that appears, longest first so "Yes" does not eat "Yes, always"
+      let left = whole;
+      for (const [o, n] of opts.map((o, n) => [o, n]).sort((x, y) => y[0].length - x[0].length)) {
+        if (o && left.toLowerCase().includes(o.toLowerCase())) { picked.add(n); left = left.replace(new RegExp(o.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"), ""); }
+      }
+      left = left.replace(/^[\s,;|]+|[\s,;|]+$/g, "").replace(/\s*[,;]\s*(?=[,;]|$)/g, "");
+      if (left) rest.push(left);
+    }
+    return { picked: [...picked].sort((x, y) => x - y), other: rest.join(", ") };
+  });
+}
 function askBody(a, res) {
-  const qs = Array.isArray(a?.questions) ? a.questions : [];
-  const answer = res?.text ? String(res.text).replace(/^User has answered your questions?:\s*/i, "").trim() : "";
-  return `${qs.map((q) => `<div class="aq"><div class="aqh">${q.header ? `<span class="chip">${esc(q.header)}</span>` : ""}${q.multiSelect ? '<span class="chip soft">choose several</span>' : ""}</div><div class="aqq">${md(String(q.question ?? ""))}</div>${Array.isArray(q.options) ? `<ul class="aqo">${q.options.map((o) => `<li><b>${esc(o.label ?? o)}</b>${o.description ? `<span>${esc(o.description)}</span>` : ""}</li>`).join("")}</ul>` : ""}</div>`).join("")}${answer ? `<div class="aqa"><span class="rl">Answer</span>${md(answer)}</div>` : '<div class="aqa wait">No answer recorded</div>'}`;
+  const qs = Array.isArray(a?.questions) ? a.questions : a?.question ? [a] : [];
+  const text = res?.text ? String(res.text).replace(/\.?\s*You can now continue with the user's answers in mind\.?\s*$/i, "").replace(/^User has answered your questions?:\s*/i, "").trim() : "";
+  const got = parseAnswers(res?.text, qs);
+  const answeredAll = Boolean(got) && got.every(Boolean);
+  const body = qs.map((q, qi) => {
+    const sel = got?.[qi], opts = Array.isArray(q.options) ? q.options : [];
+    const li = opts.map((o, n) => {
+      const on = sel?.picked.includes(n);
+      return `<li class="${on ? "sel" : sel ? "dim" : ""}"><span class="tick" aria-hidden="true">${on ? ui(q.multiSelect || q.multiple || q.multi ? "check" : "check", 12) : ""}</span><div><b>${esc(o.label ?? o)}</b>${o.description ? `<span>${esc(o.description)}</span>` : ""}</div>${on ? '<span class="chosen">Selected</span>' : ""}</li>`;
+    }).join("");
+    const other = sel?.other ? `<li class="sel other"><span class="tick" aria-hidden="true">${ui("check", 12)}</span><div><b>${esc(sel.other)}</b><span>Typed in</span></div><span class="chosen">Answer</span></li>` : "";
+    return `<div class="aq${q.multiSelect || q.multiple || q.multi ? " multi" : ""}"><div class="aqh">${q.header ? `<span class="chip">${esc(q.header)}</span>` : ""}${q.multiSelect || q.multiple || q.multi ? '<span class="chip soft">choose several</span>' : ""}${sel ? '<span class="chip ok">answered</span>' : ""}</div><div class="aqq">${md(String(q.question ?? ""))}</div>${li || other ? `<ul class="aqo">${li}${other}</ul>` : ""}</div>`;
+  }).join("");
+  const foot = answeredAll ? "" : text ? `<div class="aqa"><span class="rl">Answer</span>${md(text)}</div>` : '<div class="aqa wait">No answer recorded</div>';
+  return body + foot;
 }
 // One call, drawn by what it is: a command, a file edit as a diff, a plan as a checklist, a question
 // with its options. Its result sits inside the same card when both are on the page.
 function toolCard(b, res, at) {
   const kind = toolKind(b.name), a = b.args ?? {}, [icon, label] = TOOL_META[kind];
-  if (kind === "ask" && Array.isArray(a.questions)) return `<div class="ask"><div class="ah">${ui("help-circle", 14)}<b>Question for you</b><span class="at mono">${clock(at)}</span></div>${askBody(a, res)}</div>`;
+  if (kind === "ask" && (Array.isArray(a.questions) || a.question)) return `<div class="ask"><div class="ah">${ui("help-circle", 14)}<b>Question for you</b><span class="at mono">${clock(at)}</span></div>${askBody(a, res)}</div>`;
   let head = "", body = "";
   const intent = pick(a, "i", "intent", "description", "reason");
   if (kind === "shell") {
@@ -2576,11 +2776,11 @@ function toolCard(b, res, at) {
   if (intent && !head) head = one(intent, 140);
   const state = res ? (res.isError ? '<span class="st bad">failed</span>' : '<span class="st ok">done</span>') : "";
   const showName = kind === "mcp" ? "MCP" : kind === "tool" ? esc(b.name) : label;
-  return `<details class="tool t-${kind}${res?.isError ? " err" : ""}"><summary>${ui(icon, 14)}<b class="tn">${showName}</b><span class="td">${esc(head)}</span>${state}<span class="at mono">${clock(at)}</span>${ui("chevron-right", 12)}</summary><div class="tb">${body}${kind === "ask" || (kind === "todo" && !planView(String(res?.text ?? ""))) ? "" : resultBlock(res, kind === "read" ? langOfPath(pick(a, "file_path", "path", "filePath", "target_file")) : "")}</div></details>`;
+  return `<details class="tool t-${kind}${res?.isError ? " err" : ""}"><summary>${ui(icon, 14)}<b class="tn">${showName}</b><span class="td">${esc(head)}</span>${state}<span class="at mono">${clock(at)}</span>${ui("chevron-right", 12)}</summary><div class="tb">${body}${kind === "ask" || (kind === "todo" && !planView(String(res?.text ?? ""))) ? "" : resultBlock(res, kind === "read" ? langOfPath(pick(a, "file_path", "path", "filePath", "target_file")) : kind === "shell" ? shellLang(pick(a, "command", "cmd", "script", "code", "input")) : "", kind)}</div></details>`;
 }
 function stepHTML(b, at, res) {
   const line = (icon, label, body, extra = "") => `<details class="step"><summary>${ui(icon, 14)}<span class="l">${label}</span>${extra}<span class="at mono">${clock(at)}</span>${ui("chevron-right", 12)}</summary><pre>${esc(body)}</pre></details>`;
-  if (b.type === "thinking") return line("brain", "Thinking", b.text);
+  if (b.type === "thinking") return `<div class="think">${ui("brain", 14)}<span class="l">Thinking</span><span class="at mono">${clock(at)}</span>${String(b.text ?? "").trim() ? `<div class="tt">${md(b.text)}</div>` : ""}</div>`;
   if (b.type === "tool_call") return toolCard(b, res, at);
   if (b.type === "tool_result") return `<details class="tool t-result${b.isError ? " err" : ""}"><summary>${ui("chevron-right", 14)}<span class="td faint">${esc(one(b.text, 140) || "result")}</span><span class="at mono">${clock(at)}</span>${ui("chevron-right", 12)}</summary><div class="tb">${resultBlock(b)}</div></details>`;
   if (b.type === "patch") {
@@ -2642,7 +2842,8 @@ async function openFile(file, host = "") {
   } catch (e) {
     const hosts = e.hosts ?? [];
     act.innerHTML = copy;
-    body.innerHTML = `<div class="empty">${esc(e.message)}.${hosts.length ? `<div class="fvhosts">Read it over ssh from: ${hosts.map((h) => `<button type="button" class="btn sm" data-host="${esc(h)}">${esc(h)}</button>`).join("")}</div>` : ""}</div>`;
+    const tried = (e.tried ?? []).map((t) => `<li>${esc(t)}</li>`).join("");
+    body.innerHTML = `<div class="empty"><div>${esc(e.message)}.</div>${tried ? `<div class="fvtried faint">Asked ${hosts.length} other ${hosts.length === 1 ? "machine" : "machines"} over ssh:<ul>${tried}</ul></div>` : ""}${hosts.length ? `<div class="fvhosts">Try one by hand: ${hosts.map((h) => `<button type="button" class="btn sm" data-host="${esc(h)}">${esc(h)}</button>`).join("")}</div>` : ""}</div>`;
   }
   fv.onclick = (ev) => {
     if (ev.target.closest("[data-fvclose]")) closeFile();
@@ -3217,6 +3418,7 @@ function openHelp() {
     <div class="cols">${groups.map((g) => `<div><h4>${g}</h4>${SHORTCUTS.filter((s) => s[0] === g).map((s) => `<div class="k"><span>${esc(s[2])}</span><span>${keyChips(s[1])}</span></div>`).join("")}</div>`).join("")}</div></div></div>`;
 }
 
+const threadItem = (x) => ({ g: "Thread", id: x.id, l: x.title || x.preview || "(untitled)", sub: [x.cwd ? tail(x.cwd, 1) : "", x.branch, x.updatedAt ? ago(x.updatedAt) : ""].filter(Boolean).join(" · "), icon: ai(x.harness, 14), run: () => { state.view = "threads"; save(); openThread(x.id); render(); } });
 function paletteItems() {
   const items = SHORTCUTS.filter((s) => !["Ctrl K", "Esc"].includes(s[1])).map(([g, k, l, run]) => ({ g, l, k, run }));
   for (const [k, l] of THEMES) items.push({ g: "Theme", l: `Theme: ${l}`, run: () => setTheme(k) });
@@ -3227,7 +3429,7 @@ function paletteItems() {
     for (const p of d.options.projects) items.push({ g: "Filter", l: `Project: ${tail(p, 3)}`, run: () => { state.project = p; pickView(state.metric); reloadUsage(); } });
     for (const m of d.options.models) items.push({ g: "Filter", l: `Model: ${m}`, run: () => { state.model = m; pickView(state.metric); reloadUsage(); } });
   }
-  for (const x of state.thr.list?.threads ?? []) items.push({ g: "Thread", l: x.title || x.preview || "(untitled)", icon: ai(x.harness, 14), run: () => { state.view = "threads"; save(); openThread(x.id); render(); } });
+  for (const x of state.thr.list?.threads ?? []) items.push(threadItem(x));
   return items;
 }
 // Every typed word must appear in the label or group; earlier matches rank higher.
@@ -3258,19 +3460,36 @@ function openPalette() {
   clearTimeout(closing);
   if (!state.thr.list && !state.thr.unavailable) loadThreads().catch(() => {});
   if (!state.data) loadUsage().catch(() => {});
-  overlay.innerHTML = `<div class="ov" data-close><div class="pal" role="dialog" aria-label="Command palette"><div class="in">${ui("command", 15)}<input id="palq" placeholder="Type a command, a filter, or a thread title" autocomplete="off" spellcheck="false"></div>
+  overlay.innerHTML = `<div class="ov" data-close><div class="pal" role="dialog" aria-label="Command palette"><div class="in">${ui("command", 15)}<input id="palq" placeholder="Type a command, a filter, or search threads" autocomplete="off" spellcheck="false"></div>
     <div class="list" id="pallist" role="listbox"></div><div class="ft"><span><span class="kbd">Up</span><span class="kbd">Down</span> move</span><span><span class="kbd">Enter</span> run</span><span><span class="kbd">Esc</span> close</span></div></div></div>`;
   const input = $("palq"), list = $("pallist");
-  let shown = [], at = 0;
+  let shown = [], at = 0, found = { q: "", threads: [] }, ctl = null, pending = false;
   const draw = () => {
+    const q = input.value.trim();
     shown = paletteFilter(paletteItems(), input.value);
+    if (q) {
+      // Server results (every thread, typo tolerant) after the commands, without repeating a thread already listed.
+      const have = new Set(shown.filter((i) => i.id).map((i) => i.id));
+      if (found.q === q) for (const x of found.threads) if (!have.has(x.id)) shown.push(threadItem(x));
+      shown.push({ g: "Thread", l: `Search all threads for \u201c${q}\u201d`, sub: pending ? "searching" : found.q === q ? plural(found.total ?? found.threads.length, "match") : "", icon: ui("search", 14), run: () => { Object.assign(state.thr, { q, agent: "all", host: "all", model: "all", project: "all", days: "0", limit: 200 }); state.view = "threads"; save(); history.replaceState(null, "", location.pathname); state.thr.sel = null; loadThreads().catch(() => {}); render(); } });
+    }
     at = Math.min(at, Math.max(0, shown.length - 1));
     let last = "";
-    list.innerHTML = shown.length ? shown.map((i, n) => `${i.g !== last ? `<div class="grp">${(last = i.g)}</div>` : ""}<div class="it ${n === at ? "on" : ""}" data-n="${n}" role="option" aria-selected="${n === at}">${i.icon ?? ""}<span class="l">${esc(i.l)}</span>${i.k ? keyChips(i.k) : ""}</div>`).join("") : `<div class="none">Nothing matches.</div>`;
+    list.innerHTML = shown.length ? shown.map((i, n) => `${i.g !== last ? `<div class="grp">${(last = i.g)}</div>` : ""}<div class="it ${n === at ? "on" : ""}" data-n="${n}" role="option" aria-selected="${n === at}">${i.icon ?? ""}<span class="l">${esc(i.l)}</span>${i.sub ? `<span class="psub">${esc(i.sub)}</span>` : ""}${i.k ? keyChips(i.k) : ""}</div>`).join("") : `<div class="none">${pending ? "Searching" : "Nothing matches"}.</div>`;
     list.querySelector(".it.on")?.scrollIntoView({ block: "nearest" });
   };
   const run = (n) => { const item = shown[n]; if (!item) return; closeOverlay(); item.run(); };
-  input.addEventListener("input", () => { at = 0; draw(); });
+  const ask = debounce(async () => {
+    const q = input.value.trim();
+    if (!q) { found = { q: "", threads: [] }; pending = false; draw(); return; }
+    ctl?.abort(); ctl = new AbortController(); pending = true; draw();
+    try {
+      const r = await get("/api/threads?" + new URLSearchParams({ q, limit: 12, subagents: "0" }), ctl.signal);
+      found = { q, threads: r.threads ?? [], total: r.total };
+    } catch (e) { if (e.name === "AbortError") return; found = { q: "", threads: [] }; }
+    pending = false; if ($("palq") === input) draw();
+  }, 160);
+  input.addEventListener("input", () => { at = 0; draw(); ask(); });
   input.addEventListener("keydown", (e) => {
     if (e.key === "ArrowDown") { at = Math.min(shown.length - 1, at + 1); draw(); e.preventDefault(); }
     else if (e.key === "ArrowUp") { at = Math.max(0, at - 1); draw(); e.preventDefault(); }

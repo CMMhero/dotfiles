@@ -220,7 +220,7 @@ function serveThreads(res, url) {
   const q = url.searchParams;
   const json = (status, body) => send(res, status, "application/json", JSON.stringify(body));
   if (url.pathname === "/api/threads/file") {
-    threadFile(q.get("id") ?? "", q.get("path") ?? "", { host: q.get("host") ?? "" }).then((body) => json(200, body), (error) => json(error.status ?? 400, { error: error.message, hosts: error.hosts }));
+    threadFile(q.get("id") ?? "", q.get("path") ?? "", { host: q.get("host") ?? "" }).then((body) => json(200, body), (error) => json(error.status ?? 400, { error: error.message, hosts: error.hosts, tried: error.tried }));
     return;
   }
   if (url.pathname === "/api/threads/repo") {
