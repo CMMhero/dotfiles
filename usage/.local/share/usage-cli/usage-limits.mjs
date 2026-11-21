@@ -17,6 +17,10 @@
 //           token_count event. Nothing is sent anywhere; the figure is as old as
 //           the last Codex turn, and says so.
 //
+//   agy     Antigravity answers for itself: `agy -p /usage --output-format json` prints
+//           the weekly quota per model group, using the login agy already holds. No
+//           token is read or sent from here, and the command costs no model call.
+//
 //   remote  other machines are asked over ssh (see detectRemoteLimits): this file and
 //           usage-limits-keys.mjs are piped to the host, run there with its own node,
 //           and print the same JSON. Logins and keys never leave that machine; only
@@ -279,6 +283,76 @@ function codexLimits(home) {
 }
 
 // ------------------------------------------------------------------------------
+// Antigravity
+// ------------------------------------------------------------------------------
+
+const AGY_WINDOW_MS = { daily: 86_400_000, weekly: 604_800_000, monthly: 2_592_000_000 };
+
+// {"command":{"data":{"groups":[{"name","description","buckets":[{"id","name",
+// "window","remaining_fraction","reset_time"}]}]}}} -> shared window rows.
+export function parseAntigravityUsage(body) {
+  const windows = [];
+  for (const group of body?.command?.data?.groups ?? []) {
+    for (const bucket of group.buckets ?? []) {
+      if (typeof bucket.remaining_fraction !== "number") continue;
+      const window = String(bucket.window ?? "").toLowerCase();
+      const models = String(group.description ?? "").replace(/^Models within this group:\s*/i, "");
+      windows.push({
+        id: bucket.id ?? `${group.name}-${window}`,
+        label: window ? `${group.name}, ${window}` : String(group.name),
+        detail: models || undefined,
+        percent: Math.max(0, Math.min(100, (1 - bucket.remaining_fraction) * 100)),
+        resetsAt: bucket.reset_time ?? null,
+        windowMs: AGY_WINDOW_MS[window] ?? null,
+        stale: false,
+      });
+    }
+  }
+  return windows;
+}
+
+// agy is usually a mise shim, which a service or ssh command does not have on PATH.
+function agyEnv(home, env) {
+  const extra = [path.join(home, ".local", "share", "mise", "shims"), path.join(home, ".local", "bin"), path.join(home, ".local", "share", "vite-plus", "bin")];
+  if (env.LOCALAPPDATA) extra.push(path.join(env.LOCALAPPDATA, "mise", "shims"));
+  return { ...env, PATH: [...extra, env.PATH ?? env.Path ?? ""].join(path.delimiter) };
+}
+
+async function findAgy(home, env) {
+  const withPath = agyEnv(home, env);
+  for (const name of ["agy"]) {
+    try {
+      await run(name, ["--version"], { env: withPath, timeout: 10_000 });
+      return { cmd: name, env: withPath };
+    } catch (error) {
+      if (error.code !== "ENOENT") return { cmd: name, env: withPath }; // it exists, it just failed
+    }
+  }
+  try {
+    const located = (await run("mise", ["which", "agy"], { env: withPath, timeout: 10_000 })).toString().trim().split(/\r?\n/)[0];
+    if (located) return { cmd: located, env: withPath };
+  } catch { /* mise absent or agy not installed through it */ }
+  return null;
+}
+
+async function antigravityLimits(home, env) {
+  if (!existsSync(path.join(home, ".gemini", "antigravity-cli"))) return null;
+  const base = { id: "antigravity", name: "Antigravity", windows: [], source: "agy /usage", asOf: null };
+  const agy = await findAgy(home, env);
+  if (!agy) return { ...base, status: "error", note: "Antigravity data is here but the agy command was not found on PATH." };
+  try {
+    const stdout = await run(agy.cmd, ["-p", "/usage", "--output-format", "json"], { env: agy.env, cwd: home, timeout: 30_000 });
+    const body = JSON.parse(stdout.toString());
+    const windows = parseAntigravityUsage(body);
+    if (windows.length) return { ...base, status: "ok", windows, asOf: new Date().toISOString(), note: null };
+    const said = String(body?.response ?? "").trim().split(/\r?\n/)[0];
+    return { ...base, status: "error", note: said ? `agy said: ${said.slice(0, 200)}` : "agy reported no quota. Sign in with `agy` once." };
+  } catch (error) {
+    return { ...base, status: "error", note: `Could not read agy usage: ${error.message}` };
+  }
+}
+
+// ------------------------------------------------------------------------------
 
 async function detectLocalLimits({ home = os.homedir(), fresh = false, fetchImpl = fetch, env = process.env } = {}) {
   const providers = [];
@@ -286,6 +360,7 @@ async function detectLocalLimits({ home = os.homedir(), fresh = false, fetchImpl
   const detectors = [
     ["claude", () => claudeLimits(home, fetchImpl)],
     ["codex", async () => codexLimits(home)],
+    ["antigravity", () => antigravityLimits(home, env)],
     ...keyDetectors.map(([id, run]) => [id, () => run(keys, fetchImpl)]),
   ];
   for (const [id, run] of detectors) {
@@ -319,9 +394,9 @@ export function readableError(text) {
   return lines.slice(0, 2).join(" | ").slice(0, 240);
 }
 
-function run(cmd, args, { input, timeout = 30_000 } = {}) {
+function run(cmd, args, { input, timeout = 30_000, env, cwd } = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn(cmd, args, { stdio: ["pipe", "pipe", "pipe"], windowsHide: true });
+    const child = spawn(cmd, args, { stdio: ["pipe", "pipe", "pipe"], windowsHide: true, env, cwd });
     const out = [], err = [];
     const timer = setTimeout(() => { child.kill(); reject(new Error(`timed out after ${timeout / 1000}s`)); }, timeout);
     child.stdout.on("data", (c) => out.push(c));
@@ -369,6 +444,33 @@ export async function detectRemoteLimits({ hosts = remoteHosts(), fresh = false 
   }));
 }
 
+// The same account on two machines reports the same counters, so listing both is
+// noise. Providers whose id, plan, status, window percentages and facts all match
+// collapse into one entry that remembers which machines hold it. Reset times are
+// left out of the match on purpose: an idle window's reset moves on every query
+// (agy reports "a week from now"), so two machines asked seconds apart never agree.
+export function providerSignature(p) {
+  return JSON.stringify([
+    p.id, p.plan ?? null, p.status,
+    (p.windows ?? []).map((w) => [w.id, Math.round(w.percent), Boolean(w.stale)]),
+    (p.facts ?? []).map((f) => [f.label, f.value]),
+  ]);
+}
+
+export function uniqueProviders(hosts) {
+  const seen = new Map();
+  for (const h of hosts) {
+    if (!h.ok) continue;
+    for (const p of h.providers) {
+      const key = providerSignature(p);
+      const hit = seen.get(key);
+      if (hit) hit.hosts.push(h.host);
+      else seen.set(key, { ...p, host: undefined, hosts: [h.host] });
+    }
+  }
+  return [...seen.values()];
+}
+
 export async function detectLimits({ remote = true, ...options } = {}) {
   const local = await detectLocalLimits(options);
   const others = remote ? await detectRemoteLimits({ fresh: options.fresh }) : [];
@@ -381,7 +483,7 @@ export async function detectLimits({ remote = true, ...options } = {}) {
   ];
   // Flat list kept for older callers: each provider is tagged with its machine.
   const providers = hosts.flatMap((h) => h.providers.map((p) => ({ ...p, host: h.host })));
-  return { generatedAt: local.generatedAt, hosts, providers, checked: local.checked };
+  return { generatedAt: local.generatedAt, hosts, unique: uniqueProviders(hosts), providers, checked: local.checked };
 }
 
 // `node usage-limits.mjs --json` is what a remote host runs for us.

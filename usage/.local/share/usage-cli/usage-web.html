@@ -235,8 +235,10 @@
 
   /* ---- limits ---------------------------------------------------------------- */
   .lims { display: grid; gap: 0; }
-  .lhost { margin: 0; font-size: 14px; }
-  .lhost .plan { margin-left: 10px; font-size: 11px; background: var(--accent-soft); color: var(--accent); border-radius: 6px; padding: 1px 8px; font-weight: 500; }
+  .lbar { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12.5px; }
+  .lbar select.field { max-width: 320px; }
+  .onhosts { color: var(--muted); font-size: 11.5px; margin-top: 6px; }
+  .onhosts b { color: var(--text); font-weight: 500; }
   .lim { display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); gap: 16px clamp(24px, 4vw, 64px); padding: 28px 0; border-top: 1px solid var(--line-2); }
   .lim:first-child { border-top: 0; padding-top: 0; }
   @media (max-width: 900px) { .lim { grid-template-columns: 1fr; } }
@@ -492,6 +494,7 @@ const AGENT = {
   omp: { name: "Oh My Pi", color: "#b58cf0", file: "pi" },
   cline: { name: "Cline", color: "#e0b341", file: "cline" },
   gemini: { name: "Gemini", color: "#8e9bf2", file: "gemini" },
+  antigravity: { name: "Antigravity", color: "#7c9cf5", file: "gemini" },
   copilot: { name: "Copilot", color: "#7aa2f7", file: "githubcopilot" },
   cursor: { name: "Cursor", color: "var(--text)", file: "cursor" },
   grok: { name: "Grok", color: "var(--text)", file: "xai" },
@@ -564,7 +567,7 @@ const state = {
   host: "all", agent: "all", project: "all", model: "all", q: "",
   group: pref("group", "project"), metric: pref("metric", "cost"), tab: pref("tab", "models"), chart: pref("chart", "lines"),
   sort: {}, shown: 100,
-  data: null, limits: null, theme: pref("theme", "system"),
+  data: null, limits: null, limHost: pref("limHost", "all"), theme: pref("theme", "system"),
   mod: { data: null, scope: "used", q: "", metric: "intelligence", picked: new Set(), sort: null, shown: 60 },
   thr: { q: "", agent: "all", host: "all", model: "all", project: "all", days: "0", limit: 200, mode: "resume", sub: false, list: null, sel: null, detail: null, cmd: null, unavailable: null },
 };
@@ -1150,22 +1153,30 @@ function limitWindow(w) {
     <div class="when">${when}</div>${share}${parts}</div>`;
 }
 
-function limitCard(p) {
+function limitCard(p, onHosts = "") {
   return `<section class="lim ${p.status !== "ok" ? "off" : ""}">
     <div><h3>${limitIcon(p.id)}${esc(p.name)}${p.plan ? `<span class="plan">${esc(p.plan)}</span>` : ""}${p.status === "expired" ? '<span class="plan bad">sign in again</span>' : ""}</h3>
-      <div class="src">${esc(p.source || "local")}${p.status === "ok" && p.asOf ? ` · ${ago(p.asOf)}` : ""}</div></div>
+      <div class="src">${esc(p.source || "local")}${p.status === "ok" && p.asOf ? ` · ${ago(p.asOf)}` : ""}</div>${onHosts}</div>
     <div class="wins">${p.windows.map(limitWindow).join("")}${p.facts?.length ? `<dl class="facts">${p.facts.map((f) => `<div><dt>${esc(f.label)}</dt><dd>${esc(f.value)}</dd></div>`).join("")}</dl>` : ""}${p.note ? `<div class="note ${p.status === "expired" || p.status === "error" ? "bad" : ""}">${esc(p.note)}</div>` : ""}</div></section>`;
 }
 function renderLimits() {
   const main = $("main"), L = state.limits;
   if (!L) { main.innerHTML = SKELETON.limits(); return; }
   const hosts = L.hosts ?? [{ host: "this machine", ok: true, local: true, providers: L.providers }];
-  if (!L.providers.length && hosts.every((h) => h.ok)) { main.innerHTML = `<div class="empty">No agent or provider with limits was found on this machine.<br>Checked: ${L.checked.map(esc).join(", ")}.</div>`; return; }
   const multi = hosts.length > 1;
-  main.innerHTML = hosts.map((h) => `${multi ? `<h2 class="lhost">${esc(h.host)}${h.local ? '<span class="plan">this machine</span>' : ""}</h2>` : ""}<div class="lims">${
-    h.ok ? (h.providers.length ? h.providers.map(limitCard).join("") : `<div class="empty">Nothing with limits found on ${esc(h.host)}.</div>`) : `<div class="empty">${esc(h.note)}</div>`
-  }</div>`).join("") + `
-    <div class="foot"><div>Limits are the provider's own counters, so one account shows the same figure on every machine that uses it; a machine is listed to show which logins and keys it holds. Other machines are read over ssh (<code>USAGE_REMOTE_HOSTS</code>) by running this check there, so their logins and keys never leave them. Providers reached with an API key are read with the key your agents already store; it is sent only to that provider.</div></div>`;
+  if (!hosts.some((h) => h.host === state.limHost)) state.limHost = "all";
+  const one = state.limHost === "all" ? null : hosts.find((h) => h.host === state.limHost);
+
+  // Default: each distinct provider once, tagged with the machines that hold it.
+  // A machine picked from the dropdown shows only what that machine reports.
+  const cards = one ? (one.ok ? one.providers.map((p) => limitCard(p)) : []) : (L.unique ?? L.providers).map((p) => limitCard(p, multi && p.hosts ? `<div class="onhosts">on ${p.hosts.map((h) => `<b>${esc(h)}</b>`).join(", ")}</div>` : ""));
+  const down = (one ? [one] : hosts).filter((h) => !h.ok);
+  const bar = multi ? `<div class="lbar"><label for="lhost">Machine</label><select class="field ${one ? "on" : ""}" id="lhost" aria-label="Machine">
+      <option value="all">All machines, each provider once</option>${hosts.map((h) => `<option value="${esc(h.host)}" ${h.host === state.limHost ? "selected" : ""}>${esc(h.host)}${h.local ? " (this machine)" : ""}${h.ok ? "" : " (unreachable)"}</option>`).join("")}</select></div>` : "";
+  const empty = !cards.length && !down.length ? `<div class="empty">No agent or provider with limits was found${one ? ` on ${esc(one.host)}` : " on this machine"}.<br>Checked: ${L.checked.map(esc).join(", ")}.</div>` : "";
+  main.innerHTML = `${bar}${cards.length ? `<div class="lims">${cards.join("")}</div>` : ""}${empty}${down.map((h) => `<div class="empty">${esc(h.note)}</div>`).join("")}
+    <div class="foot"><div>Limits are the provider's own counters, so one account shows the same figure on every machine that uses it. By default each distinct provider appears once with the machines that hold it; pick a machine to see only its own. Other machines are read over ssh (<code>USAGE_REMOTE_HOSTS</code>) by running this check there, so their logins and keys never leave them. Providers reached with an API key are read with the key your agents already store; it is sent only to that provider.</div></div>`;
+  $("lhost")?.addEventListener("change", (e) => { state.limHost = e.target.value; store.setItem("usage.limHost", state.limHost); renderLimits(); });
 }
 
 // ==== threads ==================================================================
